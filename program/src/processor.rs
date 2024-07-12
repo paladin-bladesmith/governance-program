@@ -1,19 +1,63 @@
 //! Program processor.
 
 use {
-    crate::{instruction::PaladinGovernanceInstruction, state::Proposal},
+    crate::{
+        error::PaladinGovernanceError,
+        instruction::PaladinGovernanceInstruction,
+        state::{
+            collect_vote_signer_seeds, get_governance_address, get_vote_address_and_bump_seed,
+            Config, Proposal, ProposalVote,
+        },
+    },
     solana_program::{
         account_info::{next_account_info, AccountInfo},
         clock::Clock,
         entrypoint::ProgramResult,
         incinerator, msg,
+        program::invoke_signed,
         program_error::ProgramError,
         pubkey::Pubkey,
-        system_program,
+        system_instruction, system_program,
         sysvar::Sysvar,
     },
     spl_discriminator::SplDiscriminate,
 };
+
+fn check_governance_exists(program_id: &Pubkey, governance_info: &AccountInfo) -> ProgramResult {
+    // Ensure the provided governance address is the correct address derived from
+    // the program.
+    if !governance_info.key.eq(&get_governance_address(program_id)) {
+        return Err(PaladinGovernanceError::IncorrectGovernanceConfigAddress.into());
+    }
+
+    // Ensure the governance account is owned by the Paladin Governance program.
+    if governance_info.owner != program_id {
+        return Err(ProgramError::InvalidAccountOwner);
+    }
+
+    // Ensure the governance account is initialized.
+    if governance_info.data_len() != std::mem::size_of::<Config>() {
+        return Err(ProgramError::UninitializedAccount);
+    }
+
+    Ok(())
+}
+
+fn check_proposal_exists(program_id: &Pubkey, proposal_info: &AccountInfo) -> ProgramResult {
+    // Ensure the proposal account is owned by the Paladin Governance program.
+    if proposal_info.owner != program_id {
+        return Err(ProgramError::InvalidAccountOwner);
+    }
+
+    // Ensure the proposal account is initialized.
+    if !(proposal_info.data_len() == std::mem::size_of::<Proposal>()
+        && &proposal_info.try_borrow_data()?[0..8] == Proposal::SPL_DISCRIMINATOR_SLICE)
+    {
+        return Err(ProgramError::UninitializedAccount);
+    }
+
+    Ok(())
+}
 
 /// Processes a
 /// [CreateProposal](enum.PaladinGovernanceInstruction.html)
@@ -80,17 +124,7 @@ fn process_cancel_proposal(program_id: &Pubkey, accounts: &[AccountInfo]) -> Pro
     // Ensure the provided stake account belongs to the validator.
     // TODO: Requires imports from stake program.
 
-    // Ensure the proposal account is owned by the Paladin Governance program.
-    if proposal_info.owner != program_id {
-        return Err(ProgramError::InvalidAccountOwner);
-    }
-
-    // Ensure the proposal account is initialized.
-    if !(proposal_info.data_len() == std::mem::size_of::<Proposal>()
-        && &proposal_info.try_borrow_data()?[0..8] == Proposal::SPL_DISCRIMINATOR_SLICE)
-    {
-        return Err(ProgramError::UninitializedAccount);
-    }
+    check_proposal_exists(program_id, proposal_info)?;
 
     // Close the proposal account.
     if incinerator_info.key != &incinerator::id() {
@@ -114,7 +148,104 @@ fn process_cancel_proposal(program_id: &Pubkey, accounts: &[AccountInfo]) -> Pro
 /// Processes a
 /// [Vote](enum.PaladinGovernanceInstruction.html)
 /// instruction.
-fn process_vote(_program_id: &Pubkey, _accounts: &[AccountInfo], _vote: bool) -> ProgramResult {
+fn process_vote(program_id: &Pubkey, accounts: &[AccountInfo], vote: bool) -> ProgramResult {
+    let accounts_iter = &mut accounts.iter();
+
+    let validator_info = next_account_info(accounts_iter)?;
+    let _stake_info = next_account_info(accounts_iter)?;
+    let _vault_info = next_account_info(accounts_iter)?;
+    let vote_info = next_account_info(accounts_iter)?;
+    let proposal_info = next_account_info(accounts_iter)?;
+    let governance_info = next_account_info(accounts_iter)?;
+    let _system_program_info = next_account_info(accounts_iter)?;
+
+    // Ensure the validator vote account is a signer.
+    if !validator_info.is_signer {
+        return Err(ProgramError::MissingRequiredSignature);
+    }
+
+    // Ensure the provided stake account belongs to the validator.
+    // TODO: Requires imports from stake program.
+    let stake = 0; // TODO!
+
+    // Ensure the proper vault account was provided.
+    // TODO: Requires imports from stake program.
+
+    check_governance_exists(program_id, governance_info)?;
+    check_proposal_exists(program_id, proposal_info)?;
+
+    // Create the proposal vote account.
+    {
+        let (vote_address, bump_seed) =
+            get_vote_address_and_bump_seed(validator_info.key, proposal_info.key, program_id);
+        let bump_seed = [bump_seed];
+        let vote_signer_seeds =
+            collect_vote_signer_seeds(validator_info.key, proposal_info.key, &bump_seed);
+
+        // Ensure the provided vote address is the correct address derived from
+        // the validator and proposal.
+        if !vote_info.key.eq(&vote_address) {
+            return Err(PaladinGovernanceError::IncorrectProposalVoteAddress.into());
+        }
+
+        // Ensure the vote account has not already been initialized.
+        if vote_info.data_len() != 0 {
+            return Err(ProgramError::AccountAlreadyInitialized);
+        }
+
+        // Allocate & assign.
+        invoke_signed(
+            &system_instruction::allocate(
+                &vote_address,
+                std::mem::size_of::<ProposalVote>() as u64,
+            ),
+            &[vote_info.clone()],
+            &[&vote_signer_seeds],
+        )?;
+        invoke_signed(
+            &system_instruction::assign(&vote_address, program_id),
+            &[vote_info.clone()],
+            &[&vote_signer_seeds],
+        )?;
+
+        // Write the data.
+        let mut data = vote_info.try_borrow_mut_data()?;
+        *bytemuck::try_from_bytes_mut(&mut data).map_err(|_| ProgramError::InvalidAccountData)? =
+            ProposalVote::new(proposal_info.key, stake, validator_info.key, vote);
+    }
+
+    // Update the proposal with the newly cast vote.
+    let mut proposal_data = proposal_info.try_borrow_mut_data()?;
+    let state = bytemuck::try_from_bytes_mut::<Proposal>(&mut proposal_data)
+        .map_err(|_| ProgramError::InvalidAccountData)?;
+
+    if vote {
+        state.stake_for = state
+            .stake_for
+            .checked_add(stake)
+            .ok_or(ProgramError::ArithmeticOverflow)?;
+    } else {
+        state.stake_against = state
+            .stake_against
+            .checked_add(stake)
+            .ok_or(ProgramError::ArithmeticOverflow)?;
+    }
+
+    // Evaluate the new proposal votes.
+    let governance_data = governance_info.try_borrow_data()?;
+    let governance_config = bytemuck::try_from_bytes::<Config>(&governance_data)
+        .map_err(|_| ProgramError::InvalidAccountData)?;
+
+    #[allow(clippy::if_same_then_else)]
+    if state.stake_for >= governance_config.proposal_acceptance_threshold {
+        // If the proposal has met the acceptance threshold, begin the cooldown
+        // period.
+        // TODO: Requires imports from stake program.
+    } else if state.stake_against >= governance_config.proposal_rejection_threshold {
+        // If the proposal has met the rejection threshold, cancel the proposal.
+        // TODO: Requires imports from stake program.
+    }
+
     Ok(())
 }
 
