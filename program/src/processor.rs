@@ -5,8 +5,8 @@ use {
         error::PaladinGovernanceError,
         instruction::PaladinGovernanceInstruction,
         state::{
-            collect_vote_signer_seeds, get_governance_address, get_vote_address_and_bump_seed,
-            Config, Proposal, ProposalVote,
+            collect_vote_signer_seeds, get_governance_address, get_vote_address,
+            get_vote_address_and_bump_seed, Config, Proposal, ProposalVote,
         },
     },
     solana_program::{
@@ -21,6 +21,7 @@ use {
         sysvar::Sysvar,
     },
     spl_discriminator::SplDiscriminate,
+    spl_pod::primitives::PodBool,
 };
 
 fn check_governance_exists(program_id: &Pubkey, governance_info: &AccountInfo) -> ProgramResult {
@@ -252,11 +253,113 @@ fn process_vote(program_id: &Pubkey, accounts: &[AccountInfo], vote: bool) -> Pr
 /// Processes a
 /// [SwitchVote](enum.PaladinGovernanceInstruction.html)
 /// instruction.
-fn process_switch_vote(
-    _program_id: &Pubkey,
-    _accounts: &[AccountInfo],
-    _vote: bool,
-) -> ProgramResult {
+fn process_switch_vote(program_id: &Pubkey, accounts: &[AccountInfo], vote: bool) -> ProgramResult {
+    let accounts_iter = &mut accounts.iter();
+
+    let validator_info = next_account_info(accounts_iter)?;
+    let _stake_info = next_account_info(accounts_iter)?;
+    let _vault_info = next_account_info(accounts_iter)?;
+    let vote_info = next_account_info(accounts_iter)?;
+    let proposal_info = next_account_info(accounts_iter)?;
+    let governance_info = next_account_info(accounts_iter)?;
+
+    // Ensure the validator vote account is a signer.
+    if !validator_info.is_signer {
+        return Err(ProgramError::MissingRequiredSignature);
+    }
+
+    // Ensure the provided stake account belongs to the validator.
+    // TODO: Requires imports from stake program.
+    let stake = 0; // TODO!
+
+    // Ensure the proper vault account was provided.
+
+    check_governance_exists(program_id, governance_info)?;
+    check_proposal_exists(program_id, proposal_info)?;
+
+    // Update the proposal vote account.
+    {
+        // Ensure the provided vote address is the correct address derived from
+        // the validator and proposal.
+        if !vote_info.key.eq(&get_vote_address(
+            validator_info.key,
+            proposal_info.key,
+            program_id,
+        )) {
+            return Err(PaladinGovernanceError::IncorrectProposalVoteAddress.into());
+        }
+
+        // Ensure the vote account is owned by the Paladin Governance program.
+        if vote_info.owner != program_id {
+            return Err(ProgramError::InvalidAccountOwner);
+        }
+
+        // Ensure the vote account is initialized.
+        if vote_info.data_len() != std::mem::size_of::<ProposalVote>() {
+            return Err(ProgramError::UninitializedAccount);
+        }
+
+        // Update the vote.
+        let mut data = vote_info.try_borrow_mut_data()?;
+        let state = bytemuck::try_from_bytes_mut::<ProposalVote>(&mut data)
+            .map_err(|_| ProgramError::InvalidAccountData)?;
+
+        let vote = PodBool::from(vote);
+        if state.vote == vote {
+            // End early if the vote wasn't changed.
+            // Skip updating the proposal.
+            return Ok(());
+        } else {
+            state.vote = vote;
+        }
+    }
+
+    // Update the proposal with the updated vote.
+    // If the program hasn't terminated by this point, the vote has changed.
+    // Simply update the proposal by inversing the vote stake.
+    let mut proposal_data = proposal_info.try_borrow_mut_data()?;
+    let state = bytemuck::try_from_bytes_mut::<Proposal>(&mut proposal_data)
+        .map_err(|_| ProgramError::InvalidAccountData)?;
+
+    if vote {
+        // Previous vote against was now switched to a vote for.
+        // Move stake from against to for.
+        state.stake_for = state
+            .stake_for
+            .checked_add(stake)
+            .ok_or(ProgramError::ArithmeticOverflow)?;
+        state.stake_against = state
+            .stake_against
+            .checked_sub(stake)
+            .ok_or(ProgramError::ArithmeticOverflow)?;
+    } else {
+        // Previous vote for was now switched to a vote against.
+        // Move stake from for to against.
+        state.stake_for = state
+            .stake_for
+            .checked_sub(stake)
+            .ok_or(ProgramError::ArithmeticOverflow)?;
+        state.stake_against = state
+            .stake_against
+            .checked_add(stake)
+            .ok_or(ProgramError::ArithmeticOverflow)?;
+    }
+
+    // Evaluate the new proposal votes.
+    let governance_data = governance_info.try_borrow_data()?;
+    let governance_config = bytemuck::try_from_bytes::<Config>(&governance_data)
+        .map_err(|_| ProgramError::InvalidAccountData)?;
+
+    #[allow(clippy::if_same_then_else)]
+    if state.stake_for >= governance_config.proposal_acceptance_threshold {
+        // If the proposal has met the acceptance threshold, begin the cooldown
+        // period.
+        // TODO: Requires imports from stake program.
+    } else if state.stake_against >= governance_config.proposal_rejection_threshold {
+        // If the proposal has met the rejection threshold, cancel the proposal.
+        // TODO: Requires imports from stake program.
+    }
+
     Ok(())
 }
 
