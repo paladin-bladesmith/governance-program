@@ -9,6 +9,8 @@ edition = "2021"
 crate-type = ["cdylib", "lib"]
 
 [dependencies]
+solana-program = "2.0.2"
+spl-program-error = "0.5.0"
 
 [dev-dependencies]
 
