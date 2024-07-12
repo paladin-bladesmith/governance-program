@@ -48,6 +48,10 @@ pub(crate) fn collect_governance_seeds<'a>() -> [&'a [u8]; 1] {
     [SEED_PREFIX_GOVERNANCE]
 }
 
+pub(crate) fn collect_governance_signer_seeds(bump_seed: &[u8]) -> [&[u8]; 2] {
+    [SEED_PREFIX_GOVERNANCE, bump_seed]
+}
+
 /// Derive the address of a vote account.
 pub fn get_vote_address(
     validator_address: &Pubkey,

@@ -5,8 +5,9 @@ use {
         error::PaladinGovernanceError,
         instruction::PaladinGovernanceInstruction,
         state::{
-            collect_vote_signer_seeds, get_governance_address, get_vote_address,
-            get_vote_address_and_bump_seed, Config, Proposal, ProposalVote,
+            collect_governance_signer_seeds, collect_vote_signer_seeds, get_governance_address,
+            get_governance_address_and_bump_seed, get_vote_address, get_vote_address_and_bump_seed,
+            Config, Proposal, ProposalVote,
         },
     },
     solana_program::{
@@ -424,12 +425,60 @@ fn process_process_proposal(program_id: &Pubkey, accounts: &[AccountInfo]) -> Pr
 /// [InitializeGovernance](enum.PaladinGovernanceInstruction.html)
 /// instruction.
 fn process_initialize_governance(
-    _program_id: &Pubkey,
-    _accounts: &[AccountInfo],
-    _cooldown_period_seconds: u64,
-    _proposal_acceptance_threshold: u64,
-    _proposal_rejection_threshold: u64,
+    program_id: &Pubkey,
+    accounts: &[AccountInfo],
+    cooldown_period_seconds: u64,
+    proposal_acceptance_threshold: u64,
+    proposal_rejection_threshold: u64,
 ) -> ProgramResult {
+    let accounts_iter = &mut accounts.iter();
+
+    let governance_info = next_account_info(accounts_iter)?;
+    let _system_program_info = next_account_info(accounts_iter)?;
+
+    // Create the governance config account.
+    {
+        let (governance_address, bump_seed) = get_governance_address_and_bump_seed(program_id);
+        let bump_seed = [bump_seed];
+        let governance_signer_seeds = collect_governance_signer_seeds(&bump_seed);
+
+        // Ensure the provided governance address is the correct address
+        // derived from the program.
+        if !governance_info.key.eq(&governance_address) {
+            return Err(PaladinGovernanceError::IncorrectGovernanceConfigAddress.into());
+        }
+
+        // Ensure the governance account has not already been initialized.
+        if governance_info.data_len() != 0 {
+            return Err(ProgramError::AccountAlreadyInitialized);
+        }
+
+        // Allocate & assign.
+        invoke_signed(
+            &system_instruction::allocate(
+                &governance_address,
+                std::mem::size_of::<Config>() as u64,
+            ),
+            &[governance_info.clone()],
+            &[&governance_signer_seeds],
+        )?;
+        invoke_signed(
+            &system_instruction::assign(&governance_address, program_id),
+            &[governance_info.clone()],
+            &[&governance_signer_seeds],
+        )?;
+
+        // Write the data.
+        let mut data = governance_info.try_borrow_mut_data()?;
+        *bytemuck::try_from_bytes_mut(&mut data).map_err(|_| ProgramError::InvalidAccountData)? =
+            Config {
+                cooldown_period_seconds,
+                proposal_acceptance_threshold,
+                proposal_rejection_threshold,
+                total_staked: 0,
+            };
+    }
+
     Ok(())
 }
 
