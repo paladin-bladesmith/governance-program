@@ -1,14 +1,9 @@
-pub fn add(left: usize, right: usize) -> usize {
-    left + right
-}
+//! Paladin Governance program.
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+#[cfg(all(target_os = "solana", feature = "bpf-entrypoint"))]
+mod entrypoint;
+pub mod error;
+pub mod instruction;
+pub mod processor;
 
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
-    }
-}
+solana_program::declare_id!("8vDzKeincu9R9u6Yzuh7TQ5VqPXCcZtfYh6mh82XscQj");
