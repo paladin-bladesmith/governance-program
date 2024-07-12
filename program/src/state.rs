@@ -1,6 +1,10 @@
 //! Program state types.
 
-use solana_program::pubkey::Pubkey;
+use {
+    bytemuck::{Pod, Zeroable},
+    solana_program::pubkey::Pubkey,
+    spl_discriminator::SplDiscriminate,
+};
 
 /// The seed prefix (`"piggy_bank"`) in bytes used to derive the address of the
 /// treasury account.
@@ -74,17 +78,35 @@ pub struct Config {
 }
 
 /// Governance proposal account.
+#[derive(Clone, Copy, Debug, PartialEq, Pod, SplDiscriminate, Zeroable)]
+#[discriminator_hash_input("governance::state::proposal")]
+#[repr(C)]
 pub struct Proposal {
+    discriminator: [u8; 8],
     /// The proposal author.
     pub author: Pubkey,
     /// Timestamp for when proposal was created.
     pub creation_timestamp: u64,
     /// The instruction to execute, pending proposal acceptance.
-    pub instruction: Vec<u8>,
+    pub instruction: u64, // TODO: Replace with an actual serialized instruction?
     /// Amount of stake against the proposal.
     pub stake_against: u64,
     /// Amount of stake in favor of the proposal.
     pub stake_for: u64,
+}
+
+impl Proposal {
+    /// Create a new [Proposal](struct.Proposal.html).
+    pub fn new(author: &Pubkey, creation_timestamp: u64, instruction: u64) -> Self {
+        Self {
+            discriminator: Self::SPL_DISCRIMINATOR.into(),
+            author: *author,
+            creation_timestamp,
+            instruction,
+            stake_against: 0,
+            stake_for: 0,
+        }
+    }
 }
 
 /// Proposal vote account.

@@ -1,14 +1,62 @@
 //! Program processor.
 
 use {
-    crate::instruction::PaladinGovernanceInstruction,
-    solana_program::{account_info::AccountInfo, entrypoint::ProgramResult, msg, pubkey::Pubkey},
+    crate::{instruction::PaladinGovernanceInstruction, state::Proposal},
+    solana_program::{
+        account_info::{next_account_info, AccountInfo},
+        clock::Clock,
+        entrypoint::ProgramResult,
+        msg,
+        program_error::ProgramError,
+        pubkey::Pubkey,
+        sysvar::Sysvar,
+    },
+    spl_discriminator::SplDiscriminate,
 };
 
 /// Processes a
 /// [CreateProposal](enum.PaladinGovernanceInstruction.html)
 /// instruction.
-fn process_create_proposal(_program_id: &Pubkey, _accounts: &[AccountInfo]) -> ProgramResult {
+fn process_create_proposal(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
+    let accounts_iter = &mut accounts.iter();
+
+    let validator_info = next_account_info(accounts_iter)?;
+    let _stake_info = next_account_info(accounts_iter)?;
+    let proposal_info = next_account_info(accounts_iter)?;
+
+    // Ensure the validator vote account is a signer.
+    if !validator_info.is_signer {
+        return Err(ProgramError::MissingRequiredSignature);
+    }
+
+    // Ensure the provided stake account belongs to the validator.
+    // TODO: Requires imports from stake program.
+
+    // Ensure the proposal account is owned by the Paladin Governance program.
+    if proposal_info.owner != program_id {
+        return Err(ProgramError::InvalidAccountOwner);
+    }
+
+    // Ensure the proposal account has enough space.
+    if proposal_info.data_len() != std::mem::size_of::<Proposal>() {
+        return Err(ProgramError::InvalidAccountData);
+    }
+
+    // Ensure the proposal account is not initialized.
+    if &proposal_info.try_borrow_data()?[0..8] == Proposal::SPL_DISCRIMINATOR_SLICE {
+        return Err(ProgramError::AccountAlreadyInitialized);
+    }
+
+    let clock = <Clock as Sysvar>::get()?;
+    let creation_timestamp = clock.unix_timestamp as u64;
+    let instruction = 0; // TODO!
+
+    // Write the data.
+    let mut proposal_data = proposal_info.try_borrow_mut_data()?;
+    *bytemuck::try_from_bytes_mut::<Proposal>(&mut proposal_data)
+        .map_err(|_| ProgramError::InvalidAccountData)? =
+        Proposal::new(validator_info.key, creation_timestamp, instruction);
+
     Ok(())
 }
 
