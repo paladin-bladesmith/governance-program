@@ -57,9 +57,6 @@ pub(crate) fn collect_vote_seeds<'a>(
     ]
 }
 
-/// Palading governance treasury, or "piggy bank".
-pub struct Treasury {}
-
 /// Governance configuration account.
 pub struct Config {
     /// The cooldown period that begins when a proposal reaches the
@@ -91,7 +88,7 @@ pub struct Proposal {
 }
 
 /// Proposal vote account.
-pub struct Vote {
+pub struct ProposalVote {
     /// Proposal address.
     pub proposal_address: Pubkey,
     /// Amount of stake voted.
