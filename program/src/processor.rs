@@ -6,9 +6,10 @@ use {
         account_info::{next_account_info, AccountInfo},
         clock::Clock,
         entrypoint::ProgramResult,
-        msg,
+        incinerator, msg,
         program_error::ProgramError,
         pubkey::Pubkey,
+        system_program,
         sysvar::Sysvar,
     },
     spl_discriminator::SplDiscriminate,
@@ -63,7 +64,50 @@ fn process_create_proposal(program_id: &Pubkey, accounts: &[AccountInfo]) -> Pro
 /// Processes a
 /// [CancelProposal](enum.PaladinGovernanceInstruction.html)
 /// instruction.
-fn process_cancel_proposal(_program_id: &Pubkey, _accounts: &[AccountInfo]) -> ProgramResult {
+fn process_cancel_proposal(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
+    let accounts_iter = &mut accounts.iter();
+
+    let validator_info = next_account_info(accounts_iter)?;
+    let _stake_info = next_account_info(accounts_iter)?;
+    let proposal_info = next_account_info(accounts_iter)?;
+    let incinerator_info = next_account_info(accounts_iter)?;
+
+    // Ensure the validator vote account is a signer.
+    if !validator_info.is_signer {
+        return Err(ProgramError::MissingRequiredSignature);
+    }
+
+    // Ensure the provided stake account belongs to the validator.
+    // TODO: Requires imports from stake program.
+
+    // Ensure the proposal account is owned by the Paladin Governance program.
+    if proposal_info.owner != program_id {
+        return Err(ProgramError::InvalidAccountOwner);
+    }
+
+    // Ensure the proposal account is initialized.
+    if !(proposal_info.data_len() == std::mem::size_of::<Proposal>()
+        && &proposal_info.try_borrow_data()?[0..8] == Proposal::SPL_DISCRIMINATOR_SLICE)
+    {
+        return Err(ProgramError::UninitializedAccount);
+    }
+
+    // Close the proposal account.
+    if incinerator_info.key != &incinerator::id() {
+        return Err(ProgramError::InvalidArgument);
+    }
+
+    let new_incinerator_lamports = proposal_info
+        .lamports()
+        .checked_add(incinerator_info.lamports())
+        .ok_or::<ProgramError>(ProgramError::ArithmeticOverflow)?;
+
+    **proposal_info.try_borrow_mut_lamports()? = 0;
+    **incinerator_info.try_borrow_mut_lamports()? = new_incinerator_lamports;
+
+    proposal_info.realloc(0, true)?;
+    proposal_info.assign(&system_program::id());
+
     Ok(())
 }
 
