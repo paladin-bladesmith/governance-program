@@ -486,12 +486,55 @@ fn process_initialize_governance(
 /// [UpdateGovernance](enum.PaladinGovernanceInstruction.html)
 /// instruction.
 fn process_update_governance(
-    _program_id: &Pubkey,
-    _accounts: &[AccountInfo],
-    _cooldown_period_seconds: u64,
-    _proposal_acceptance_threshold: u64,
-    _proposal_rejection_threshold: u64,
+    program_id: &Pubkey,
+    accounts: &[AccountInfo],
+    cooldown_period_seconds: u64,
+    proposal_acceptance_threshold: u64,
+    proposal_rejection_threshold: u64,
 ) -> ProgramResult {
+    let accounts_iter = &mut accounts.iter();
+
+    let governance_info = next_account_info(accounts_iter)?;
+    let proposal_info = next_account_info(accounts_iter)?;
+    let _vault_info = next_account_info(accounts_iter)?;
+
+    // Ensure the proper vault account was provided.
+    // TODO: Requires imports from stake program.
+
+    check_governance_exists(program_id, governance_info)?;
+    check_proposal_exists(program_id, proposal_info)?;
+
+    {
+        // Ensure the proposal meets the acceptance threshold.
+        let proposal_data = proposal_info.try_borrow_data()?;
+        let proposal_state = bytemuck::try_from_bytes::<Proposal>(&proposal_data)
+            .map_err(|_| ProgramError::InvalidAccountData)?;
+
+        let governance_data = governance_info.try_borrow_data()?;
+        let governance_config = bytemuck::try_from_bytes::<Config>(&governance_data)
+            .map_err(|_| ProgramError::InvalidAccountData)?;
+
+        if proposal_state.stake_for < governance_config.proposal_acceptance_threshold {
+            // If the proposal has met the acceptance threshold, begin the cooldown
+            // period.
+            // TODO: Requires imports from stake program.
+            return Err(PaladinGovernanceError::ProposalNotAccepted.into());
+        }
+
+        // TODO: This instruction requires a gate to ensure it can only be
+        // invoked from a proposal.
+    }
+
+    // Update the governance config.
+    let mut data = governance_info.try_borrow_mut_data()?;
+    *bytemuck::try_from_bytes_mut(&mut data).map_err(|_| ProgramError::InvalidAccountData)? =
+        Config {
+            cooldown_period_seconds,
+            proposal_acceptance_threshold,
+            proposal_rejection_threshold,
+            total_staked: 0,
+        };
+
     Ok(())
 }
 
