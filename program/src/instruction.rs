@@ -1,9 +1,11 @@
 //! Program instruction types.
 
 use solana_program::{
+    incinerator,
     instruction::{AccountMeta, Instruction},
     program_error::ProgramError,
     pubkey::Pubkey,
+    system_program,
 };
 
 /// Instructions supported by the Paladin Governance program.
@@ -24,8 +26,9 @@ pub enum PaladinGovernanceInstruction {
     ///
     /// Accounts expected by this instruction:
     ///
-    /// 0. `[s]` Stake account.
-    /// 1. `[w]` Proposal account.
+    /// 0. `[s]` Validator vote account.
+    /// 1. `[ ]` Paladin stake account.
+    /// 2. `[w]` Proposal account.
     CreateProposal,
     /// Cancel a governance proposal.
     ///
@@ -33,8 +36,10 @@ pub enum PaladinGovernanceInstruction {
     ///
     /// Accounts expected by this instruction:
     ///
-    /// 0. `[s]` Stake account.
-    /// 1. `[w]` Proposal account.
+    /// 0. `[s]` Validator vote account.
+    /// 1. `[ ]` Paladin stake account.
+    /// 2. `[w]` Proposal account.
+    /// 3. `[w]` Incinerator.
     CancelProposal,
     /// Vote on a governance proposal.
     ///
@@ -43,12 +48,15 @@ pub enum PaladinGovernanceInstruction {
     ///
     /// Accounts expected by this instruction:
     ///
-    /// 0. `[s]` Stake account.
-    /// 1. `[w]` Vote account.
-    /// 2. `[w]` Proposal account.
-    /// 3. `[ ]` Governance config account.
+    /// 0. `[s]` Validator vote account.
+    /// 1. `[ ]` Paladin stake account.
+    /// 2. `[ ]` Paladin stake vault account.
+    /// 3. `[w]` Proposal vote account.
+    /// 4. `[w]` Proposal account.
+    /// 5. `[ ]` Governance config account.
+    /// 6. `[ ]` System program.
     Vote {
-        /// Vote.
+        /// Proposal vote.
         ///
         /// * `true`: In favor.
         /// * `false`: Against.
@@ -65,12 +73,14 @@ pub enum PaladinGovernanceInstruction {
     ///
     /// Accounts expected by this instruction:
     ///
-    /// 0. `[s]` Stake account.
-    /// 1. `[w]` Vote account.
-    /// 2. `[w]` Proposal account.
-    /// 3. `[ ]` Governance config account.
+    /// 0. `[s]` Validator vote account.
+    /// 1. `[ ]` Paladin stake account.
+    /// 2. `[ ]` Paladin stake vault account.
+    /// 3. `[w]` Proposal vote account.
+    /// 4. `[w]` Proposal account.
+    /// 5. `[ ]` Governance config account.
     SwitchVote {
-        /// Vote.
+        /// Proposal vote.
         ///
         /// * `true`: In favor.
         /// * `false`: Against.
@@ -86,7 +96,9 @@ pub enum PaladinGovernanceInstruction {
     /// Accounts expected by this instruction:
     ///
     /// 0. `[w]` Proposal account.
-    /// 1. `[ ]` Governance config account.
+    /// 1. `[ ]` Paladin stake vault account.
+    /// 2. `[ ]` Governance config account.
+    /// 3. `[w]` Incinerator.
     ProcessProposal,
     /// Initialize the governance config.
     ///
@@ -101,6 +113,7 @@ pub enum PaladinGovernanceInstruction {
     /// Accounts expected by this instruction:
     ///
     /// 0. `[w]` Governance config account.
+    /// 1. `[ ]` System program.
     InitializeGovernance {
         /// The cooldown period that begins when a proposal reaches the
         /// `proposal_acceptance_threshold` and upon its conclusion will execute
@@ -126,6 +139,7 @@ pub enum PaladinGovernanceInstruction {
     ///
     /// 0. `[w]` Governance config account.
     /// 1. `[ ]` Proposal account.
+    /// 2. `[ ]` Paladin stake vault account.
     UpdateGovernance {
         /// The cooldown period that begins when a proposal reaches the
         /// `proposal_acceptance_threshold` and upon its conclusion will execute
@@ -225,9 +239,14 @@ impl PaladinGovernanceInstruction {
 /// Creates a
 /// [CreateProposal](enum.PaladinGovernanceInstruction.html)
 /// instruction.
-pub fn create_proposal(stake_address: &Pubkey, proposal_address: &Pubkey) -> Instruction {
+pub fn create_proposal(
+    validator_address: &Pubkey,
+    stake_address: &Pubkey,
+    proposal_address: &Pubkey,
+) -> Instruction {
     let accounts = vec![
-        AccountMeta::new_readonly(*stake_address, true),
+        AccountMeta::new_readonly(*validator_address, true),
+        AccountMeta::new_readonly(*stake_address, false),
         AccountMeta::new(*proposal_address, false),
     ];
     let data = PaladinGovernanceInstruction::CreateProposal.pack();
@@ -237,10 +256,16 @@ pub fn create_proposal(stake_address: &Pubkey, proposal_address: &Pubkey) -> Ins
 /// Creates a
 /// [CancelProposal](enum.PaladinGovernanceInstruction.html)
 /// instruction.
-pub fn cancel_proposal(stake_address: &Pubkey, proposal_address: &Pubkey) -> Instruction {
+pub fn cancel_proposal(
+    validator_address: &Pubkey,
+    stake_address: &Pubkey,
+    proposal_address: &Pubkey,
+) -> Instruction {
     let accounts = vec![
-        AccountMeta::new_readonly(*stake_address, true),
+        AccountMeta::new_readonly(*validator_address, true),
+        AccountMeta::new_readonly(*stake_address, false),
         AccountMeta::new(*proposal_address, false),
+        AccountMeta::new(incinerator::id(), false),
     ];
     let data = PaladinGovernanceInstruction::CancelProposal.pack();
     Instruction::new_with_bytes(crate::id(), &data, accounts)
@@ -250,17 +275,22 @@ pub fn cancel_proposal(stake_address: &Pubkey, proposal_address: &Pubkey) -> Ins
 /// [Vote](enum.PaladinGovernanceInstruction.html)
 /// instruction.
 pub fn vote(
+    validator_address: &Pubkey,
     stake_address: &Pubkey,
-    vote_address: &Pubkey,
+    vault_address: &Pubkey,
+    proposal_vote_address: &Pubkey,
     proposal_address: &Pubkey,
     governance_config_address: &Pubkey,
     vote: bool,
 ) -> Instruction {
     let accounts = vec![
-        AccountMeta::new_readonly(*stake_address, true),
-        AccountMeta::new(*vote_address, false),
+        AccountMeta::new_readonly(*validator_address, true),
+        AccountMeta::new_readonly(*stake_address, false),
+        AccountMeta::new_readonly(*vault_address, false),
+        AccountMeta::new(*proposal_vote_address, false),
         AccountMeta::new(*proposal_address, false),
         AccountMeta::new_readonly(*governance_config_address, false),
+        AccountMeta::new_readonly(system_program::id(), false),
     ];
     let data = PaladinGovernanceInstruction::Vote { vote }.pack();
     Instruction::new_with_bytes(crate::id(), &data, accounts)
@@ -270,15 +300,19 @@ pub fn vote(
 /// [SwitchVote](enum.PaladinGovernanceInstruction.html)
 /// instruction.
 pub fn switch_vote(
+    validator_address: &Pubkey,
     stake_address: &Pubkey,
-    vote_address: &Pubkey,
+    vault_address: &Pubkey,
+    proposal_vote_address: &Pubkey,
     proposal_address: &Pubkey,
     governance_config_address: &Pubkey,
     vote: bool,
 ) -> Instruction {
     let accounts = vec![
-        AccountMeta::new_readonly(*stake_address, true),
-        AccountMeta::new(*vote_address, false),
+        AccountMeta::new_readonly(*validator_address, true),
+        AccountMeta::new_readonly(*stake_address, false),
+        AccountMeta::new_readonly(*vault_address, false),
+        AccountMeta::new(*proposal_vote_address, false),
         AccountMeta::new(*proposal_address, false),
         AccountMeta::new_readonly(*governance_config_address, false),
     ];
@@ -291,11 +325,14 @@ pub fn switch_vote(
 /// instruction.
 pub fn process_proposal(
     proposal_address: &Pubkey,
+    vault_address: &Pubkey,
     governance_config_address: &Pubkey,
 ) -> Instruction {
     let accounts = vec![
         AccountMeta::new(*proposal_address, false),
+        AccountMeta::new_readonly(*vault_address, false),
         AccountMeta::new_readonly(*governance_config_address, false),
+        AccountMeta::new(incinerator::id(), false),
     ];
     let data = PaladinGovernanceInstruction::ProcessProposal.pack();
     Instruction::new_with_bytes(crate::id(), &data, accounts)
@@ -310,7 +347,10 @@ pub fn initialize_governance(
     proposal_acceptance_threshold: u64,
     proposal_rejection_threshold: u64,
 ) -> Instruction {
-    let accounts = vec![AccountMeta::new(*governance_config_address, false)];
+    let accounts = vec![
+        AccountMeta::new(*governance_config_address, false),
+        AccountMeta::new_readonly(system_program::id(), false),
+    ];
     let data = PaladinGovernanceInstruction::InitializeGovernance {
         cooldown_period_seconds,
         proposal_acceptance_threshold,
@@ -326,6 +366,7 @@ pub fn initialize_governance(
 pub fn update_governance(
     governance_config_address: &Pubkey,
     proposal_address: &Pubkey,
+    vault_address: &Pubkey,
     cooldown_period_seconds: u64,
     proposal_acceptance_threshold: u64,
     proposal_rejection_threshold: u64,
@@ -333,6 +374,7 @@ pub fn update_governance(
     let accounts = vec![
         AccountMeta::new(*governance_config_address, false),
         AccountMeta::new_readonly(*proposal_address, false),
+        AccountMeta::new_readonly(*vault_address, false),
     ];
     let data = PaladinGovernanceInstruction::UpdateGovernance {
         cooldown_period_seconds,
