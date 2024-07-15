@@ -11,4 +11,7 @@ pub enum PaladinGovernanceError {
     /// Incorrect governance config address.
     #[error("Incorrect governance config address.")]
     IncorrectGovernanceConfigAddress,
+    /// Proposal not accepted.
+    #[error("Proposal not accepted.")]
+    ProposalNotAccepted,
 }

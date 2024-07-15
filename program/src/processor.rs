@@ -366,7 +366,57 @@ fn process_switch_vote(program_id: &Pubkey, accounts: &[AccountInfo], vote: bool
 /// Processes a
 /// [ProcessProposal](enum.PaladinGovernanceInstruction.html)
 /// instruction.
-fn process_process_proposal(_program_id: &Pubkey, _accounts: &[AccountInfo]) -> ProgramResult {
+fn process_process_proposal(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
+    let accounts_iter = &mut accounts.iter();
+
+    let proposal_info = next_account_info(accounts_iter)?;
+    let _vault_info = next_account_info(accounts_iter)?;
+    let governance_info = next_account_info(accounts_iter)?;
+    let incinerator_info = next_account_info(accounts_iter)?;
+
+    // Ensure the proper vault account was provided.
+    // TODO: Requires imports from stake program.
+
+    check_governance_exists(program_id, governance_info)?;
+    check_proposal_exists(program_id, proposal_info)?;
+
+    {
+        // Ensure the proposal meets the acceptance threshold.
+        let proposal_data = proposal_info.try_borrow_data()?;
+        let proposal_state = bytemuck::try_from_bytes::<Proposal>(&proposal_data)
+            .map_err(|_| ProgramError::InvalidAccountData)?;
+
+        let governance_data = governance_info.try_borrow_data()?;
+        let governance_config = bytemuck::try_from_bytes::<Config>(&governance_data)
+            .map_err(|_| ProgramError::InvalidAccountData)?;
+
+        if proposal_state.stake_for < governance_config.proposal_acceptance_threshold {
+            // If the proposal has met the acceptance threshold, begin the cooldown
+            // period.
+            // TODO: Requires imports from stake program.
+            return Err(PaladinGovernanceError::ProposalNotAccepted.into());
+        }
+
+        // Process the proposal instruction.
+        // TODO!
+    }
+
+    // Close the proposal account.
+    if incinerator_info.key != &incinerator::id() {
+        return Err(ProgramError::InvalidArgument);
+    }
+
+    let new_incinerator_lamports = proposal_info
+        .lamports()
+        .checked_add(incinerator_info.lamports())
+        .ok_or::<ProgramError>(ProgramError::ArithmeticOverflow)?;
+
+    **proposal_info.try_borrow_mut_lamports()? = 0;
+    **incinerator_info.try_borrow_mut_lamports()? = new_incinerator_lamports;
+
+    proposal_info.realloc(0, true)?;
+    proposal_info.assign(&system_program::id());
+
     Ok(())
 }
 
