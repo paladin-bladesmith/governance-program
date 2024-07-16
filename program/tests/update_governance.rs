@@ -8,21 +8,18 @@ use {
         instruction::update_governance,
         state::{get_governance_address, Config, Proposal},
     },
-    setup::{setup, setup_governance, setup_proposal},
+    setup::{setup, setup_governance, setup_proposal, setup_proposal_with_stake_and_cooldown},
     solana_program_test::*,
     solana_sdk::{
         account::AccountSharedData,
+        clock::Clock,
         instruction::InstructionError,
         pubkey::Pubkey,
         signer::Signer,
         transaction::{Transaction, TransactionError},
     },
+    std::num::NonZeroU64,
 };
-
-#[tokio::test]
-async fn fail_incorrect_vault_account() {
-    // TODO!
-}
 
 #[tokio::test]
 async fn fail_governance_incorrect_address() {
@@ -250,13 +247,78 @@ async fn fail_proposal_not_initialized() {
 }
 
 #[tokio::test]
+async fn fail_proposal_not_accepted() {
+    let proposal = Pubkey::new_unique();
+    let governance = get_governance_address(&paladin_governance_program::id());
+
+    let mut context = setup().start_with_context().await;
+
+    // Set up an unaccepted proposal.
+    // Simply set the cooldown timestamp to the current clock timestamp,
+    // and require more than 0 seconds for cooldown.
+    setup_governance(&mut context, &governance, 1_000_000, 0, 0, 0).await;
+    let clock = context.banks_client.get_sysvar::<Clock>().await.unwrap();
+    setup_proposal_with_stake_and_cooldown(
+        &mut context,
+        &proposal,
+        &Pubkey::new_unique(),
+        0,
+        0,
+        0,
+        0,
+        NonZeroU64::new(clock.unix_timestamp as u64),
+    )
+    .await;
+
+    let instruction = update_governance(
+        &governance,
+        &proposal,
+        /* cooldown_period_seconds */ 0,
+        /* proposal_acceptance_threshold */ 0,
+        /* proposal_rejection_threshold */ 0,
+    );
+
+    let transaction = Transaction::new_signed_with_payer(
+        &[instruction],
+        Some(&context.payer.pubkey()),
+        &[&context.payer],
+        context.last_blockhash,
+    );
+
+    let err = context
+        .banks_client
+        .process_transaction(transaction)
+        .await
+        .unwrap_err()
+        .unwrap();
+
+    assert_eq!(
+        err,
+        TransactionError::InstructionError(
+            0,
+            InstructionError::Custom(PaladinGovernanceError::ProposalNotAccepted as u32)
+        )
+    );
+}
+
+#[tokio::test]
 async fn success() {
     let proposal = Pubkey::new_unique();
     let governance = get_governance_address(&paladin_governance_program::id());
 
     let mut context = setup().start_with_context().await;
     setup_governance(&mut context, &governance, 0, 0, 0, 0).await;
-    setup_proposal(&mut context, &proposal, &Pubkey::new_unique(), 0, 0).await;
+    setup_proposal_with_stake_and_cooldown(
+        &mut context,
+        &proposal,
+        &Pubkey::new_unique(),
+        0,
+        0,
+        0,
+        0,
+        NonZeroU64::new(1),
+    )
+    .await;
 
     let instruction = update_governance(
         &governance,

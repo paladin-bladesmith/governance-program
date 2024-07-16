@@ -5,6 +5,7 @@ use {
     solana_program::pubkey::Pubkey,
     spl_discriminator::SplDiscriminate,
     spl_pod::primitives::PodBool,
+    std::num::NonZeroU64,
 };
 
 /// The seed prefix (`"piggy_bank"`) in bytes used to derive the address of the
@@ -108,14 +109,14 @@ pub struct Config {
     /// The minimum required threshold (percentage) of acceptance votes to
     /// begin the cooldown period.
     ///
-    /// Stored as a `u64`, which includes a scaling factor of `1e3` to
-    /// represent the threshold with 3 decimal places of precision.
+    /// Stored as a `u64`, which includes a scaling factor of `1e9` to
+    /// represent the threshold with 9 decimal places of precision.
     pub proposal_acceptance_threshold: u64,
     /// The minimum required threshold (percentage) of rejection votes to
     /// terminate the proposal.
     ///
-    /// Stored as a `u64`, which includes a scaling factor of `1e3` to
-    /// represent the threshold with 3 decimal places of precision.
+    /// Stored as a `u64`, which includes a scaling factor of `1e9` to
+    /// represent the threshold with 9 decimal places of precision.
     pub proposal_rejection_threshold: u64,
     /// The total amount staked in the system.
     /// TODO: I'm not sure where this is supposed to come from.
@@ -135,6 +136,10 @@ pub struct Proposal {
     discriminator: [u8; 8],
     /// The proposal author.
     pub author: Pubkey,
+    /// Timestamp for when the cooldown period began.
+    ///
+    /// A `None` value means cooldown has not begun.
+    pub cooldown_timestamp: Option<NonZeroU64>,
     /// Timestamp for when proposal was created.
     pub creation_timestamp: u64,
     /// The instruction to execute, pending proposal acceptance.
@@ -151,6 +156,7 @@ impl Proposal {
         Self {
             discriminator: Self::SPL_DISCRIMINATOR.into(),
             author: *author,
+            cooldown_timestamp: None,
             creation_timestamp,
             instruction,
             stake_against: 0,

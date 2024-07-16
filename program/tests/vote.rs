@@ -952,10 +952,144 @@ async fn fail_vote_already_initialized() {
     );
 }
 
-#[test_case(true)]
-#[test_case(false)]
+struct ProposalSetup {
+    acceptance_threshold: u64,
+    rejection_threshold: u64,
+    total_stake: u64,
+}
+struct VoteTest {
+    vote_stake: u64,
+    vote: bool,
+    should_have_cooldown: bool,
+    should_terminate: bool,
+}
+
+#[test_case(
+    ProposalSetup {
+        acceptance_threshold: 100_000_000, // 10%
+        rejection_threshold: 100_000_000,  // 10%
+        total_stake: 100_000_000,
+    },
+    VoteTest {
+        vote_stake: 10_000_000, // 10% of total stake.
+        vote: true, // For
+        should_have_cooldown: true, // Cooldown should be set by this vote.
+        should_terminate: false,
+    };
+    "10p_acceptance_threshold_met_should_begin_cooldown"
+)]
+#[test_case(
+    ProposalSetup {
+        acceptance_threshold: 100_000_000, // 10%
+        rejection_threshold: 100_000_000,  // 10%
+        total_stake: 100_000_000,
+    },
+    VoteTest {
+        vote_stake: 5_000_000, // 5% of total stake.
+        vote: true, // For
+        should_have_cooldown: false, // Cooldown should not be set by this vote.
+        should_terminate: false,
+    };
+    "10p_acceptance_threshold_not_met_should_not_begin_cooldown"
+)]
+#[test_case(
+    ProposalSetup {
+        acceptance_threshold: 100_000_000, // 10%
+        rejection_threshold: 100_000_000,  // 10%
+        total_stake: 100_000_000,
+    },
+    VoteTest {
+        vote_stake: 10_000_000, // 10% of total stake.
+        vote: false, // Against
+        should_have_cooldown: false,
+        should_terminate: true, // Proposal should be terminated.
+    };
+    "10p_rejection_threshold_met_should_terminate"
+)]
+#[test_case(
+    ProposalSetup {
+        acceptance_threshold: 100_000_000, // 10%
+        rejection_threshold: 100_000_000,  // 10%
+        total_stake: 100_000_000,
+    },
+    VoteTest {
+        vote_stake: 5_000_000, // 5% of total stake.
+        vote: false, // Against
+        should_have_cooldown: false,
+        should_terminate: false, // Proposal should not be terminated.
+    };
+    "10p_rejection_threshold_not_met_should_not_terminate"
+)]
+#[test_case(
+    ProposalSetup {
+        acceptance_threshold: 100_000, // .0001%
+        rejection_threshold: 100_000,  // .0001%
+        total_stake: 100_000_000,
+    },
+    VoteTest {
+        vote_stake: 10_000, // .00010% of total stake.
+        vote: true, // For
+        should_have_cooldown: true, // Cooldown should be set by this vote.
+        should_terminate: false,
+    };
+    "dot_0001p_acceptance_threshold_met_should_begin_cooldown"
+)]
+#[test_case(
+    ProposalSetup {
+        acceptance_threshold: 100_000, // .0001%
+        rejection_threshold: 100_000,  // .0001%
+        total_stake: 100_000_000,
+    },
+    VoteTest {
+        vote_stake: 5_000, // .0005% of total stake.
+        vote: true, // For
+        should_have_cooldown: false, // Cooldown should not be set by this vote.
+        should_terminate: false,
+    };
+    "dot_0001p_acceptance_threshold_not_met_should_not_begin_cooldown"
+)]
+#[test_case(
+    ProposalSetup {
+        acceptance_threshold: 100_000, // .0001%
+        rejection_threshold: 100_000,  // .0001%
+        total_stake: 100_000_000,
+    },
+    VoteTest {
+        vote_stake: 10_000, // .00010% of total stake.
+        vote: false, // Against
+        should_have_cooldown: false,
+        should_terminate: true, // Proposal should be terminated.
+    };
+    "dot_0001p_rejection_threshold_met_should_terminate"
+)]
+#[test_case(
+    ProposalSetup {
+    acceptance_threshold: 100_000, // .0001%
+        rejection_threshold: 100_000,  // .0001%
+        total_stake: 100_000_000,
+    },
+    VoteTest {
+        vote_stake: 5_000, // .0005% of total stake.
+        vote: false, // Against
+        should_have_cooldown: false,
+        should_terminate: false, // Proposal should not be terminated.
+    };
+    "dot_0001p_rejection_threshold_not_met_should_not_terminate"
+)]
 #[tokio::test]
-async fn success(vote: bool) {
+async fn success(proposal_setup: ProposalSetup, vote_test: VoteTest) {
+    let ProposalSetup {
+        acceptance_threshold,
+        rejection_threshold,
+        total_stake,
+    } = proposal_setup;
+    let VoteTest {
+        vote_stake,
+        vote,
+        should_have_cooldown,
+        should_terminate,
+    } = vote_test;
+
     let validator = Keypair::new();
     let stake_config = Pubkey::new_unique();
     let proposal = Pubkey::new_unique();
@@ -973,19 +1107,25 @@ async fn success(vote: bool) {
     );
     let governance = get_governance_address(&paladin_governance_program::id());
 
-    let validator_stake = 100_000;
-
     let mut context = setup().start_with_context().await;
-    setup_stake_config(&mut context, &stake_config, 100_000_000_000_000).await;
+    setup_stake_config(&mut context, &stake_config, total_stake).await;
     setup_stake(
         &mut context,
         &stake,
         /* authority_address */ &Pubkey::new_unique(),
         &validator.pubkey(),
-        validator_stake,
+        vote_stake,
     )
     .await;
-    setup_governance(&mut context, &governance, 0, 0, 0, 0).await;
+    setup_governance(
+        &mut context,
+        &governance,
+        /* cooldown_period_seconds */ 10, // Unused here.
+        acceptance_threshold,
+        rejection_threshold,
+        total_stake,
+    )
+    .await;
     setup_proposal(&mut context, &proposal, &validator.pubkey(), 0, 0).await;
 
     // Fund the vote account.
@@ -1030,20 +1170,37 @@ async fn success(vote: bool) {
         .unwrap();
     assert_eq!(
         bytemuck::from_bytes::<ProposalVote>(&vote_account.data),
-        &ProposalVote::new(&proposal, validator_stake, &validator.pubkey(), vote)
+        &ProposalVote::new(&proposal, vote_stake, &validator.pubkey(), vote)
     );
 
-    // Assert the vote count was updated in the proposal.
     let proposal_account = context
         .banks_client
         .get_account(proposal)
         .await
         .unwrap()
         .unwrap();
-    let proposal_state = bytemuck::from_bytes::<Proposal>(&proposal_account.data);
-    if vote {
-        assert_eq!(proposal_state.stake_for, validator_stake);
+
+    if should_terminate {
+        // Assert the proposal was terminated.
+        // The proposal should be cleared and reassigned to the system program.
+        assert_eq!(proposal_account.owner, solana_program::system_program::id());
+        assert_eq!(proposal_account.data.len(), 0);
     } else {
-        assert_eq!(proposal_state.stake_against, validator_stake);
+        let proposal_state = bytemuck::from_bytes::<Proposal>(&proposal_account.data);
+
+        // Assert the vote count was updated in the proposal.
+        if vote {
+            assert_eq!(proposal_state.stake_for, vote_stake);
+        } else {
+            assert_eq!(proposal_state.stake_against, vote_stake);
+        }
+
+        if should_have_cooldown {
+            // Assert the cooldown time is set.
+            assert!(proposal_state.cooldown_timestamp.is_some());
+        } else {
+            // Assert the cooldown time is not set.
+            assert!(proposal_state.cooldown_timestamp.is_none());
+        }
     }
 }

@@ -10,6 +10,7 @@ use {
         pubkey::Pubkey,
     },
     spl_discriminator::SplDiscriminate,
+    std::num::NonZeroU64,
 };
 
 pub fn setup() -> ProgramTest {
@@ -99,7 +100,7 @@ pub async fn setup_governance(
     );
 }
 
-pub async fn setup_proposal_with_stake(
+async fn _setup_proposal_inner(
     context: &mut ProgramTestContext,
     proposal_address: &Pubkey,
     author: &Pubkey,
@@ -107,10 +108,16 @@ pub async fn setup_proposal_with_stake(
     instruction: u64,
     stake_for: u64,
     stake_against: u64,
+    cooldown: Option<NonZeroU64>,
 ) {
     let mut state = Proposal::new(author, creation_timestamp, instruction);
     state.stake_for = stake_for;
     state.stake_against = stake_against;
+
+    if cooldown.is_some() {
+        state.cooldown_timestamp = cooldown;
+    }
+
     let data = bytemuck::bytes_of(&state).to_vec();
 
     let rent = context.banks_client.get_rent().await.unwrap();
@@ -125,6 +132,51 @@ pub async fn setup_proposal_with_stake(
             ..Account::default()
         }),
     );
+}
+
+pub async fn setup_proposal_with_stake_and_cooldown(
+    context: &mut ProgramTestContext,
+    proposal_address: &Pubkey,
+    author: &Pubkey,
+    creation_timestamp: u64,
+    instruction: u64,
+    stake_for: u64,
+    stake_against: u64,
+    cooldown: Option<NonZeroU64>,
+) {
+    _setup_proposal_inner(
+        context,
+        proposal_address,
+        author,
+        creation_timestamp,
+        instruction,
+        stake_for,
+        stake_against,
+        cooldown,
+    )
+    .await;
+}
+
+pub async fn setup_proposal_with_stake(
+    context: &mut ProgramTestContext,
+    proposal_address: &Pubkey,
+    author: &Pubkey,
+    creation_timestamp: u64,
+    instruction: u64,
+    stake_for: u64,
+    stake_against: u64,
+) {
+    _setup_proposal_inner(
+        context,
+        proposal_address,
+        author,
+        creation_timestamp,
+        instruction,
+        stake_for,
+        stake_against,
+        None,
+    )
+    .await;
 }
 
 pub async fn setup_proposal(
