@@ -9,8 +9,8 @@ use {
     },
     paladin_stake_program::state::{find_stake_pda, Config as StakeConfig, Stake},
     setup::{
-        setup, setup_governance, setup_proposal, setup_proposal_with_stake, setup_stake,
-        setup_stake_config, setup_vote,
+        setup, setup_governance, setup_proposal, setup_proposal_with_stake,
+        setup_proposal_with_stake_and_cooldown, setup_stake, setup_stake_config, setup_vote,
     },
     solana_program_test::*,
     solana_sdk::{
@@ -21,6 +21,7 @@ use {
         signer::Signer,
         transaction::{Transaction, TransactionError},
     },
+    std::num::NonZeroU64,
     test_case::test_case,
 };
 
@@ -953,10 +954,158 @@ async fn fail_vote_not_initialized() {
     );
 }
 
-#[test_case(true)]
-#[test_case(false)]
+struct ProposalSetup {
+    acceptance_threshold: u64,
+    rejection_threshold: u64,
+    proposal_stake_for: u64,
+    proposal_stake_against: u64,
+    proposal_has_cooldown: bool,
+    total_stake: u64,
+}
+struct SwitchVoteTest {
+    vote_stake: u64,
+    new_vote: bool,
+    should_have_cooldown: bool,
+    should_terminate: bool,
+}
+
+#[allow(clippy::arithmetic_side_effects)]
+#[test_case(
+    ProposalSetup {
+        acceptance_threshold: 200_000_000, // 20%
+        rejection_threshold: 200_000_000,  // 20%
+        proposal_stake_for: 15_000_000, // 15% of total stake.
+        proposal_stake_against: 15_000_000, // 15% of total stake.
+        proposal_has_cooldown: false,
+        total_stake: 100_000_000,
+    },
+    SwitchVoteTest {
+        vote_stake: 10_000_000, // 10% of total stake.
+        new_vote: true, // Switched from against to for.
+        should_have_cooldown: true, // Cooldown should be set by this switched vote.
+        should_terminate: false,
+    };
+    "no_cooldown_acceptance_threshold_met_should_begin_cooldown"
+)]
+#[test_case(
+    ProposalSetup {
+        acceptance_threshold: 200_000_000, // 20%
+        rejection_threshold: 200_000_000,  // 20%
+        proposal_stake_for: 10_000_000, // 10% of total stake.
+        proposal_stake_against: 10_000_000, // 10% of total stake.
+        proposal_has_cooldown: false,
+        total_stake: 100_000_000,
+    },
+    SwitchVoteTest {
+        vote_stake: 5_000_000, // 5% of total stake.
+        new_vote: true, // For
+        should_have_cooldown: false, // Cooldown should not be set by this switched vote.
+        should_terminate: false,
+    };
+    "no_cooldown_acceptance_threshold_not_met_should_not_begin_cooldown"
+)]
+#[test_case(
+    ProposalSetup {
+        acceptance_threshold: 200_000_000, // 20%
+        rejection_threshold: 200_000_000,  // 20%
+        proposal_stake_for: 20_000_000, // 20% of total stake.
+        proposal_stake_against: 10_000_000, // 10% of total stake.
+        proposal_has_cooldown: true,
+        total_stake: 100_000_000,
+    },
+    SwitchVoteTest {
+        vote_stake: 5_000_000, // 5% of total stake.
+        new_vote: false, // Against
+        should_have_cooldown: false, // Cooldown should have been disabled by this switched vote.
+        should_terminate: false,
+    };
+    "with_cooldown_fell_below_acceptance_threshold_should_disable_cooldown"
+)]
+#[test_case(
+    ProposalSetup {
+        acceptance_threshold: 200_000_000, // 20%
+        rejection_threshold: 200_000_000,  // 20%
+        proposal_stake_for: 15_000_000, // 15% of total stake.
+        proposal_stake_against: 15_000_000, // 15% of total stake.
+        proposal_has_cooldown: false,
+        total_stake: 100_000_000,
+    },
+    SwitchVoteTest {
+        vote_stake: 10_000_000, // 10% of total stake.
+        new_vote: false, // Switched from for to against.
+        should_have_cooldown: false,
+        should_terminate: true, // Proposal should be terminated.
+    };
+    "no_cooldown_rejection_threshold_met_should_terminate"
+)]
+#[test_case(
+    ProposalSetup {
+        acceptance_threshold: 200_000_000, // 20%
+        rejection_threshold: 200_000_000,  // 20%
+        proposal_stake_for: 15_000_000, // 15% of total stake.
+        proposal_stake_against: 15_000_000, // 15% of total stake.
+        proposal_has_cooldown: true,
+        total_stake: 100_000_000,
+    },
+    SwitchVoteTest {
+        vote_stake: 10_000_000, // 10% of total stake.
+        new_vote: false, // Switched from for to against.
+        should_have_cooldown: false,
+        should_terminate: true, // Proposal should be terminated.
+    };
+    "with_cooldown_rejection_threshold_met_should_terminate"
+)]
+#[test_case(
+    ProposalSetup {
+        acceptance_threshold: 400_000_000, // 40%
+        rejection_threshold: 400_000_000,  // 40%
+        proposal_stake_for: 15_000_000, // 15% of total stake.
+        proposal_stake_against: 15_000_000, // 15% of total stake.
+        proposal_has_cooldown: false,
+        total_stake: 100_000_000,
+    },
+    SwitchVoteTest {
+        vote_stake: 10_000_000, // 10% of total stake.
+        new_vote: false, // Switched from for to against.
+        should_have_cooldown: false,
+        should_terminate: false, // Proposal should not be terminated.
+    };
+    "no_cooldown_rejection_threshold_not_met_should_not_terminate"
+)]
+#[test_case(
+    ProposalSetup {
+        acceptance_threshold: 400_000_000, // 40%
+        rejection_threshold: 400_000_000,  // 40%
+        proposal_stake_for: 15_000_000, // 15% of total stake.
+        proposal_stake_against: 15_000_000, // 15% of total stake.
+        proposal_has_cooldown: true,
+        total_stake: 100_000_000,
+    },
+    SwitchVoteTest {
+        vote_stake: 10_000_000, // 10% of total stake.
+        new_vote: false, // Switched from for to against.
+        should_have_cooldown: false,
+        should_terminate: false, // Proposal should not be terminated.
+    };
+    "with_cooldown_rejection_threshold_not_met_should_not_terminate"
+)]
 #[tokio::test]
-async fn success(new_vote: bool) {
+async fn success(proposal_setup: ProposalSetup, vote_test: SwitchVoteTest) {
+    let ProposalSetup {
+        acceptance_threshold,
+        rejection_threshold,
+        proposal_stake_for,
+        proposal_stake_against,
+        proposal_has_cooldown,
+        total_stake,
+    } = proposal_setup;
+    let SwitchVoteTest {
+        vote_stake,
+        new_vote,
+        should_have_cooldown,
+        should_terminate,
+    } = vote_test;
+
     let validator = Keypair::new();
     let stake_config = Pubkey::new_unique();
     let proposal = Pubkey::new_unique();
@@ -974,49 +1123,62 @@ async fn success(new_vote: bool) {
     );
     let governance = get_governance_address(&paladin_governance_program::id());
 
-    let validator_stake = 100_000;
-
     let mut context = setup().start_with_context().await;
-    setup_stake_config(&mut context, &stake_config, 0).await;
+    setup_stake_config(&mut context, &stake_config, total_stake).await;
     setup_stake(
         &mut context,
         &stake,
         /* authority_address */ &Pubkey::new_unique(),
         &validator.pubkey(),
-        validator_stake,
+        vote_stake,
     )
     .await;
-    setup_governance(&mut context, &governance, 0, 0, 0, 0).await;
+    setup_governance(
+        &mut context,
+        &governance,
+        /* cooldown_period_seconds */ 10, // Unused here.
+        acceptance_threshold,
+        rejection_threshold,
+        total_stake,
+    )
+    .await;
 
     // Set up the vote account with the _inverse_ vote.
     setup_vote(
         &mut context,
         &proposal_vote,
         &proposal,
-        validator_stake,
+        vote_stake,
         &validator.pubkey(),
         !new_vote,
     )
     .await;
 
     // Set up the proposal with the previous vote counted.
-    let (stake_for, stake_against) = if new_vote {
-        // Inverse!
-        (0, validator_stake)
+    if proposal_has_cooldown {
+        setup_proposal_with_stake_and_cooldown(
+            &mut context,
+            &proposal,
+            &validator.pubkey(),
+            0,
+            0,
+            proposal_stake_for,
+            proposal_stake_against,
+            NonZeroU64::new(1), // Doesn't matter, just has to be `Some`.
+        )
+        .await;
     } else {
-        // Inverse!
-        (validator_stake, 0)
-    };
-    setup_proposal_with_stake(
-        &mut context,
-        &proposal,
-        &validator.pubkey(),
-        0,
-        0,
-        stake_for,
-        stake_against,
-    )
-    .await;
+        setup_proposal_with_stake(
+            &mut context,
+            &proposal,
+            &validator.pubkey(),
+            0,
+            0,
+            proposal_stake_for,
+            proposal_stake_against,
+        )
+        .await;
+    }
 
     let instruction = paladin_governance_program::instruction::switch_vote(
         &validator.pubkey(),
@@ -1050,24 +1212,49 @@ async fn success(new_vote: bool) {
         .unwrap();
     assert_eq!(
         bytemuck::from_bytes::<ProposalVote>(&vote_account.data),
-        &ProposalVote::new(&proposal, validator_stake, &validator.pubkey(), new_vote)
+        &ProposalVote::new(&proposal, vote_stake, &validator.pubkey(), new_vote)
     );
 
-    // Assert the vote count was updated in the proposal.
-    let (expected_stake_for, expected_stake_against) = if new_vote {
-        // Updated!
-        (validator_stake, 0)
-    } else {
-        // Updated!
-        (0, validator_stake)
-    };
     let proposal_account = context
         .banks_client
         .get_account(proposal)
         .await
         .unwrap()
         .unwrap();
-    let proposal_state = bytemuck::from_bytes::<Proposal>(&proposal_account.data);
-    assert_eq!(proposal_state.stake_for, expected_stake_for);
-    assert_eq!(proposal_state.stake_against, expected_stake_against);
+
+    if should_terminate {
+        // Assert the proposal was terminated.
+        // The proposal should be cleared and reassigned to the system program.
+        assert_eq!(proposal_account.owner, solana_program::system_program::id());
+        assert_eq!(proposal_account.data.len(), 0);
+    } else {
+        let proposal_state = bytemuck::from_bytes::<Proposal>(&proposal_account.data);
+
+        // Assert the vote count was updated in the proposal.
+        if new_vote {
+            // Vote switched from against to for, so stake should have moved
+            // from against to for.
+            assert_eq!(
+                proposal_state.stake_against,
+                proposal_stake_against - vote_stake
+            );
+            assert_eq!(proposal_state.stake_for, proposal_stake_for + vote_stake);
+        } else {
+            // Vote switched from for to against, so stake should have moved
+            // from for to against.
+            assert_eq!(proposal_state.stake_for, proposal_stake_for - vote_stake);
+            assert_eq!(
+                proposal_state.stake_against,
+                proposal_stake_against + vote_stake
+            );
+        }
+
+        if should_have_cooldown {
+            // Assert the cooldown time is set.
+            assert!(proposal_state.cooldown_timestamp.is_some());
+        } else {
+            // Assert the cooldown time is not set.
+            assert!(proposal_state.cooldown_timestamp.is_none());
+        }
+    }
 }
