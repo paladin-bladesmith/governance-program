@@ -8,15 +8,17 @@ use {
         instruction::process_proposal,
         state::{get_governance_address, Config, Proposal},
     },
-    setup::{setup, setup_governance, setup_proposal},
+    setup::{setup, setup_governance, setup_proposal_with_stake_and_cooldown},
     solana_program_test::*,
     solana_sdk::{
         account::AccountSharedData,
+        clock::Clock,
         instruction::InstructionError,
         pubkey::Pubkey,
         signer::Signer,
         transaction::{Transaction, TransactionError},
     },
+    std::num::NonZeroU64,
 };
 
 #[tokio::test]
@@ -220,13 +222,23 @@ async fn fail_proposal_not_accepted() {
     let governance = get_governance_address(&paladin_governance_program::id());
 
     let mut context = setup().start_with_context().await;
-    setup_governance(&mut context, &governance, 0, 0, 0, 0).await;
 
     // Set up an unaccepted proposal.
-    // Simply set the required threshold, then initialize the proposal to zero
-    // stake for.
-    setup_governance(&mut context, &governance, 0, 100_000, 0, 0).await;
-    setup_proposal(&mut context, &proposal, &Pubkey::new_unique(), 0, 0).await;
+    // Simply set the cooldown timestamp to the current clock timestamp,
+    // and require more than 0 seconds for cooldown.
+    setup_governance(&mut context, &governance, 1_000_000, 0, 0, 0).await;
+    let clock = context.banks_client.get_sysvar::<Clock>().await.unwrap();
+    setup_proposal_with_stake_and_cooldown(
+        &mut context,
+        &proposal,
+        &Pubkey::new_unique(),
+        0,
+        0,
+        0,
+        0,
+        NonZeroU64::new(clock.unix_timestamp as u64),
+    )
+    .await;
 
     let instruction = process_proposal(&proposal, &governance);
 
@@ -260,7 +272,17 @@ async fn success() {
 
     let mut context = setup().start_with_context().await;
     setup_governance(&mut context, &governance, 0, 0, 0, 0).await;
-    setup_proposal(&mut context, &proposal, &Pubkey::new_unique(), 0, 0).await;
+    setup_proposal_with_stake_and_cooldown(
+        &mut context,
+        &proposal,
+        &Pubkey::new_unique(),
+        0,
+        0,
+        0,
+        0,
+        NonZeroU64::new(1),
+    )
+    .await;
 
     let instruction = process_proposal(&proposal, &governance);
 

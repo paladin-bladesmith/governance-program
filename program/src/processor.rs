@@ -140,6 +140,21 @@ fn check_proposal_exists(program_id: &Pubkey, proposal_info: &AccountInfo) -> Pr
     Ok(())
 }
 
+fn check_proposal_cooldown(
+    proposal: &Proposal,
+    governance_config: &Config,
+    clock: &Clock,
+) -> ProgramResult {
+    if let Some(cooldown_timestamp) = proposal.cooldown_timestamp {
+        if (clock.unix_timestamp as u64).saturating_sub(governance_config.cooldown_period_seconds)
+            >= cooldown_timestamp.get()
+        {
+            return Ok(());
+        }
+    }
+    Err(PaladinGovernanceError::ProposalNotAccepted.into())
+}
+
 fn close_proposal_account(proposal_info: &AccountInfo) -> ProgramResult {
     proposal_info.realloc(0, true)?;
     proposal_info.assign(&system_program::id());
@@ -501,12 +516,9 @@ fn process_process_proposal(program_id: &Pubkey, accounts: &[AccountInfo]) -> Pr
         let governance_config = bytemuck::try_from_bytes::<Config>(&governance_data)
             .map_err(|_| ProgramError::InvalidAccountData)?;
 
-        if proposal_state.stake_for < governance_config.proposal_acceptance_threshold {
-            // If the proposal has met the acceptance threshold, begin the cooldown
-            // period.
-            // TODO: Requires imports from stake program.
-            return Err(PaladinGovernanceError::ProposalNotAccepted.into());
-        }
+        let clock = <Clock as Sysvar>::get()?;
+
+        check_proposal_cooldown(proposal_state, governance_config, &clock)?;
 
         // Process the proposal instruction.
         // TODO!
@@ -608,12 +620,9 @@ fn process_update_governance(
         let governance_config = bytemuck::try_from_bytes::<Config>(&governance_data)
             .map_err(|_| ProgramError::InvalidAccountData)?;
 
-        if proposal_state.stake_for < governance_config.proposal_acceptance_threshold {
-            // If the proposal has met the acceptance threshold, begin the cooldown
-            // period.
-            // TODO: Requires imports from stake program.
-            return Err(PaladinGovernanceError::ProposalNotAccepted.into());
-        }
+        let clock = <Clock as Sysvar>::get()?;
+
+        check_proposal_cooldown(proposal_state, governance_config, &clock)?;
 
         // TODO: This instruction requires a gate to ensure it can only be
         // invoked from a proposal.
