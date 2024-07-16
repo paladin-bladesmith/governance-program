@@ -50,7 +50,7 @@ pub enum PaladinGovernanceInstruction {
     ///
     /// 0. `[s]` Validator vote account.
     /// 1. `[ ]` Paladin stake account.
-    /// 2. `[ ]` Paladin stake vault account.
+    /// 2. `[ ]` Paladin stake config account.
     /// 3. `[w]` Proposal vote account.
     /// 4. `[w]` Proposal account.
     /// 5. `[ ]` Governance config account.
@@ -75,7 +75,7 @@ pub enum PaladinGovernanceInstruction {
     ///
     /// 0. `[s]` Validator vote account.
     /// 1. `[ ]` Paladin stake account.
-    /// 2. `[ ]` Paladin stake vault account.
+    /// 2. `[ ]` Paladin stake config account.
     /// 3. `[w]` Proposal vote account.
     /// 4. `[w]` Proposal account.
     /// 5. `[ ]` Governance config account.
@@ -96,9 +96,8 @@ pub enum PaladinGovernanceInstruction {
     /// Accounts expected by this instruction:
     ///
     /// 0. `[w]` Proposal account.
-    /// 1. `[ ]` Paladin stake vault account.
-    /// 2. `[ ]` Governance config account.
-    /// 3. `[w]` Incinerator.
+    /// 1. `[ ]` Governance config account.
+    /// 2. `[w]` Incinerator.
     ProcessProposal,
     /// Initialize the governance config.
     ///
@@ -139,7 +138,6 @@ pub enum PaladinGovernanceInstruction {
     ///
     /// 0. `[w]` Governance config account.
     /// 1. `[ ]` Proposal account.
-    /// 2. `[ ]` Paladin stake vault account.
     UpdateGovernance {
         /// The cooldown period that begins when a proposal reaches the
         /// `proposal_acceptance_threshold` and upon its conclusion will execute
@@ -277,7 +275,7 @@ pub fn cancel_proposal(
 pub fn vote(
     validator_address: &Pubkey,
     stake_address: &Pubkey,
-    vault_address: &Pubkey,
+    stake_config_address: &Pubkey,
     proposal_vote_address: &Pubkey,
     proposal_address: &Pubkey,
     governance_config_address: &Pubkey,
@@ -286,7 +284,7 @@ pub fn vote(
     let accounts = vec![
         AccountMeta::new_readonly(*validator_address, true),
         AccountMeta::new_readonly(*stake_address, false),
-        AccountMeta::new_readonly(*vault_address, false),
+        AccountMeta::new_readonly(*stake_config_address, false),
         AccountMeta::new(*proposal_vote_address, false),
         AccountMeta::new(*proposal_address, false),
         AccountMeta::new_readonly(*governance_config_address, false),
@@ -302,7 +300,7 @@ pub fn vote(
 pub fn switch_vote(
     validator_address: &Pubkey,
     stake_address: &Pubkey,
-    vault_address: &Pubkey,
+    stake_config_address: &Pubkey,
     proposal_vote_address: &Pubkey,
     proposal_address: &Pubkey,
     governance_config_address: &Pubkey,
@@ -311,7 +309,7 @@ pub fn switch_vote(
     let accounts = vec![
         AccountMeta::new_readonly(*validator_address, true),
         AccountMeta::new_readonly(*stake_address, false),
-        AccountMeta::new_readonly(*vault_address, false),
+        AccountMeta::new_readonly(*stake_config_address, false),
         AccountMeta::new(*proposal_vote_address, false),
         AccountMeta::new(*proposal_address, false),
         AccountMeta::new_readonly(*governance_config_address, false),
@@ -325,12 +323,10 @@ pub fn switch_vote(
 /// instruction.
 pub fn process_proposal(
     proposal_address: &Pubkey,
-    vault_address: &Pubkey,
     governance_config_address: &Pubkey,
 ) -> Instruction {
     let accounts = vec![
         AccountMeta::new(*proposal_address, false),
-        AccountMeta::new_readonly(*vault_address, false),
         AccountMeta::new_readonly(*governance_config_address, false),
         AccountMeta::new(incinerator::id(), false),
     ];
@@ -366,7 +362,6 @@ pub fn initialize_governance(
 pub fn update_governance(
     governance_config_address: &Pubkey,
     proposal_address: &Pubkey,
-    vault_address: &Pubkey,
     cooldown_period_seconds: u64,
     proposal_acceptance_threshold: u64,
     proposal_rejection_threshold: u64,
@@ -374,7 +369,6 @@ pub fn update_governance(
     let accounts = vec![
         AccountMeta::new(*governance_config_address, false),
         AccountMeta::new_readonly(*proposal_address, false),
-        AccountMeta::new_readonly(*vault_address, false),
     ];
     let data = PaladinGovernanceInstruction::UpdateGovernance {
         cooldown_period_seconds,

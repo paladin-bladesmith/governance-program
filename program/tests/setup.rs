@@ -3,12 +3,13 @@
 
 use {
     paladin_governance_program::state::{Config, Proposal, ProposalVote},
-    paladin_stake_program::state::Stake,
+    paladin_stake_program::state::{Config as StakeConfig, Stake},
     solana_program_test::*,
     solana_sdk::{
         account::{Account, AccountSharedData},
         pubkey::Pubkey,
     },
+    spl_discriminator::SplDiscriminate,
 };
 
 pub fn setup() -> ProgramTest {
@@ -35,6 +36,30 @@ pub async fn setup_stake(
 
     context.set_account(
         stake_address,
+        &AccountSharedData::from(Account {
+            lamports,
+            data,
+            owner: paladin_stake_program::id(),
+            ..Account::default()
+        }),
+    );
+}
+
+pub async fn setup_stake_config(
+    context: &mut ProgramTestContext,
+    stake_config_address: &Pubkey,
+    total_stake: u64,
+) {
+    let mut state = StakeConfig::default();
+    state.discriminator = StakeConfig::SPL_DISCRIMINATOR.into();
+    state.token_amount_delegated = total_stake;
+    let data = bytemuck::bytes_of(&state).to_vec();
+
+    let rent = context.banks_client.get_rent().await.unwrap();
+    let lamports = rent.minimum_balance(data.len());
+
+    context.set_account(
+        stake_config_address,
         &AccountSharedData::from(Account {
             lamports,
             data,

@@ -22,7 +22,7 @@ use {
 #[tokio::test]
 async fn fail_validator_not_signer() {
     let validator = Keypair::new();
-    let stake = Pubkey::new_unique(); // TODO!
+    let stake = Pubkey::new_unique(); // PDA doesn't matter here.
     let proposal = Pubkey::new_unique();
 
     let mut context = setup().start_with_context().await;
@@ -53,7 +53,7 @@ async fn fail_validator_not_signer() {
 #[tokio::test]
 async fn fail_stake_incorrect_owner() {
     let validator = Keypair::new();
-    let stake = Pubkey::new_unique(); // TODO!
+    let stake = Pubkey::new_unique(); // PDA doesn't matter here.
     let proposal = Pubkey::new_unique();
 
     let mut context = setup().start_with_context().await;
@@ -94,7 +94,7 @@ async fn fail_stake_incorrect_owner() {
 #[tokio::test]
 async fn fail_stake_not_initialized() {
     let validator = Keypair::new();
-    let stake = Pubkey::new_unique(); // TODO!
+    let stake = Pubkey::new_unique(); // PDA doesn't matter here.
     let proposal = Pubkey::new_unique();
 
     let mut context = setup().start_with_context().await;
@@ -135,7 +135,7 @@ async fn fail_stake_not_initialized() {
 #[tokio::test]
 async fn fail_stake_incorrect_validator() {
     let validator = Keypair::new();
-    let stake = Pubkey::new_unique(); // TODO!
+    let stake = Pubkey::new_unique(); // PDA doesn't matter here.
     let proposal = Pubkey::new_unique();
 
     let mut context = setup().start_with_context().await;
@@ -178,7 +178,7 @@ async fn fail_stake_incorrect_validator() {
 #[tokio::test]
 async fn fail_proposal_incorrect_owner() {
     let validator = Keypair::new();
-    let stake = Pubkey::new_unique(); // TODO!
+    let stake = Pubkey::new_unique(); // PDA doesn't matter here.
     let proposal = Pubkey::new_unique();
 
     let mut context = setup().start_with_context().await;
@@ -227,7 +227,7 @@ async fn fail_proposal_incorrect_owner() {
 #[tokio::test]
 async fn fail_proposal_not_initialized() {
     let validator = Keypair::new();
-    let stake = Pubkey::new_unique(); // TODO!
+    let stake = Pubkey::new_unique(); // PDA doesn't matter here.
     let proposal = Pubkey::new_unique();
 
     let mut context = setup().start_with_context().await;
@@ -276,7 +276,7 @@ async fn fail_proposal_not_initialized() {
 #[tokio::test]
 async fn fail_validator_not_author() {
     let validator = Keypair::new();
-    let stake = Pubkey::new_unique(); // TODO!
+    let stake = Pubkey::new_unique(); // PDA doesn't matter here.
     let proposal = Pubkey::new_unique();
 
     let mut context = setup().start_with_context().await;
@@ -322,7 +322,7 @@ async fn fail_validator_not_author() {
 #[tokio::test]
 async fn fail_destination_not_incinerator() {
     let validator = Keypair::new();
-    let stake = Pubkey::new_unique(); // TODO!
+    let stake = Pubkey::new_unique(); // PDA doesn't matter here.
     let proposal = Pubkey::new_unique();
 
     let mut context = setup().start_with_context().await;
@@ -362,7 +362,7 @@ async fn fail_destination_not_incinerator() {
 #[tokio::test]
 async fn success() {
     let validator = Keypair::new();
-    let stake = Pubkey::new_unique(); // TODO!
+    let stake = Pubkey::new_unique(); // PDA doesn't matter here.
     let proposal = Pubkey::new_unique();
 
     let mut context = setup().start_with_context().await;

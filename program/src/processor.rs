@@ -10,7 +10,7 @@ use {
             Config, Proposal, ProposalVote,
         },
     },
-    paladin_stake_program::state::Stake,
+    paladin_stake_program::state::{find_stake_pda, Config as StakeConfig, Stake},
     solana_program::{
         account_info::{next_account_info, AccountInfo},
         clock::Clock,
@@ -51,6 +51,41 @@ fn get_validator_stake_checked(
 
     // Return the currently active stake amount.
     Ok(state.amount)
+}
+
+fn get_total_stake_checked(
+    validator_key: &Pubkey,
+    stake_key: &Pubkey,
+    stake_config_info: &AccountInfo,
+) -> Result<u64, ProgramError> {
+    // Ensure the stake address is derived from the validator and config keys.
+    if stake_key
+        != &find_stake_pda(
+            validator_key,
+            stake_config_info.key,
+            &paladin_stake_program::id(),
+        )
+        .0
+    {
+        return Err(PaladinGovernanceError::IncorrectStakeConfig.into());
+    }
+
+    // Ensure the config account is owned by the Paladin Stake program.
+    if stake_config_info.owner != &paladin_stake_program::id() {
+        return Err(ProgramError::InvalidAccountOwner);
+    }
+
+    let data = stake_config_info.try_borrow_data()?;
+    let state = bytemuck::try_from_bytes::<StakeConfig>(&data)
+        .map_err(|_| ProgramError::InvalidAccountData)?;
+
+    // Ensure the config account is initialized.
+    if !state.is_initialized() {
+        return Err(ProgramError::UninitializedAccount);
+    }
+
+    // Return the total stake amount.
+    Ok(state.token_amount_delegated)
 }
 
 fn check_governance_exists(program_id: &Pubkey, governance_info: &AccountInfo) -> ProgramResult {
@@ -194,7 +229,7 @@ fn process_vote(program_id: &Pubkey, accounts: &[AccountInfo], vote: bool) -> Pr
 
     let validator_info = next_account_info(accounts_iter)?;
     let stake_info = next_account_info(accounts_iter)?;
-    let _vault_info = next_account_info(accounts_iter)?;
+    let stake_config_info = next_account_info(accounts_iter)?;
     let vote_info = next_account_info(accounts_iter)?;
     let proposal_info = next_account_info(accounts_iter)?;
     let governance_info = next_account_info(accounts_iter)?;
@@ -205,11 +240,9 @@ fn process_vote(program_id: &Pubkey, accounts: &[AccountInfo], vote: bool) -> Pr
         return Err(ProgramError::MissingRequiredSignature);
     }
 
-    // Ensure the provided stake account belongs to the validator.
     let stake = get_validator_stake_checked(validator_info.key, stake_info)?;
-
-    // Ensure the proper vault account was provided.
-    // TODO: Requires imports from stake program.
+    let _total_stake =
+        get_total_stake_checked(validator_info.key, stake_info.key, stake_config_info)?;
 
     check_governance_exists(program_id, governance_info)?;
     check_proposal_exists(program_id, proposal_info)?;
@@ -297,7 +330,7 @@ fn process_switch_vote(program_id: &Pubkey, accounts: &[AccountInfo], vote: bool
 
     let validator_info = next_account_info(accounts_iter)?;
     let stake_info = next_account_info(accounts_iter)?;
-    let _vault_info = next_account_info(accounts_iter)?;
+    let stake_config_info = next_account_info(accounts_iter)?;
     let vote_info = next_account_info(accounts_iter)?;
     let proposal_info = next_account_info(accounts_iter)?;
     let governance_info = next_account_info(accounts_iter)?;
@@ -307,10 +340,9 @@ fn process_switch_vote(program_id: &Pubkey, accounts: &[AccountInfo], vote: bool
         return Err(ProgramError::MissingRequiredSignature);
     }
 
-    // Ensure the provided stake account belongs to the validator.
     let stake = get_validator_stake_checked(validator_info.key, stake_info)?;
-
-    // Ensure the proper vault account was provided.
+    let _total_stake =
+        get_total_stake_checked(validator_info.key, stake_info.key, stake_config_info)?;
 
     check_governance_exists(program_id, governance_info)?;
     check_proposal_exists(program_id, proposal_info)?;
@@ -408,12 +440,13 @@ fn process_process_proposal(program_id: &Pubkey, accounts: &[AccountInfo]) -> Pr
     let accounts_iter = &mut accounts.iter();
 
     let proposal_info = next_account_info(accounts_iter)?;
-    let _vault_info = next_account_info(accounts_iter)?;
+    // TODO: I've cut the stake config from this instruction, in favor of a
+    // more robust cooldown mechanism, which won't need the config account
+    // here.
+    // It also shouldn't need the governance account, but I'll leave that
+    // one be for now.
     let governance_info = next_account_info(accounts_iter)?;
     let incinerator_info = next_account_info(accounts_iter)?;
-
-    // Ensure the proper vault account was provided.
-    // TODO: Requires imports from stake program.
 
     check_governance_exists(program_id, governance_info)?;
     check_proposal_exists(program_id, proposal_info)?;
@@ -533,10 +566,8 @@ fn process_update_governance(
 
     let governance_info = next_account_info(accounts_iter)?;
     let proposal_info = next_account_info(accounts_iter)?;
-    let _vault_info = next_account_info(accounts_iter)?;
-
-    // Ensure the proper vault account was provided.
-    // TODO: Requires imports from stake program.
+    // Same note as `process_process_proposal` applies here for cutting
+    // the stake config account.
 
     check_governance_exists(program_id, governance_info)?;
     check_proposal_exists(program_id, proposal_info)?;

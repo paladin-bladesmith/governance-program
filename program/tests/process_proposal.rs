@@ -20,19 +20,13 @@ use {
 };
 
 #[tokio::test]
-async fn fail_incorrect_vault_account() {
-    // TODO!
-}
-
-#[tokio::test]
 async fn fail_governance_incorrect_address() {
     let proposal = Pubkey::new_unique();
-    let vault = Pubkey::new_unique(); // TODO!
     let governance = Pubkey::new_unique(); // Incorrect governance address.
 
     let mut context = setup().start_with_context().await;
 
-    let instruction = process_proposal(&proposal, &vault, &governance);
+    let instruction = process_proposal(&proposal, &governance);
 
     let transaction = Transaction::new_signed_with_payer(
         &[instruction],
@@ -62,7 +56,6 @@ async fn fail_governance_incorrect_address() {
 #[tokio::test]
 async fn fail_governance_incorrect_owner() {
     let proposal = Pubkey::new_unique();
-    let vault = Pubkey::new_unique(); // TODO!
     let governance = get_governance_address(&paladin_governance_program::id());
 
     let mut context = setup().start_with_context().await;
@@ -78,7 +71,7 @@ async fn fail_governance_incorrect_owner() {
         );
     }
 
-    let instruction = process_proposal(&proposal, &vault, &governance);
+    let instruction = process_proposal(&proposal, &governance);
 
     let transaction = Transaction::new_signed_with_payer(
         &[instruction],
@@ -103,7 +96,6 @@ async fn fail_governance_incorrect_owner() {
 #[tokio::test]
 async fn fail_governance_not_initialized() {
     let proposal = Pubkey::new_unique();
-    let vault = Pubkey::new_unique(); // TODO!
     let governance = get_governance_address(&paladin_governance_program::id());
 
     let mut context = setup().start_with_context().await;
@@ -118,7 +110,7 @@ async fn fail_governance_not_initialized() {
         );
     }
 
-    let instruction = process_proposal(&proposal, &vault, &governance);
+    let instruction = process_proposal(&proposal, &governance);
 
     let transaction = Transaction::new_signed_with_payer(
         &[instruction],
@@ -143,7 +135,6 @@ async fn fail_governance_not_initialized() {
 #[tokio::test]
 async fn fail_proposal_incorrect_owner() {
     let proposal = Pubkey::new_unique();
-    let vault = Pubkey::new_unique(); // TODO!
     let governance = get_governance_address(&paladin_governance_program::id());
 
     let mut context = setup().start_with_context().await;
@@ -160,7 +151,7 @@ async fn fail_proposal_incorrect_owner() {
         );
     }
 
-    let instruction = process_proposal(&proposal, &vault, &governance);
+    let instruction = process_proposal(&proposal, &governance);
 
     let transaction = Transaction::new_signed_with_payer(
         &[instruction],
@@ -185,7 +176,6 @@ async fn fail_proposal_incorrect_owner() {
 #[tokio::test]
 async fn fail_proposal_not_initialized() {
     let proposal = Pubkey::new_unique();
-    let vault = Pubkey::new_unique(); // TODO!
     let governance = get_governance_address(&paladin_governance_program::id());
 
     let mut context = setup().start_with_context().await;
@@ -202,7 +192,7 @@ async fn fail_proposal_not_initialized() {
         );
     }
 
-    let instruction = process_proposal(&proposal, &vault, &governance);
+    let instruction = process_proposal(&proposal, &governance);
 
     let transaction = Transaction::new_signed_with_payer(
         &[instruction],
@@ -227,7 +217,6 @@ async fn fail_proposal_not_initialized() {
 #[tokio::test]
 async fn fail_proposal_not_accepted() {
     let proposal = Pubkey::new_unique();
-    let vault = Pubkey::new_unique(); // TODO!
     let governance = get_governance_address(&paladin_governance_program::id());
 
     let mut context = setup().start_with_context().await;
@@ -239,7 +228,7 @@ async fn fail_proposal_not_accepted() {
     setup_governance(&mut context, &governance, 0, 100_000, 0, 0).await;
     setup_proposal(&mut context, &proposal, &Pubkey::new_unique(), 0, 0).await;
 
-    let instruction = process_proposal(&proposal, &vault, &governance);
+    let instruction = process_proposal(&proposal, &governance);
 
     let transaction = Transaction::new_signed_with_payer(
         &[instruction],
@@ -267,15 +256,14 @@ async fn fail_proposal_not_accepted() {
 #[tokio::test]
 async fn fail_destination_not_incinerator() {
     let proposal = Pubkey::new_unique();
-    let vault = Pubkey::new_unique(); // TODO!
     let governance = get_governance_address(&paladin_governance_program::id());
 
     let mut context = setup().start_with_context().await;
     setup_governance(&mut context, &governance, 0, 0, 0, 0).await;
     setup_proposal(&mut context, &proposal, &Pubkey::new_unique(), 0, 0).await;
 
-    let mut instruction = process_proposal(&proposal, &vault, &governance);
-    instruction.accounts[3].pubkey = Pubkey::new_unique(); // Destination not incinerator.
+    let mut instruction = process_proposal(&proposal, &governance);
+    instruction.accounts[2].pubkey = Pubkey::new_unique(); // Destination not incinerator.
 
     let transaction = Transaction::new_signed_with_payer(
         &[instruction],
@@ -300,14 +288,13 @@ async fn fail_destination_not_incinerator() {
 #[tokio::test]
 async fn success() {
     let proposal = Pubkey::new_unique();
-    let vault = Pubkey::new_unique(); // TODO!
     let governance = get_governance_address(&paladin_governance_program::id());
 
     let mut context = setup().start_with_context().await;
     setup_governance(&mut context, &governance, 0, 0, 0, 0).await;
     setup_proposal(&mut context, &proposal, &Pubkey::new_unique(), 0, 0).await;
 
-    let instruction = process_proposal(&proposal, &vault, &governance);
+    let instruction = process_proposal(&proposal, &governance);
 
     let transaction = Transaction::new_signed_with_payer(
         &[instruction],

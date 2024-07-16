@@ -27,7 +27,6 @@ async fn fail_incorrect_vault_account() {
 #[tokio::test]
 async fn fail_governance_incorrect_address() {
     let proposal = Pubkey::new_unique();
-    let vault = Pubkey::new_unique(); // TODO!
     let governance = Pubkey::new_unique(); // Incorrect governance address.
 
     let mut context = setup().start_with_context().await;
@@ -35,7 +34,6 @@ async fn fail_governance_incorrect_address() {
     let instruction = update_governance(
         &governance,
         &proposal,
-        &vault,
         /* cooldown_period_seconds */ 0,
         /* proposal_acceptance_threshold */ 0,
         /* proposal_rejection_threshold */ 0,
@@ -69,7 +67,6 @@ async fn fail_governance_incorrect_address() {
 #[tokio::test]
 async fn fail_governance_incorrect_owner() {
     let proposal = Pubkey::new_unique();
-    let vault = Pubkey::new_unique(); // TODO!
     let governance = get_governance_address(&paladin_governance_program::id());
 
     let mut context = setup().start_with_context().await;
@@ -88,7 +85,6 @@ async fn fail_governance_incorrect_owner() {
     let instruction = update_governance(
         &governance,
         &proposal,
-        &vault,
         /* cooldown_period_seconds */ 0,
         /* proposal_acceptance_threshold */ 0,
         /* proposal_rejection_threshold */ 0,
@@ -117,7 +113,6 @@ async fn fail_governance_incorrect_owner() {
 #[tokio::test]
 async fn fail_governance_not_initialized() {
     let proposal = Pubkey::new_unique();
-    let vault = Pubkey::new_unique(); // TODO!
     let governance = get_governance_address(&paladin_governance_program::id());
 
     let mut context = setup().start_with_context().await;
@@ -135,7 +130,6 @@ async fn fail_governance_not_initialized() {
     let instruction = update_governance(
         &governance,
         &proposal,
-        &vault,
         /* cooldown_period_seconds */ 0,
         /* proposal_acceptance_threshold */ 0,
         /* proposal_rejection_threshold */ 0,
@@ -164,7 +158,6 @@ async fn fail_governance_not_initialized() {
 #[tokio::test]
 async fn fail_proposal_incorrect_owner() {
     let proposal = Pubkey::new_unique();
-    let vault = Pubkey::new_unique(); // TODO!
     let governance = get_governance_address(&paladin_governance_program::id());
 
     let mut context = setup().start_with_context().await;
@@ -184,7 +177,6 @@ async fn fail_proposal_incorrect_owner() {
     let instruction = update_governance(
         &governance,
         &proposal,
-        &vault,
         /* cooldown_period_seconds */ 0,
         /* proposal_acceptance_threshold */ 0,
         /* proposal_rejection_threshold */ 0,
@@ -213,7 +205,6 @@ async fn fail_proposal_incorrect_owner() {
 #[tokio::test]
 async fn fail_proposal_not_initialized() {
     let proposal = Pubkey::new_unique();
-    let vault = Pubkey::new_unique(); // TODO!
     let governance = get_governance_address(&paladin_governance_program::id());
 
     let mut context = setup().start_with_context().await;
@@ -233,7 +224,6 @@ async fn fail_proposal_not_initialized() {
     let instruction = update_governance(
         &governance,
         &proposal,
-        &vault,
         /* cooldown_period_seconds */ 0,
         /* proposal_acceptance_threshold */ 0,
         /* proposal_rejection_threshold */ 0,
@@ -262,7 +252,6 @@ async fn fail_proposal_not_initialized() {
 #[tokio::test]
 async fn success() {
     let proposal = Pubkey::new_unique();
-    let vault = Pubkey::new_unique(); // TODO!
     let governance = get_governance_address(&paladin_governance_program::id());
 
     let mut context = setup().start_with_context().await;
@@ -272,7 +261,6 @@ async fn success() {
     let instruction = update_governance(
         &governance,
         &proposal,
-        &vault,
         /* cooldown_period_seconds */ 1,
         /* proposal_acceptance_threshold */ 2,
         /* proposal_rejection_threshold */ 3,
