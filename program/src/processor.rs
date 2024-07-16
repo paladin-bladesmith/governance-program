@@ -15,7 +15,7 @@ use {
         account_info::{next_account_info, AccountInfo},
         clock::Clock,
         entrypoint::ProgramResult,
-        incinerator, msg,
+        msg,
         program::invoke_signed,
         program_error::ProgramError,
         pubkey::Pubkey,
@@ -124,6 +124,12 @@ fn check_proposal_exists(program_id: &Pubkey, proposal_info: &AccountInfo) -> Pr
     Ok(())
 }
 
+fn close_proposal_account(proposal_info: &AccountInfo) -> ProgramResult {
+    proposal_info.realloc(0, true)?;
+    proposal_info.assign(&system_program::id());
+    Ok(())
+}
+
 /// Processes a
 /// [CreateProposal](enum.PaladinGovernanceInstruction.html)
 /// instruction.
@@ -179,7 +185,6 @@ fn process_cancel_proposal(program_id: &Pubkey, accounts: &[AccountInfo]) -> Pro
     let validator_info = next_account_info(accounts_iter)?;
     let stake_info = next_account_info(accounts_iter)?;
     let proposal_info = next_account_info(accounts_iter)?;
-    let incinerator_info = next_account_info(accounts_iter)?;
 
     // Ensure the validator vote account is a signer.
     if !validator_info.is_signer {
@@ -202,21 +207,7 @@ fn process_cancel_proposal(program_id: &Pubkey, accounts: &[AccountInfo]) -> Pro
         }
     }
 
-    if incinerator_info.key != &incinerator::id() {
-        return Err(ProgramError::InvalidArgument);
-    }
-
-    // Close the proposal account.
-    let new_incinerator_lamports = proposal_info
-        .lamports()
-        .checked_add(incinerator_info.lamports())
-        .ok_or::<ProgramError>(ProgramError::ArithmeticOverflow)?;
-
-    **proposal_info.try_borrow_mut_lamports()? = 0;
-    **incinerator_info.try_borrow_mut_lamports()? = new_incinerator_lamports;
-
-    proposal_info.realloc(0, true)?;
-    proposal_info.assign(&system_program::id());
+    close_proposal_account(proposal_info)?;
 
     Ok(())
 }
@@ -446,7 +437,6 @@ fn process_process_proposal(program_id: &Pubkey, accounts: &[AccountInfo]) -> Pr
     // It also shouldn't need the governance account, but I'll leave that
     // one be for now.
     let governance_info = next_account_info(accounts_iter)?;
-    let incinerator_info = next_account_info(accounts_iter)?;
 
     check_governance_exists(program_id, governance_info)?;
     check_proposal_exists(program_id, proposal_info)?;
@@ -472,21 +462,7 @@ fn process_process_proposal(program_id: &Pubkey, accounts: &[AccountInfo]) -> Pr
         // TODO!
     }
 
-    // Close the proposal account.
-    if incinerator_info.key != &incinerator::id() {
-        return Err(ProgramError::InvalidArgument);
-    }
-
-    let new_incinerator_lamports = proposal_info
-        .lamports()
-        .checked_add(incinerator_info.lamports())
-        .ok_or::<ProgramError>(ProgramError::ArithmeticOverflow)?;
-
-    **proposal_info.try_borrow_mut_lamports()? = 0;
-    **incinerator_info.try_borrow_mut_lamports()? = new_incinerator_lamports;
-
-    proposal_info.realloc(0, true)?;
-    proposal_info.assign(&system_program::id());
+    close_proposal_account(proposal_info)?;
 
     Ok(())
 }

@@ -320,46 +320,6 @@ async fn fail_validator_not_author() {
 }
 
 #[tokio::test]
-async fn fail_destination_not_incinerator() {
-    let validator = Keypair::new();
-    let stake = Pubkey::new_unique(); // PDA doesn't matter here.
-    let proposal = Pubkey::new_unique();
-
-    let mut context = setup().start_with_context().await;
-    setup_stake(
-        &mut context,
-        &stake,
-        /* authority_address */ &Pubkey::new_unique(),
-        &validator.pubkey(),
-        0,
-    )
-    .await;
-    setup_proposal(&mut context, &proposal, &validator.pubkey(), 0, 0).await;
-
-    let mut instruction = cancel_proposal(&validator.pubkey(), &stake, &proposal);
-    instruction.accounts[3].pubkey = Pubkey::new_unique(); // Destination not incinerator.
-
-    let transaction = Transaction::new_signed_with_payer(
-        &[instruction],
-        Some(&context.payer.pubkey()),
-        &[&context.payer, &validator],
-        context.last_blockhash,
-    );
-
-    let err = context
-        .banks_client
-        .process_transaction(transaction)
-        .await
-        .unwrap_err()
-        .unwrap();
-
-    assert_eq!(
-        err,
-        TransactionError::InstructionError(0, InstructionError::InvalidArgument)
-    );
-}
-
-#[tokio::test]
 async fn success() {
     let validator = Keypair::new();
     let stake = Pubkey::new_unique(); // PDA doesn't matter here.
@@ -391,11 +351,13 @@ async fn success() {
         .await
         .unwrap();
 
-    // Assert the proposal was closed.
-    assert!(context
+    // Assert the proposal was cleared and reassigned to the system program.
+    let proposal_account = context
         .banks_client
         .get_account(proposal)
         .await
         .unwrap()
-        .is_none());
+        .unwrap();
+    assert_eq!(proposal_account.owner, solana_program::system_program::id());
+    assert_eq!(proposal_account.data.len(), 0);
 }

@@ -1,7 +1,6 @@
 //! Program instruction types.
 
 use solana_program::{
-    incinerator,
     instruction::{AccountMeta, Instruction},
     program_error::ProgramError,
     pubkey::Pubkey,
@@ -39,7 +38,6 @@ pub enum PaladinGovernanceInstruction {
     /// 0. `[s]` Validator vote account.
     /// 1. `[ ]` Paladin stake account.
     /// 2. `[w]` Proposal account.
-    /// 3. `[w]` Incinerator.
     CancelProposal,
     /// Vote on a governance proposal.
     ///
@@ -97,7 +95,6 @@ pub enum PaladinGovernanceInstruction {
     ///
     /// 0. `[w]` Proposal account.
     /// 1. `[ ]` Governance config account.
-    /// 2. `[w]` Incinerator.
     ProcessProposal,
     /// Initialize the governance config.
     ///
@@ -263,7 +260,6 @@ pub fn cancel_proposal(
         AccountMeta::new_readonly(*validator_address, true),
         AccountMeta::new_readonly(*stake_address, false),
         AccountMeta::new(*proposal_address, false),
-        AccountMeta::new(incinerator::id(), false),
     ];
     let data = PaladinGovernanceInstruction::CancelProposal.pack();
     Instruction::new_with_bytes(crate::id(), &data, accounts)
@@ -328,7 +324,6 @@ pub fn process_proposal(
     let accounts = vec![
         AccountMeta::new(*proposal_address, false),
         AccountMeta::new_readonly(*governance_config_address, false),
-        AccountMeta::new(incinerator::id(), false),
     ];
     let data = PaladinGovernanceInstruction::ProcessProposal.pack();
     Instruction::new_with_bytes(crate::id(), &data, accounts)
