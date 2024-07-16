@@ -26,6 +26,21 @@ use {
     spl_pod::primitives::PodBool,
 };
 
+const THRESHOLD_SCALING_FACTOR: u64 = 1_000; // 1e3
+
+fn calculate_vote_threshold(stake: u64, total_stake: u64) -> Result<u64, ProgramError> {
+    if total_stake == 0 {
+        return Ok(0);
+    }
+    // Calculation: stake / total_stake
+    //
+    // Scaled by 1e3 to store 3 decimal places of precision.
+    stake
+        .checked_mul(THRESHOLD_SCALING_FACTOR)
+        .and_then(|product| product.checked_div(total_stake))
+        .ok_or(ProgramError::ArithmeticOverflow)
+}
+
 fn get_validator_stake_checked(
     validator_key: &Pubkey,
     stake_info: &AccountInfo,
@@ -232,7 +247,7 @@ fn process_vote(program_id: &Pubkey, accounts: &[AccountInfo], vote: bool) -> Pr
     }
 
     let stake = get_validator_stake_checked(validator_info.key, stake_info)?;
-    let _total_stake =
+    let total_stake =
         get_total_stake_checked(validator_info.key, stake_info.key, stake_config_info)?;
 
     check_governance_exists(program_id, governance_info)?;
@@ -301,13 +316,17 @@ fn process_vote(program_id: &Pubkey, accounts: &[AccountInfo], vote: bool) -> Pr
         .map_err(|_| ProgramError::InvalidAccountData)?;
 
     #[allow(clippy::if_same_then_else)]
-    if state.stake_for >= governance_config.proposal_acceptance_threshold {
+    if calculate_vote_threshold(state.stake_for, total_stake)?
+        >= governance_config.proposal_acceptance_threshold
+    {
         // If the proposal has met the acceptance threshold, begin the cooldown
         // period.
-        // TODO: Requires imports from stake program.
-    } else if state.stake_against >= governance_config.proposal_rejection_threshold {
+        // TODO: Implement cooldown period.
+    } else if calculate_vote_threshold(state.stake_against, total_stake)?
+        >= governance_config.proposal_rejection_threshold
+    {
         // If the proposal has met the rejection threshold, cancel the proposal.
-        // TODO: Requires imports from stake program.
+        // TODO: Close the proposal account (get rid of incinerator).
     }
 
     Ok(())
@@ -332,7 +351,7 @@ fn process_switch_vote(program_id: &Pubkey, accounts: &[AccountInfo], vote: bool
     }
 
     let stake = get_validator_stake_checked(validator_info.key, stake_info)?;
-    let _total_stake =
+    let total_stake =
         get_total_stake_checked(validator_info.key, stake_info.key, stake_config_info)?;
 
     check_governance_exists(program_id, governance_info)?;
@@ -412,13 +431,17 @@ fn process_switch_vote(program_id: &Pubkey, accounts: &[AccountInfo], vote: bool
         .map_err(|_| ProgramError::InvalidAccountData)?;
 
     #[allow(clippy::if_same_then_else)]
-    if state.stake_for >= governance_config.proposal_acceptance_threshold {
+    if calculate_vote_threshold(state.stake_for, total_stake)?
+        >= governance_config.proposal_acceptance_threshold
+    {
         // If the proposal has met the acceptance threshold, begin the cooldown
         // period.
-        // TODO: Requires imports from stake program.
-    } else if state.stake_against >= governance_config.proposal_rejection_threshold {
+        // TODO: Implement cooldown period.
+    } else if calculate_vote_threshold(state.stake_against, total_stake)?
+        >= governance_config.proposal_rejection_threshold
+    {
         // If the proposal has met the rejection threshold, cancel the proposal.
-        // TODO: Requires imports from stake program.
+        // TODO: Close the proposal account (get rid of incinerator).
     }
 
     Ok(())

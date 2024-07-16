@@ -973,14 +973,16 @@ async fn success(vote: bool) {
     );
     let governance = get_governance_address(&paladin_governance_program::id());
 
+    let validator_stake = 100_000;
+
     let mut context = setup().start_with_context().await;
-    setup_stake_config(&mut context, &stake_config, 0).await;
+    setup_stake_config(&mut context, &stake_config, 100_000_000_000_000).await;
     setup_stake(
         &mut context,
         &stake,
         /* authority_address */ &Pubkey::new_unique(),
         &validator.pubkey(),
-        0,
+        validator_stake,
     )
     .await;
     setup_governance(&mut context, &governance, 0, 0, 0, 0).await;
@@ -1028,22 +1030,20 @@ async fn success(vote: bool) {
         .unwrap();
     assert_eq!(
         bytemuck::from_bytes::<ProposalVote>(&vote_account.data),
-        &ProposalVote::new(
-            &proposal,
-            /* stake */ 0, // TODO!
-            &validator.pubkey(),
-            vote,
-        )
+        &ProposalVote::new(&proposal, validator_stake, &validator.pubkey(), vote)
     );
 
     // Assert the vote count was updated in the proposal.
-    // TODO: All stake is zero right now...
-    // let proposal_account = context
-    //     .banks_client
-    //     .get_account(proposal)
-    //     .await
-    //     .unwrap()
-    //     .unwrap();
-    // let proposal_state =
-    // bytemuck::from_bytes::<Proposal>(&proposal_account.data);
+    let proposal_account = context
+        .banks_client
+        .get_account(proposal)
+        .await
+        .unwrap()
+        .unwrap();
+    let proposal_state = bytemuck::from_bytes::<Proposal>(&proposal_account.data);
+    if vote {
+        assert_eq!(proposal_state.stake_for, validator_stake);
+    } else {
+        assert_eq!(proposal_state.stake_against, validator_stake);
+    }
 }

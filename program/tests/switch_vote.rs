@@ -8,7 +8,10 @@ use {
         state::{get_governance_address, get_vote_address, Config, Proposal, ProposalVote},
     },
     paladin_stake_program::state::{find_stake_pda, Config as StakeConfig, Stake},
-    setup::{setup, setup_governance, setup_proposal, setup_stake, setup_stake_config, setup_vote},
+    setup::{
+        setup, setup_governance, setup_proposal, setup_proposal_with_stake, setup_stake,
+        setup_stake_config, setup_vote,
+    },
     solana_program_test::*,
     solana_sdk::{
         account::AccountSharedData,
@@ -953,7 +956,7 @@ async fn fail_vote_not_initialized() {
 #[test_case(true)]
 #[test_case(false)]
 #[tokio::test]
-async fn success(vote: bool) {
+async fn success(new_vote: bool) {
     let validator = Keypair::new();
     let stake_config = Pubkey::new_unique();
     let proposal = Pubkey::new_unique();
@@ -971,6 +974,8 @@ async fn success(vote: bool) {
     );
     let governance = get_governance_address(&paladin_governance_program::id());
 
+    let validator_stake = 100_000;
+
     let mut context = setup().start_with_context().await;
     setup_stake_config(&mut context, &stake_config, 0).await;
     setup_stake(
@@ -978,33 +983,40 @@ async fn success(vote: bool) {
         &stake,
         /* authority_address */ &Pubkey::new_unique(),
         &validator.pubkey(),
-        0,
+        validator_stake,
     )
     .await;
     setup_governance(&mut context, &governance, 0, 0, 0, 0).await;
-    setup_proposal(&mut context, &proposal, &validator.pubkey(), 0, 0).await;
 
     // Set up the vote account with the _inverse_ vote.
     setup_vote(
         &mut context,
         &proposal_vote,
         &proposal,
-        0,
+        validator_stake,
         &validator.pubkey(),
-        !vote,
+        !new_vote,
     )
     .await;
 
-    // For checks later.
-    // TODO: All stake is zero right now...
-    // let proposal_account = context
-    //     .banks_client
-    //     .get_account(proposal)
-    //     .await
-    //     .unwrap()
-    //     .unwrap();
-    // let proposal_state =
-    // bytemuck::from_bytes::<Proposal>(&proposal_account.data);
+    // Set up the proposal with the previous vote counted.
+    let (stake_for, stake_against) = if new_vote {
+        // Inverse!
+        (0, validator_stake)
+    } else {
+        // Inverse!
+        (validator_stake, 0)
+    };
+    setup_proposal_with_stake(
+        &mut context,
+        &proposal,
+        &validator.pubkey(),
+        0,
+        0,
+        stake_for,
+        stake_against,
+    )
+    .await;
 
     let instruction = paladin_governance_program::instruction::switch_vote(
         &validator.pubkey(),
@@ -1013,7 +1025,7 @@ async fn success(vote: bool) {
         &proposal_vote,
         &proposal,
         &governance,
-        vote,
+        new_vote,
     );
 
     let transaction = Transaction::new_signed_with_payer(
@@ -1038,22 +1050,24 @@ async fn success(vote: bool) {
         .unwrap();
     assert_eq!(
         bytemuck::from_bytes::<ProposalVote>(&vote_account.data),
-        &ProposalVote::new(
-            &proposal,
-            /* stake */ 0, // TODO!
-            &validator.pubkey(),
-            vote,
-        )
+        &ProposalVote::new(&proposal, validator_stake, &validator.pubkey(), new_vote)
     );
 
     // Assert the vote count was updated in the proposal.
-    // TODO: All stake is zero right now...
-    // let proposal_account = context
-    //     .banks_client
-    //     .get_account(proposal)
-    //     .await
-    //     .unwrap()
-    //     .unwrap();
-    // let proposal_state =
-    // bytemuck::from_bytes::<Proposal>(&proposal_account.data);
+    let (expected_stake_for, expected_stake_against) = if new_vote {
+        // Updated!
+        (validator_stake, 0)
+    } else {
+        // Updated!
+        (0, validator_stake)
+    };
+    let proposal_account = context
+        .banks_client
+        .get_account(proposal)
+        .await
+        .unwrap()
+        .unwrap();
+    let proposal_state = bytemuck::from_bytes::<Proposal>(&proposal_account.data);
+    assert_eq!(proposal_state.stake_for, expected_stake_for);
+    assert_eq!(proposal_state.stake_against, expected_stake_against);
 }
