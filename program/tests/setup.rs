@@ -3,11 +3,13 @@
 
 use {
     paladin_governance_program::state::{Config, Proposal, ProposalVote},
+    paladin_stake_program::state::{Config as StakeConfig, Stake},
     solana_program_test::*,
     solana_sdk::{
         account::{Account, AccountSharedData},
         pubkey::Pubkey,
     },
+    spl_discriminator::SplDiscriminate,
 };
 
 pub fn setup() -> ProgramTest {
@@ -16,6 +18,55 @@ pub fn setup() -> ProgramTest {
         paladin_governance_program::id(),
         processor!(paladin_governance_program::processor::process),
     )
+}
+
+pub async fn setup_stake(
+    context: &mut ProgramTestContext,
+    stake_address: &Pubkey,
+    authority_address: &Pubkey,
+    validator_address: &Pubkey,
+    amount: u64,
+) {
+    let mut state = Stake::new(*authority_address, *validator_address);
+    state.amount = amount;
+    let data = bytemuck::bytes_of(&state).to_vec();
+
+    let rent = context.banks_client.get_rent().await.unwrap();
+    let lamports = rent.minimum_balance(data.len());
+
+    context.set_account(
+        stake_address,
+        &AccountSharedData::from(Account {
+            lamports,
+            data,
+            owner: paladin_stake_program::id(),
+            ..Account::default()
+        }),
+    );
+}
+
+pub async fn setup_stake_config(
+    context: &mut ProgramTestContext,
+    stake_config_address: &Pubkey,
+    total_stake: u64,
+) {
+    let mut state = StakeConfig::default();
+    state.discriminator = StakeConfig::SPL_DISCRIMINATOR.into();
+    state.token_amount_delegated = total_stake;
+    let data = bytemuck::bytes_of(&state).to_vec();
+
+    let rent = context.banks_client.get_rent().await.unwrap();
+    let lamports = rent.minimum_balance(data.len());
+
+    context.set_account(
+        stake_config_address,
+        &AccountSharedData::from(Account {
+            lamports,
+            data,
+            owner: paladin_stake_program::id(),
+            ..Account::default()
+        }),
+    );
 }
 
 pub async fn setup_governance(
@@ -48,14 +99,18 @@ pub async fn setup_governance(
     );
 }
 
-pub async fn setup_proposal(
+pub async fn setup_proposal_with_stake(
     context: &mut ProgramTestContext,
     proposal_address: &Pubkey,
     author: &Pubkey,
     creation_timestamp: u64,
     instruction: u64,
+    stake_for: u64,
+    stake_against: u64,
 ) {
-    let state = Proposal::new(author, creation_timestamp, instruction);
+    let mut state = Proposal::new(author, creation_timestamp, instruction);
+    state.stake_for = stake_for;
+    state.stake_against = stake_against;
     let data = bytemuck::bytes_of(&state).to_vec();
 
     let rent = context.banks_client.get_rent().await.unwrap();
@@ -70,6 +125,25 @@ pub async fn setup_proposal(
             ..Account::default()
         }),
     );
+}
+
+pub async fn setup_proposal(
+    context: &mut ProgramTestContext,
+    proposal_address: &Pubkey,
+    author: &Pubkey,
+    creation_timestamp: u64,
+    instruction: u64,
+) {
+    setup_proposal_with_stake(
+        context,
+        proposal_address,
+        author,
+        creation_timestamp,
+        instruction,
+        0,
+        0,
+    )
+    .await;
 }
 
 pub async fn setup_vote(

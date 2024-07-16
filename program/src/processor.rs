@@ -10,11 +10,12 @@ use {
             Config, Proposal, ProposalVote,
         },
     },
+    paladin_stake_program::state::{find_stake_pda, Config as StakeConfig, Stake},
     solana_program::{
         account_info::{next_account_info, AccountInfo},
         clock::Clock,
         entrypoint::ProgramResult,
-        incinerator, msg,
+        msg,
         program::invoke_signed,
         program_error::ProgramError,
         pubkey::Pubkey,
@@ -24,6 +25,83 @@ use {
     spl_discriminator::SplDiscriminate,
     spl_pod::primitives::PodBool,
 };
+
+const THRESHOLD_SCALING_FACTOR: u64 = 1_000; // 1e3
+
+fn calculate_vote_threshold(stake: u64, total_stake: u64) -> Result<u64, ProgramError> {
+    if total_stake == 0 {
+        return Ok(0);
+    }
+    // Calculation: stake / total_stake
+    //
+    // Scaled by 1e3 to store 3 decimal places of precision.
+    stake
+        .checked_mul(THRESHOLD_SCALING_FACTOR)
+        .and_then(|product| product.checked_div(total_stake))
+        .ok_or(ProgramError::ArithmeticOverflow)
+}
+
+fn get_validator_stake_checked(
+    validator_key: &Pubkey,
+    stake_info: &AccountInfo,
+) -> Result<u64, ProgramError> {
+    // Ensure the stake account is owned by the Paladin Stake program.
+    if stake_info.owner != &paladin_stake_program::id() {
+        return Err(ProgramError::InvalidAccountOwner);
+    }
+
+    let data = stake_info.try_borrow_data()?;
+    let state =
+        bytemuck::try_from_bytes::<Stake>(&data).map_err(|_| ProgramError::InvalidAccountData)?;
+
+    // Ensure the stake account is initialized.
+    if !state.is_initialized() {
+        return Err(ProgramError::UninitializedAccount);
+    }
+
+    // Ensure the stake account belongs to the validator.
+    if state.validator != *validator_key {
+        return Err(PaladinGovernanceError::ValidatorStakeAccountMismatch.into());
+    }
+
+    // Return the currently active stake amount.
+    Ok(state.amount)
+}
+
+fn get_total_stake_checked(
+    validator_key: &Pubkey,
+    stake_key: &Pubkey,
+    stake_config_info: &AccountInfo,
+) -> Result<u64, ProgramError> {
+    // Ensure the stake address is derived from the validator and config keys.
+    if stake_key
+        != &find_stake_pda(
+            validator_key,
+            stake_config_info.key,
+            &paladin_stake_program::id(),
+        )
+        .0
+    {
+        return Err(PaladinGovernanceError::IncorrectStakeConfig.into());
+    }
+
+    // Ensure the config account is owned by the Paladin Stake program.
+    if stake_config_info.owner != &paladin_stake_program::id() {
+        return Err(ProgramError::InvalidAccountOwner);
+    }
+
+    let data = stake_config_info.try_borrow_data()?;
+    let state = bytemuck::try_from_bytes::<StakeConfig>(&data)
+        .map_err(|_| ProgramError::InvalidAccountData)?;
+
+    // Ensure the config account is initialized.
+    if !state.is_initialized() {
+        return Err(ProgramError::UninitializedAccount);
+    }
+
+    // Return the total stake amount.
+    Ok(state.token_amount_delegated)
+}
 
 fn check_governance_exists(program_id: &Pubkey, governance_info: &AccountInfo) -> ProgramResult {
     // Ensure the provided governance address is the correct address derived from
@@ -61,6 +139,12 @@ fn check_proposal_exists(program_id: &Pubkey, proposal_info: &AccountInfo) -> Pr
     Ok(())
 }
 
+fn close_proposal_account(proposal_info: &AccountInfo) -> ProgramResult {
+    proposal_info.realloc(0, true)?;
+    proposal_info.assign(&system_program::id());
+    Ok(())
+}
+
 /// Processes a
 /// [CreateProposal](enum.PaladinGovernanceInstruction.html)
 /// instruction.
@@ -68,7 +152,7 @@ fn process_create_proposal(program_id: &Pubkey, accounts: &[AccountInfo]) -> Pro
     let accounts_iter = &mut accounts.iter();
 
     let validator_info = next_account_info(accounts_iter)?;
-    let _stake_info = next_account_info(accounts_iter)?;
+    let stake_info = next_account_info(accounts_iter)?;
     let proposal_info = next_account_info(accounts_iter)?;
 
     // Ensure the validator vote account is a signer.
@@ -77,7 +161,7 @@ fn process_create_proposal(program_id: &Pubkey, accounts: &[AccountInfo]) -> Pro
     }
 
     // Ensure the provided stake account belongs to the validator.
-    // TODO: Requires imports from stake program.
+    let _ = get_validator_stake_checked(validator_info.key, stake_info)?;
 
     // Ensure the proposal account is owned by the Paladin Governance program.
     if proposal_info.owner != program_id {
@@ -114,9 +198,8 @@ fn process_cancel_proposal(program_id: &Pubkey, accounts: &[AccountInfo]) -> Pro
     let accounts_iter = &mut accounts.iter();
 
     let validator_info = next_account_info(accounts_iter)?;
-    let _stake_info = next_account_info(accounts_iter)?;
+    let stake_info = next_account_info(accounts_iter)?;
     let proposal_info = next_account_info(accounts_iter)?;
-    let incinerator_info = next_account_info(accounts_iter)?;
 
     // Ensure the validator vote account is a signer.
     if !validator_info.is_signer {
@@ -124,25 +207,22 @@ fn process_cancel_proposal(program_id: &Pubkey, accounts: &[AccountInfo]) -> Pro
     }
 
     // Ensure the provided stake account belongs to the validator.
-    // TODO: Requires imports from stake program.
+    let _ = get_validator_stake_checked(validator_info.key, stake_info)?;
 
     check_proposal_exists(program_id, proposal_info)?;
 
-    // Close the proposal account.
-    if incinerator_info.key != &incinerator::id() {
-        return Err(ProgramError::InvalidArgument);
+    // Ensure the validator is the proposal author.
+    {
+        let proposal_data = proposal_info.try_borrow_data()?;
+        let proposal_state = bytemuck::try_from_bytes::<Proposal>(&proposal_data)
+            .map_err(|_| ProgramError::InvalidAccountData)?;
+
+        if proposal_state.author != *validator_info.key {
+            return Err(ProgramError::IncorrectAuthority);
+        }
     }
 
-    let new_incinerator_lamports = proposal_info
-        .lamports()
-        .checked_add(incinerator_info.lamports())
-        .ok_or::<ProgramError>(ProgramError::ArithmeticOverflow)?;
-
-    **proposal_info.try_borrow_mut_lamports()? = 0;
-    **incinerator_info.try_borrow_mut_lamports()? = new_incinerator_lamports;
-
-    proposal_info.realloc(0, true)?;
-    proposal_info.assign(&system_program::id());
+    close_proposal_account(proposal_info)?;
 
     Ok(())
 }
@@ -154,8 +234,8 @@ fn process_vote(program_id: &Pubkey, accounts: &[AccountInfo], vote: bool) -> Pr
     let accounts_iter = &mut accounts.iter();
 
     let validator_info = next_account_info(accounts_iter)?;
-    let _stake_info = next_account_info(accounts_iter)?;
-    let _vault_info = next_account_info(accounts_iter)?;
+    let stake_info = next_account_info(accounts_iter)?;
+    let stake_config_info = next_account_info(accounts_iter)?;
     let vote_info = next_account_info(accounts_iter)?;
     let proposal_info = next_account_info(accounts_iter)?;
     let governance_info = next_account_info(accounts_iter)?;
@@ -166,12 +246,9 @@ fn process_vote(program_id: &Pubkey, accounts: &[AccountInfo], vote: bool) -> Pr
         return Err(ProgramError::MissingRequiredSignature);
     }
 
-    // Ensure the provided stake account belongs to the validator.
-    // TODO: Requires imports from stake program.
-    let stake = 0; // TODO!
-
-    // Ensure the proper vault account was provided.
-    // TODO: Requires imports from stake program.
+    let stake = get_validator_stake_checked(validator_info.key, stake_info)?;
+    let total_stake =
+        get_total_stake_checked(validator_info.key, stake_info.key, stake_config_info)?;
 
     check_governance_exists(program_id, governance_info)?;
     check_proposal_exists(program_id, proposal_info)?;
@@ -239,13 +316,17 @@ fn process_vote(program_id: &Pubkey, accounts: &[AccountInfo], vote: bool) -> Pr
         .map_err(|_| ProgramError::InvalidAccountData)?;
 
     #[allow(clippy::if_same_then_else)]
-    if state.stake_for >= governance_config.proposal_acceptance_threshold {
+    if calculate_vote_threshold(state.stake_for, total_stake)?
+        >= governance_config.proposal_acceptance_threshold
+    {
         // If the proposal has met the acceptance threshold, begin the cooldown
         // period.
-        // TODO: Requires imports from stake program.
-    } else if state.stake_against >= governance_config.proposal_rejection_threshold {
+        // TODO: Implement cooldown period.
+    } else if calculate_vote_threshold(state.stake_against, total_stake)?
+        >= governance_config.proposal_rejection_threshold
+    {
         // If the proposal has met the rejection threshold, cancel the proposal.
-        // TODO: Requires imports from stake program.
+        // TODO: Close the proposal account (get rid of incinerator).
     }
 
     Ok(())
@@ -258,8 +339,8 @@ fn process_switch_vote(program_id: &Pubkey, accounts: &[AccountInfo], vote: bool
     let accounts_iter = &mut accounts.iter();
 
     let validator_info = next_account_info(accounts_iter)?;
-    let _stake_info = next_account_info(accounts_iter)?;
-    let _vault_info = next_account_info(accounts_iter)?;
+    let stake_info = next_account_info(accounts_iter)?;
+    let stake_config_info = next_account_info(accounts_iter)?;
     let vote_info = next_account_info(accounts_iter)?;
     let proposal_info = next_account_info(accounts_iter)?;
     let governance_info = next_account_info(accounts_iter)?;
@@ -269,11 +350,9 @@ fn process_switch_vote(program_id: &Pubkey, accounts: &[AccountInfo], vote: bool
         return Err(ProgramError::MissingRequiredSignature);
     }
 
-    // Ensure the provided stake account belongs to the validator.
-    // TODO: Requires imports from stake program.
-    let stake = 0; // TODO!
-
-    // Ensure the proper vault account was provided.
+    let stake = get_validator_stake_checked(validator_info.key, stake_info)?;
+    let total_stake =
+        get_total_stake_checked(validator_info.key, stake_info.key, stake_config_info)?;
 
     check_governance_exists(program_id, governance_info)?;
     check_proposal_exists(program_id, proposal_info)?;
@@ -352,13 +431,17 @@ fn process_switch_vote(program_id: &Pubkey, accounts: &[AccountInfo], vote: bool
         .map_err(|_| ProgramError::InvalidAccountData)?;
 
     #[allow(clippy::if_same_then_else)]
-    if state.stake_for >= governance_config.proposal_acceptance_threshold {
+    if calculate_vote_threshold(state.stake_for, total_stake)?
+        >= governance_config.proposal_acceptance_threshold
+    {
         // If the proposal has met the acceptance threshold, begin the cooldown
         // period.
-        // TODO: Requires imports from stake program.
-    } else if state.stake_against >= governance_config.proposal_rejection_threshold {
+        // TODO: Implement cooldown period.
+    } else if calculate_vote_threshold(state.stake_against, total_stake)?
+        >= governance_config.proposal_rejection_threshold
+    {
         // If the proposal has met the rejection threshold, cancel the proposal.
-        // TODO: Requires imports from stake program.
+        // TODO: Close the proposal account (get rid of incinerator).
     }
 
     Ok(())
@@ -371,12 +454,12 @@ fn process_process_proposal(program_id: &Pubkey, accounts: &[AccountInfo]) -> Pr
     let accounts_iter = &mut accounts.iter();
 
     let proposal_info = next_account_info(accounts_iter)?;
-    let _vault_info = next_account_info(accounts_iter)?;
+    // TODO: I've cut the stake config from this instruction, in favor of a
+    // more robust cooldown mechanism, which won't need the config account
+    // here.
+    // It also shouldn't need the governance account, but I'll leave that
+    // one be for now.
     let governance_info = next_account_info(accounts_iter)?;
-    let incinerator_info = next_account_info(accounts_iter)?;
-
-    // Ensure the proper vault account was provided.
-    // TODO: Requires imports from stake program.
 
     check_governance_exists(program_id, governance_info)?;
     check_proposal_exists(program_id, proposal_info)?;
@@ -402,21 +485,7 @@ fn process_process_proposal(program_id: &Pubkey, accounts: &[AccountInfo]) -> Pr
         // TODO!
     }
 
-    // Close the proposal account.
-    if incinerator_info.key != &incinerator::id() {
-        return Err(ProgramError::InvalidArgument);
-    }
-
-    let new_incinerator_lamports = proposal_info
-        .lamports()
-        .checked_add(incinerator_info.lamports())
-        .ok_or::<ProgramError>(ProgramError::ArithmeticOverflow)?;
-
-    **proposal_info.try_borrow_mut_lamports()? = 0;
-    **incinerator_info.try_borrow_mut_lamports()? = new_incinerator_lamports;
-
-    proposal_info.realloc(0, true)?;
-    proposal_info.assign(&system_program::id());
+    close_proposal_account(proposal_info)?;
 
     Ok(())
 }
@@ -496,10 +565,8 @@ fn process_update_governance(
 
     let governance_info = next_account_info(accounts_iter)?;
     let proposal_info = next_account_info(accounts_iter)?;
-    let _vault_info = next_account_info(accounts_iter)?;
-
-    // Ensure the proper vault account was provided.
-    // TODO: Requires imports from stake program.
+    // Same note as `process_process_proposal` applies here for cutting
+    // the stake config account.
 
     check_governance_exists(program_id, governance_info)?;
     check_proposal_exists(program_id, proposal_info)?;

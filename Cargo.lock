@@ -677,13 +677,12 @@ dependencies = [
 
 [[package]]
 name = "cc"
-version = "1.1.0"
+version = "1.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "eaff6f8ce506b9773fa786672d63fc7a191ffea1be33f72bbd4aeacefca9ffc8"
+checksum = "324c74f2155653c90b04f25b2a47a8a631360cb908f92a772695f430c7e31052"
 dependencies = [
  "jobserver",
  "libc",
- "once_cell",
 ]
 
 [[package]]
@@ -2228,6 +2227,17 @@ checksum = "51d515d32fb182ee37cda2ccdcb92950d6a3c2893aa280e540671c2cd0f3b1d9"
 
 [[package]]
 name = "num-derive"
+version = "0.3.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "876a53fff98e03a936a674b29568b0e605f06b29372c2489ff4de23f1949743d"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 1.0.109",
+]
+
+[[package]]
+name = "num-derive"
 version = "0.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ed3955f1a9c7c0c15e092f9c887db08b1fc683305fdf6eb6684f22555355e202"
@@ -2381,6 +2391,7 @@ name = "paladin-governance-program"
 version = "0.1.0"
 dependencies = [
  "bytemuck",
+ "paladin-stake-program",
  "solana-program",
  "solana-program-test",
  "solana-sdk",
@@ -2388,6 +2399,24 @@ dependencies = [
  "spl-pod",
  "spl-program-error",
  "test-case",
+]
+
+[[package]]
+name = "paladin-stake-program"
+version = "0.0.1"
+source = "git+https://github.com/paladin-bladesmith/stake-program.git?branch=version#9a045c1ec9feeccefd66f4d43d6a4adc243dcdd0"
+dependencies = [
+ "arrayref",
+ "bytemuck",
+ "num-derive 0.3.3",
+ "num-traits",
+ "shank",
+ "solana-program",
+ "spl-discriminator",
+ "spl-pod",
+ "spl-program-error",
+ "spl-token-2022",
+ "thiserror",
 ]
 
 [[package]]
@@ -3346,6 +3375,52 @@ dependencies = [
 ]
 
 [[package]]
+name = "shank"
+version = "0.4.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "23d894855493d4ce613b25550fe1ed1c62d0af5486b984579ba55e3f8c9631d5"
+dependencies = [
+ "shank_macro",
+]
+
+[[package]]
+name = "shank_macro"
+version = "0.4.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a9bf2645f8eebde043da69200195058e7b59806705104f908a31d05ca82844ce"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "shank_macro_impl",
+ "shank_render",
+ "syn 1.0.109",
+]
+
+[[package]]
+name = "shank_macro_impl"
+version = "0.4.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "93d0593f48acb0a722906416b1f6b8926f6571eb9af16d566a7c65427f269f50"
+dependencies = [
+ "anyhow",
+ "proc-macro2",
+ "quote",
+ "serde",
+ "syn 1.0.109",
+]
+
+[[package]]
+name = "shank_render"
+version = "0.4.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "121175ba61809189f888dc5822ebfd30fa0d91e1e1f61d25a4d40b0847b3075e"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "shank_macro_impl",
+]
+
+[[package]]
 name = "sharded-slab"
 version = "0.1.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3495,7 +3570,7 @@ dependencies = [
  "bincode",
  "bytemuck",
  "log",
- "num-derive",
+ "num-derive 0.4.2",
  "num-traits",
  "rustc_version",
  "solana-program",
@@ -3894,7 +3969,7 @@ dependencies = [
  "log",
  "memoffset",
  "num-bigint 0.4.6",
- "num-derive",
+ "num-derive 0.4.2",
  "num-traits",
  "parking_lot",
  "rand 0.8.5",
@@ -3923,7 +3998,7 @@ dependencies = [
  "itertools 0.12.1",
  "libc",
  "log",
- "num-derive",
+ "num-derive 0.4.2",
  "num-traits",
  "percentage",
  "rand 0.8.5",
@@ -4041,7 +4116,7 @@ dependencies = [
  "console",
  "dialoguer",
  "log",
- "num-derive",
+ "num-derive 0.4.2",
  "num-traits",
  "parking_lot",
  "qstring",
@@ -4145,7 +4220,7 @@ dependencies = [
  "memmap2",
  "mockall",
  "modular-bitfield",
- "num-derive",
+ "num-derive 0.4.2",
  "num-traits",
  "num_cpus",
  "num_enum",
@@ -4515,7 +4590,7 @@ checksum = "878ae9e9416c60f823aa316dbc255ed902b869ed9b19060b8a08f22fdebe1b83"
 dependencies = [
  "bincode",
  "log",
- "num-derive",
+ "num-derive 0.4.2",
  "num-traits",
  "rustc_version",
  "serde",
@@ -4534,7 +4609,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6361d36f702a746aa67a30b94eabe5dc1e7409b84d35794d45ca916b985c9afc"
 dependencies = [
  "bytemuck",
- "num-derive",
+ "num-derive 0.4.2",
  "num-traits",
  "solana-program-runtime",
  "solana-sdk",
@@ -4556,7 +4631,7 @@ dependencies = [
  "itertools 0.12.1",
  "lazy_static",
  "merlin",
- "num-derive",
+ "num-derive 0.4.2",
  "num-traits",
  "rand 0.7.3",
  "serde",
@@ -4577,7 +4652,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b28d5b06f3d3f5255bf26810c314aac6a98c812c1208c245486c22b4b90422c7"
 dependencies = [
  "bytemuck",
- "num-derive",
+ "num-derive 0.4.2",
  "num-traits",
  "solana-program-runtime",
  "solana-sdk",
@@ -4600,7 +4675,7 @@ dependencies = [
  "itertools 0.12.1",
  "lazy_static",
  "merlin",
- "num-derive",
+ "num-derive 0.4.2",
  "num-traits",
  "rand 0.7.3",
  "serde",
@@ -4654,7 +4729,7 @@ checksum = "68034596cf4804880d265f834af1ff2f821ad5293e41fa0f8f59086c181fc38e"
 dependencies = [
  "assert_matches",
  "borsh 1.5.1",
- "num-derive",
+ "num-derive 0.4.2",
  "num-traits",
  "solana-program",
  "spl-token",
@@ -4726,7 +4801,7 @@ version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d7b28bed65356558133751cc32b48a7a5ddfc59ac4e941314630bbed1ac10532"
 dependencies = [
- "num-derive",
+ "num-derive 0.4.2",
  "num-traits",
  "solana-program",
  "spl-program-error-derive",
@@ -4767,7 +4842,7 @@ checksum = "70a0f06ac7f23dc0984931b1fe309468f14ea58e32660439c1cef19456f5d0e3"
 dependencies = [
  "arrayref",
  "bytemuck",
- "num-derive",
+ "num-derive 0.4.2",
  "num-traits",
  "num_enum",
  "solana-program",
@@ -4782,7 +4857,7 @@ checksum = "d9c10f3483e48679619c76598d4e4aebb955bc49b0a5cc63323afbf44135c9bf"
 dependencies = [
  "arrayref",
  "bytemuck",
- "num-derive",
+ "num-derive 0.4.2",
  "num-traits",
  "num_enum",
  "solana-program",

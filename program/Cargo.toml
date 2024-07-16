@@ -10,6 +10,7 @@ crate-type = ["cdylib", "lib"]
 
 [dependencies]
 bytemuck = { version = "1.16.1", features = ["derive"] }
+paladin-stake-program = { git = "https://github.com/paladin-bladesmith/stake-program.git", branch = "version" }
 solana-program = "2.0.2"
 spl-discriminator = "0.3.0"
 spl-pod = "0.3.0"

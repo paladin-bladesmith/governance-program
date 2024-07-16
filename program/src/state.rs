@@ -105,13 +105,25 @@ pub struct Config {
     /// `proposal_acceptance_threshold` and upon its conclusion will execute
     /// the proposal's instruction.
     pub cooldown_period_seconds: u64,
-    /// The minimum required threshold of acceptance votes to begin the
-    /// cooldown period.
+    /// The minimum required threshold (percentage) of acceptance votes to
+    /// begin the cooldown period.
+    ///
+    /// Stored as a `u64`, which includes a scaling factor of `1e3` to
+    /// represent the threshold with 3 decimal places of precision.
     pub proposal_acceptance_threshold: u64,
-    /// The minimum required threshold of rejection votes to terminate the
-    /// proposal.
+    /// The minimum required threshold (percentage) of rejection votes to
+    /// terminate the proposal.
+    ///
+    /// Stored as a `u64`, which includes a scaling factor of `1e3` to
+    /// represent the threshold with 3 decimal places of precision.
     pub proposal_rejection_threshold: u64,
     /// The total amount staked in the system.
+    /// TODO: I'm not sure where this is supposed to come from.
+    /// Maybe it's some kind of failsafe to guard against someone casting a
+    /// vote and then deactivating a bunch of stake, causing the total
+    /// delegated stake in the stake program's config account to drop?
+    /// I'm trying to figure out if we need this or not. If we do, when
+    /// do we update it?
     pub total_staked: u64,
 }
 
