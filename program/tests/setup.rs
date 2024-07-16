@@ -3,6 +3,7 @@
 
 use {
     paladin_governance_program::state::{Config, Proposal, ProposalVote},
+    paladin_stake_program::state::Stake,
     solana_program_test::*,
     solana_sdk::{
         account::{Account, AccountSharedData},
@@ -16,6 +17,31 @@ pub fn setup() -> ProgramTest {
         paladin_governance_program::id(),
         processor!(paladin_governance_program::processor::process),
     )
+}
+
+pub async fn setup_stake(
+    context: &mut ProgramTestContext,
+    stake_address: &Pubkey,
+    authority_address: &Pubkey,
+    validator_address: &Pubkey,
+    amount: u64,
+) {
+    let mut state = Stake::new(*authority_address, *validator_address);
+    state.amount = amount;
+    let data = bytemuck::bytes_of(&state).to_vec();
+
+    let rent = context.banks_client.get_rent().await.unwrap();
+    let lamports = rent.minimum_balance(data.len());
+
+    context.set_account(
+        stake_address,
+        &AccountSharedData::from(Account {
+            lamports,
+            data,
+            owner: paladin_stake_program::id(),
+            ..Account::default()
+        }),
+    );
 }
 
 pub async fn setup_governance(

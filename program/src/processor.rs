@@ -10,6 +10,7 @@ use {
             Config, Proposal, ProposalVote,
         },
     },
+    paladin_stake_program::state::Stake,
     solana_program::{
         account_info::{next_account_info, AccountInfo},
         clock::Clock,
@@ -24,6 +25,33 @@ use {
     spl_discriminator::SplDiscriminate,
     spl_pod::primitives::PodBool,
 };
+
+fn get_validator_stake_checked(
+    validator_key: &Pubkey,
+    stake_info: &AccountInfo,
+) -> Result<u64, ProgramError> {
+    // Ensure the stake account is owned by the Paladin Stake program.
+    if stake_info.owner != &paladin_stake_program::id() {
+        return Err(ProgramError::InvalidAccountOwner);
+    }
+
+    let data = stake_info.try_borrow_data()?;
+    let state =
+        bytemuck::try_from_bytes::<Stake>(&data).map_err(|_| ProgramError::InvalidAccountData)?;
+
+    // Ensure the stake account is initialized.
+    if !state.is_initialized() {
+        return Err(ProgramError::UninitializedAccount);
+    }
+
+    // Ensure the stake account belongs to the validator.
+    if state.validator != *validator_key {
+        return Err(PaladinGovernanceError::ValidatorStakeAccountMismatch.into());
+    }
+
+    // Return the currently active stake amount.
+    Ok(state.amount)
+}
 
 fn check_governance_exists(program_id: &Pubkey, governance_info: &AccountInfo) -> ProgramResult {
     // Ensure the provided governance address is the correct address derived from
@@ -68,7 +96,7 @@ fn process_create_proposal(program_id: &Pubkey, accounts: &[AccountInfo]) -> Pro
     let accounts_iter = &mut accounts.iter();
 
     let validator_info = next_account_info(accounts_iter)?;
-    let _stake_info = next_account_info(accounts_iter)?;
+    let stake_info = next_account_info(accounts_iter)?;
     let proposal_info = next_account_info(accounts_iter)?;
 
     // Ensure the validator vote account is a signer.
@@ -77,7 +105,7 @@ fn process_create_proposal(program_id: &Pubkey, accounts: &[AccountInfo]) -> Pro
     }
 
     // Ensure the provided stake account belongs to the validator.
-    // TODO: Requires imports from stake program.
+    let _ = get_validator_stake_checked(validator_info.key, stake_info)?;
 
     // Ensure the proposal account is owned by the Paladin Governance program.
     if proposal_info.owner != program_id {
@@ -114,7 +142,7 @@ fn process_cancel_proposal(program_id: &Pubkey, accounts: &[AccountInfo]) -> Pro
     let accounts_iter = &mut accounts.iter();
 
     let validator_info = next_account_info(accounts_iter)?;
-    let _stake_info = next_account_info(accounts_iter)?;
+    let stake_info = next_account_info(accounts_iter)?;
     let proposal_info = next_account_info(accounts_iter)?;
     let incinerator_info = next_account_info(accounts_iter)?;
 
@@ -124,15 +152,26 @@ fn process_cancel_proposal(program_id: &Pubkey, accounts: &[AccountInfo]) -> Pro
     }
 
     // Ensure the provided stake account belongs to the validator.
-    // TODO: Requires imports from stake program.
+    let _ = get_validator_stake_checked(validator_info.key, stake_info)?;
 
     check_proposal_exists(program_id, proposal_info)?;
 
-    // Close the proposal account.
+    // Ensure the validator is the proposal author.
+    {
+        let proposal_data = proposal_info.try_borrow_data()?;
+        let proposal_state = bytemuck::try_from_bytes::<Proposal>(&proposal_data)
+            .map_err(|_| ProgramError::InvalidAccountData)?;
+
+        if proposal_state.author != *validator_info.key {
+            return Err(ProgramError::IncorrectAuthority);
+        }
+    }
+
     if incinerator_info.key != &incinerator::id() {
         return Err(ProgramError::InvalidArgument);
     }
 
+    // Close the proposal account.
     let new_incinerator_lamports = proposal_info
         .lamports()
         .checked_add(incinerator_info.lamports())
@@ -154,7 +193,7 @@ fn process_vote(program_id: &Pubkey, accounts: &[AccountInfo], vote: bool) -> Pr
     let accounts_iter = &mut accounts.iter();
 
     let validator_info = next_account_info(accounts_iter)?;
-    let _stake_info = next_account_info(accounts_iter)?;
+    let stake_info = next_account_info(accounts_iter)?;
     let _vault_info = next_account_info(accounts_iter)?;
     let vote_info = next_account_info(accounts_iter)?;
     let proposal_info = next_account_info(accounts_iter)?;
@@ -167,8 +206,7 @@ fn process_vote(program_id: &Pubkey, accounts: &[AccountInfo], vote: bool) -> Pr
     }
 
     // Ensure the provided stake account belongs to the validator.
-    // TODO: Requires imports from stake program.
-    let stake = 0; // TODO!
+    let stake = get_validator_stake_checked(validator_info.key, stake_info)?;
 
     // Ensure the proper vault account was provided.
     // TODO: Requires imports from stake program.
@@ -258,7 +296,7 @@ fn process_switch_vote(program_id: &Pubkey, accounts: &[AccountInfo], vote: bool
     let accounts_iter = &mut accounts.iter();
 
     let validator_info = next_account_info(accounts_iter)?;
-    let _stake_info = next_account_info(accounts_iter)?;
+    let stake_info = next_account_info(accounts_iter)?;
     let _vault_info = next_account_info(accounts_iter)?;
     let vote_info = next_account_info(accounts_iter)?;
     let proposal_info = next_account_info(accounts_iter)?;
@@ -270,8 +308,7 @@ fn process_switch_vote(program_id: &Pubkey, accounts: &[AccountInfo], vote: bool
     }
 
     // Ensure the provided stake account belongs to the validator.
-    // TODO: Requires imports from stake program.
-    let stake = 0; // TODO!
+    let stake = get_validator_stake_checked(validator_info.key, stake_info)?;
 
     // Ensure the proper vault account was provided.
 
