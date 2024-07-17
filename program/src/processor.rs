@@ -6,8 +6,8 @@ use {
         instruction::PaladinGovernanceInstruction,
         state::{
             collect_governance_signer_seeds, collect_vote_signer_seeds, get_governance_address,
-            get_governance_address_and_bump_seed, get_vote_address, get_vote_address_and_bump_seed,
-            Config, Proposal, ProposalVote,
+            get_governance_address_and_bump_seed, get_proposal_vote_address,
+            get_proposal_vote_address_and_bump_seed, Config, Proposal, ProposalVote,
         },
     },
     paladin_stake_program::state::{find_stake_pda, Config as StakeConfig, Stake},
@@ -29,7 +29,7 @@ use {
 
 const THRESHOLD_SCALING_FACTOR: u64 = 1_000_000_000; // 1e9
 
-fn calculate_vote_threshold(stake: u64, total_stake: u64) -> Result<u64, ProgramError> {
+fn calculate_proposal_vote_threshold(stake: u64, total_stake: u64) -> Result<u64, ProgramError> {
     if total_stake == 0 {
         return Ok(0);
     }
@@ -252,7 +252,7 @@ fn process_vote(program_id: &Pubkey, accounts: &[AccountInfo], vote: bool) -> Pr
     let validator_info = next_account_info(accounts_iter)?;
     let stake_info = next_account_info(accounts_iter)?;
     let stake_config_info = next_account_info(accounts_iter)?;
-    let vote_info = next_account_info(accounts_iter)?;
+    let proposal_vote_info = next_account_info(accounts_iter)?;
     let proposal_info = next_account_info(accounts_iter)?;
     let governance_info = next_account_info(accounts_iter)?;
     let _system_program_info = next_account_info(accounts_iter)?;
@@ -271,40 +271,43 @@ fn process_vote(program_id: &Pubkey, accounts: &[AccountInfo], vote: bool) -> Pr
 
     // Create the proposal vote account.
     {
-        let (vote_address, bump_seed) =
-            get_vote_address_and_bump_seed(validator_info.key, proposal_info.key, program_id);
+        let (proposal_vote_address, bump_seed) = get_proposal_vote_address_and_bump_seed(
+            validator_info.key,
+            proposal_info.key,
+            program_id,
+        );
         let bump_seed = [bump_seed];
-        let vote_signer_seeds =
+        let proposal_vote_signer_seeds =
             collect_vote_signer_seeds(validator_info.key, proposal_info.key, &bump_seed);
 
-        // Ensure the provided vote address is the correct address derived from
-        // the validator and proposal.
-        if !vote_info.key.eq(&vote_address) {
+        // Ensure the provided proposal vote address is the correct address
+        // derived from the validator and proposal.
+        if !proposal_vote_info.key.eq(&proposal_vote_address) {
             return Err(PaladinGovernanceError::IncorrectProposalVoteAddress.into());
         }
 
-        // Ensure the vote account has not already been initialized.
-        if vote_info.data_len() != 0 {
+        // Ensure the proposal vote account has not already been initialized.
+        if proposal_vote_info.data_len() != 0 {
             return Err(ProgramError::AccountAlreadyInitialized);
         }
 
         // Allocate & assign.
         invoke_signed(
             &system_instruction::allocate(
-                &vote_address,
+                &proposal_vote_address,
                 std::mem::size_of::<ProposalVote>() as u64,
             ),
-            &[vote_info.clone()],
-            &[&vote_signer_seeds],
+            &[proposal_vote_info.clone()],
+            &[&proposal_vote_signer_seeds],
         )?;
         invoke_signed(
-            &system_instruction::assign(&vote_address, program_id),
-            &[vote_info.clone()],
-            &[&vote_signer_seeds],
+            &system_instruction::assign(&proposal_vote_address, program_id),
+            &[proposal_vote_info.clone()],
+            &[&proposal_vote_signer_seeds],
         )?;
 
         // Write the data.
-        let mut data = vote_info.try_borrow_mut_data()?;
+        let mut data = proposal_vote_info.try_borrow_mut_data()?;
         *bytemuck::try_from_bytes_mut(&mut data).map_err(|_| ProgramError::InvalidAccountData)? =
             ProposalVote::new(proposal_info.key, stake, validator_info.key, vote);
     }
@@ -327,7 +330,7 @@ fn process_vote(program_id: &Pubkey, accounts: &[AccountInfo], vote: bool) -> Pr
             .checked_add(stake)
             .ok_or(ProgramError::ArithmeticOverflow)?;
 
-        if calculate_vote_threshold(proposal_state.stake_for, total_stake)?
+        if calculate_proposal_vote_threshold(proposal_state.stake_for, total_stake)?
             >= governance_config.proposal_acceptance_threshold
             && proposal_state.cooldown_timestamp.is_none()
         {
@@ -342,7 +345,7 @@ fn process_vote(program_id: &Pubkey, accounts: &[AccountInfo], vote: bool) -> Pr
             .checked_add(stake)
             .ok_or(ProgramError::ArithmeticOverflow)?;
 
-        if calculate_vote_threshold(proposal_state.stake_against, total_stake)?
+        if calculate_proposal_vote_threshold(proposal_state.stake_against, total_stake)?
             >= governance_config.proposal_rejection_threshold
         {
             // If the proposal has met the rejection threshold, cancel the proposal.
@@ -368,7 +371,7 @@ fn process_switch_vote(
     let validator_info = next_account_info(accounts_iter)?;
     let stake_info = next_account_info(accounts_iter)?;
     let stake_config_info = next_account_info(accounts_iter)?;
-    let vote_info = next_account_info(accounts_iter)?;
+    let proposal_vote_info = next_account_info(accounts_iter)?;
     let proposal_info = next_account_info(accounts_iter)?;
     let governance_info = next_account_info(accounts_iter)?;
 
@@ -386,9 +389,9 @@ fn process_switch_vote(
 
     // Update the proposal vote account.
     {
-        // Ensure the provided vote address is the correct address derived from
-        // the validator and proposal.
-        if !vote_info.key.eq(&get_vote_address(
+        // Ensure the provided proposal vote address is the correct address
+        // derived from the validator and proposal.
+        if !proposal_vote_info.key.eq(&get_proposal_vote_address(
             validator_info.key,
             proposal_info.key,
             program_id,
@@ -396,18 +399,19 @@ fn process_switch_vote(
             return Err(PaladinGovernanceError::IncorrectProposalVoteAddress.into());
         }
 
-        // Ensure the vote account is owned by the Paladin Governance program.
-        if vote_info.owner != program_id {
+        // Ensure the proposal vote account is owned by the Paladin Governance
+        // program.
+        if proposal_vote_info.owner != program_id {
             return Err(ProgramError::InvalidAccountOwner);
         }
 
-        // Ensure the vote account is initialized.
-        if vote_info.data_len() != std::mem::size_of::<ProposalVote>() {
+        // Ensure the proposal vote account is initialized.
+        if proposal_vote_info.data_len() != std::mem::size_of::<ProposalVote>() {
             return Err(ProgramError::UninitializedAccount);
         }
 
         // Update the vote.
-        let mut data = vote_info.try_borrow_mut_data()?;
+        let mut data = proposal_vote_info.try_borrow_mut_data()?;
         let state = bytemuck::try_from_bytes_mut::<ProposalVote>(&mut data)
             .map_err(|_| ProgramError::InvalidAccountData)?;
 
@@ -446,7 +450,7 @@ fn process_switch_vote(
             .checked_add(stake)
             .ok_or(ProgramError::ArithmeticOverflow)?;
 
-        if calculate_vote_threshold(proposal_state.stake_for, total_stake)?
+        if calculate_proposal_vote_threshold(proposal_state.stake_for, total_stake)?
             >= governance_config.proposal_acceptance_threshold
             && proposal_state.cooldown_timestamp.is_none()
         {
@@ -466,7 +470,7 @@ fn process_switch_vote(
             .checked_add(stake)
             .ok_or(ProgramError::ArithmeticOverflow)?;
 
-        if calculate_vote_threshold(proposal_state.stake_against, total_stake)?
+        if calculate_proposal_vote_threshold(proposal_state.stake_against, total_stake)?
             >= governance_config.proposal_rejection_threshold
         {
             // If the proposal has met the rejection threshold, cancel the proposal.
@@ -475,7 +479,7 @@ fn process_switch_vote(
             return close_proposal_account(proposal_info);
         }
 
-        if calculate_vote_threshold(proposal_state.stake_for, total_stake)?
+        if calculate_proposal_vote_threshold(proposal_state.stake_for, total_stake)?
             < governance_config.proposal_acceptance_threshold
             && proposal_state.cooldown_timestamp.is_some()
         {
@@ -496,11 +500,8 @@ fn process_process_proposal(program_id: &Pubkey, accounts: &[AccountInfo]) -> Pr
     let accounts_iter = &mut accounts.iter();
 
     let proposal_info = next_account_info(accounts_iter)?;
-    // TODO: I've cut the stake config from this instruction, in favor of a
-    // more robust cooldown mechanism, which won't need the config account
-    // here.
-    // It also shouldn't need the governance account, but I'll leave that
-    // one be for now.
+    // TODO: Make this whole instruction require PDA signature from governance,
+    // then drop this account.
     let governance_info = next_account_info(accounts_iter)?;
 
     check_governance_exists(program_id, governance_info)?;
@@ -656,9 +657,9 @@ pub fn process(program_id: &Pubkey, accounts: &[AccountInfo], input: &[u8]) -> P
             msg!("Instruction: Vote");
             process_vote(program_id, accounts, vote)
         }
-        PaladinGovernanceInstruction::SwitchVote { vote } => {
+        PaladinGovernanceInstruction::SwitchVote { new_vote } => {
             msg!("Instruction: SwitchVote");
-            process_switch_vote(program_id, accounts, vote)
+            process_switch_vote(program_id, accounts, new_vote)
         }
         PaladinGovernanceInstruction::ProcessProposal => {
             msg!("Instruction: ProcessProposal");

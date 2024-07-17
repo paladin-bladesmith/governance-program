@@ -5,10 +5,15 @@ mod setup;
 use {
     paladin_governance_program::{
         error::PaladinGovernanceError,
-        state::{get_governance_address, get_vote_address, Config, Proposal, ProposalVote},
+        state::{
+            get_governance_address, get_proposal_vote_address, Config, Proposal, ProposalVote,
+        },
     },
     paladin_stake_program::state::{find_stake_pda, Config as StakeConfig, Stake},
-    setup::{setup, setup_governance, setup_proposal, setup_stake, setup_stake_config, setup_vote},
+    setup::{
+        setup, setup_governance, setup_proposal, setup_proposal_vote, setup_stake,
+        setup_stake_config,
+    },
     solana_program_test::*,
     solana_sdk::{
         account::AccountSharedData,
@@ -34,7 +39,7 @@ async fn fail_validator_not_signer() {
         &paladin_stake_program::id(),
     )
     .0;
-    let proposal_vote = get_vote_address(
+    let proposal_vote = get_proposal_vote_address(
         &validator.pubkey(),
         &proposal,
         &paladin_governance_program::id(),
@@ -86,7 +91,7 @@ async fn fail_stake_incorrect_owner() {
         &paladin_stake_program::id(),
     )
     .0;
-    let proposal_vote = get_vote_address(
+    let proposal_vote = get_proposal_vote_address(
         &validator.pubkey(),
         &proposal,
         &paladin_governance_program::id(),
@@ -148,7 +153,7 @@ async fn fail_stake_not_initialized() {
         &paladin_stake_program::id(),
     )
     .0;
-    let proposal_vote = get_vote_address(
+    let proposal_vote = get_proposal_vote_address(
         &validator.pubkey(),
         &proposal,
         &paladin_governance_program::id(),
@@ -210,7 +215,7 @@ async fn fail_stake_incorrect_validator() {
         &paladin_stake_program::id(),
     )
     .0;
-    let proposal_vote = get_vote_address(
+    let proposal_vote = get_proposal_vote_address(
         &validator.pubkey(),
         &proposal,
         &paladin_governance_program::id(),
@@ -274,7 +279,7 @@ async fn fail_stake_config_incorrect_account() {
         &paladin_stake_program::id(),
     )
     .0;
-    let proposal_vote = get_vote_address(
+    let proposal_vote = get_proposal_vote_address(
         &validator.pubkey(),
         &proposal,
         &paladin_governance_program::id(),
@@ -337,7 +342,7 @@ async fn fail_stake_config_incorrect_owner() {
         &paladin_stake_program::id(),
     )
     .0;
-    let proposal_vote = get_vote_address(
+    let proposal_vote = get_proposal_vote_address(
         &validator.pubkey(),
         &proposal,
         &paladin_governance_program::id(),
@@ -408,7 +413,7 @@ async fn fail_stake_config_not_initialized() {
         &paladin_stake_program::id(),
     )
     .0;
-    let proposal_vote = get_vote_address(
+    let proposal_vote = get_proposal_vote_address(
         &validator.pubkey(),
         &proposal,
         &paladin_governance_program::id(),
@@ -479,7 +484,7 @@ async fn fail_governance_incorrect_address() {
         &paladin_stake_program::id(),
     )
     .0;
-    let proposal_vote = get_vote_address(
+    let proposal_vote = get_proposal_vote_address(
         &validator.pubkey(),
         &proposal,
         &paladin_governance_program::id(),
@@ -545,7 +550,7 @@ async fn fail_governance_incorrect_owner() {
         &paladin_stake_program::id(),
     )
     .0;
-    let proposal_vote = get_vote_address(
+    let proposal_vote = get_proposal_vote_address(
         &validator.pubkey(),
         &proposal,
         &paladin_governance_program::id(),
@@ -616,7 +621,7 @@ async fn fail_governance_not_initialized() {
         &paladin_stake_program::id(),
     )
     .0;
-    let proposal_vote = get_vote_address(
+    let proposal_vote = get_proposal_vote_address(
         &validator.pubkey(),
         &proposal,
         &paladin_governance_program::id(),
@@ -686,7 +691,7 @@ async fn fail_proposal_incorrect_owner() {
         &paladin_stake_program::id(),
     )
     .0;
-    let proposal_vote = get_vote_address(
+    let proposal_vote = get_proposal_vote_address(
         &validator.pubkey(),
         &proposal,
         &paladin_governance_program::id(),
@@ -758,7 +763,7 @@ async fn fail_proposal_not_initialized() {
         &paladin_stake_program::id(),
     )
     .0;
-    let proposal_vote = get_vote_address(
+    let proposal_vote = get_proposal_vote_address(
         &validator.pubkey(),
         &proposal,
         &paladin_governance_program::id(),
@@ -819,7 +824,7 @@ async fn fail_proposal_not_initialized() {
 }
 
 #[tokio::test]
-async fn fail_vote_incorrect_address() {
+async fn fail_proposal_vote_incorrect_address() {
     let validator = Keypair::new();
     let stake_config = Pubkey::new_unique();
     let proposal = Pubkey::new_unique();
@@ -830,7 +835,7 @@ async fn fail_vote_incorrect_address() {
         &paladin_stake_program::id(),
     )
     .0;
-    let proposal_vote = Pubkey::new_unique(); // Incorrect vote address.
+    let proposal_vote = Pubkey::new_unique(); // Incorrect proposal vote address.
     let governance = get_governance_address(&paladin_governance_program::id());
 
     let mut context = setup().start_with_context().await;
@@ -880,7 +885,7 @@ async fn fail_vote_incorrect_address() {
 }
 
 #[tokio::test]
-async fn fail_vote_already_initialized() {
+async fn fail_proposal_vote_already_initialized() {
     let validator = Keypair::new();
     let stake_config = Pubkey::new_unique();
     let proposal = Pubkey::new_unique();
@@ -891,7 +896,7 @@ async fn fail_vote_already_initialized() {
         &paladin_stake_program::id(),
     )
     .0;
-    let proposal_vote = get_vote_address(
+    let proposal_vote = get_proposal_vote_address(
         &validator.pubkey(),
         &proposal,
         &paladin_governance_program::id(),
@@ -911,8 +916,8 @@ async fn fail_vote_already_initialized() {
     setup_governance(&mut context, &governance, 0, 0, 0).await;
     setup_proposal(&mut context, &proposal, &validator.pubkey(), 0, 0).await;
 
-    // Set up an initialized vote account.
-    setup_vote(
+    // Set up an initialized proposal vote account.
+    setup_proposal_vote(
         &mut context,
         &proposal_vote,
         &proposal,
@@ -1100,7 +1105,7 @@ async fn success(proposal_setup: ProposalSetup, vote_test: VoteTest) {
         &paladin_stake_program::id(),
     )
     .0;
-    let proposal_vote = get_vote_address(
+    let proposal_vote = get_proposal_vote_address(
         &validator.pubkey(),
         &proposal,
         &paladin_governance_program::id(),
@@ -1127,7 +1132,7 @@ async fn success(proposal_setup: ProposalSetup, vote_test: VoteTest) {
     .await;
     setup_proposal(&mut context, &proposal, &validator.pubkey(), 0, 0).await;
 
-    // Fund the vote account.
+    // Fund the proposal vote account.
     {
         let rent = context.banks_client.get_rent().await.unwrap();
         let lamports = rent.minimum_balance(std::mem::size_of::<ProposalVote>());
@@ -1160,15 +1165,15 @@ async fn success(proposal_setup: ProposalSetup, vote_test: VoteTest) {
         .await
         .unwrap();
 
-    // Assert the vote was created.
-    let vote_account = context
+    // Assert the proposal vote was created.
+    let proposal_vote_account = context
         .banks_client
         .get_account(proposal_vote)
         .await
         .unwrap()
         .unwrap();
     assert_eq!(
-        bytemuck::from_bytes::<ProposalVote>(&vote_account.data),
+        bytemuck::from_bytes::<ProposalVote>(&proposal_vote_account.data),
         &ProposalVote::new(&proposal, vote_stake, &validator.pubkey(), vote)
     );
 

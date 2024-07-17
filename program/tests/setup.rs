@@ -196,7 +196,7 @@ pub async fn setup_proposal(
     .await;
 }
 
-pub async fn setup_vote(
+pub async fn setup_proposal_vote(
     context: &mut ProgramTestContext,
     proposal_vote_address: &Pubkey,
     proposal_address: &Pubkey,
