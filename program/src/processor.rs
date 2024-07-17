@@ -214,16 +214,12 @@ fn process_cancel_proposal(program_id: &Pubkey, accounts: &[AccountInfo]) -> Pro
     let accounts_iter = &mut accounts.iter();
 
     let validator_info = next_account_info(accounts_iter)?;
-    let stake_info = next_account_info(accounts_iter)?;
     let proposal_info = next_account_info(accounts_iter)?;
 
     // Ensure the validator vote account is a signer.
     if !validator_info.is_signer {
         return Err(ProgramError::MissingRequiredSignature);
     }
-
-    // Ensure the provided stake account belongs to the validator.
-    let _ = get_validator_stake_checked(validator_info.key, stake_info)?;
 
     check_proposal_exists(program_id, proposal_info)?;
 

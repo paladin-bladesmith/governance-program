@@ -31,13 +31,12 @@ pub enum PaladinGovernanceInstruction {
     CreateProposal,
     /// Cancel a governance proposal.
     ///
-    /// Stake account provided must be the proposal creator.
+    /// Validator account provided must be the proposal creator.
     ///
     /// Accounts expected by this instruction:
     ///
     /// 0. `[s]` Validator vote account.
-    /// 1. `[ ]` Paladin stake account.
-    /// 2. `[w]` Proposal account.
+    /// 1. `[w]` Proposal account.
     CancelProposal,
     /// Vote on a governance proposal.
     ///
@@ -254,14 +253,9 @@ pub fn create_proposal(
 /// Creates a
 /// [CancelProposal](enum.PaladinGovernanceInstruction.html)
 /// instruction.
-pub fn cancel_proposal(
-    validator_address: &Pubkey,
-    stake_address: &Pubkey,
-    proposal_address: &Pubkey,
-) -> Instruction {
+pub fn cancel_proposal(validator_address: &Pubkey, proposal_address: &Pubkey) -> Instruction {
     let accounts = vec![
         AccountMeta::new_readonly(*validator_address, true),
-        AccountMeta::new_readonly(*stake_address, false),
         AccountMeta::new(*proposal_address, false),
     ];
     let data = PaladinGovernanceInstruction::CancelProposal.pack();
