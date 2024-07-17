@@ -61,6 +61,8 @@ fn get_validator_stake_checked(
     }
 
     // Ensure the stake account belongs to the validator.
+    // Jon: I'm thinking this should be the "authority" on the stake account instead,
+    // since we don't know if all validators have access to their vote account keypair
     if state.validator != *validator_key {
         return Err(PaladinGovernanceError::ValidatorStakeAccountMismatch.into());
     }
@@ -190,6 +192,7 @@ fn process_create_proposal(program_id: &Pubkey, accounts: &[AccountInfo]) -> Pro
     }
 
     // Ensure the proposal account is not initialized.
+    // Jon: for safety, let's instead check that the discriminator is all 0s
     if &proposal_info.try_borrow_data()?[0..8] == Proposal::SPL_DISCRIMINATOR_SLICE {
         return Err(ProgramError::AccountAlreadyInitialized);
     }
@@ -228,6 +231,8 @@ fn process_cancel_proposal(program_id: &Pubkey, accounts: &[AccountInfo]) -> Pro
     check_proposal_exists(program_id, proposal_info)?;
 
     // Ensure the validator is the proposal author.
+    // Jon: this will also need a state check to make sure it's in the draft or voting
+    // stages
     {
         let proposal_data = proposal_info.try_borrow_data()?;
         let proposal_state = bytemuck::try_from_bytes::<Proposal>(&proposal_data)
@@ -249,6 +254,8 @@ fn process_cancel_proposal(program_id: &Pubkey, accounts: &[AccountInfo]) -> Pro
 fn process_vote(program_id: &Pubkey, accounts: &[AccountInfo], vote: bool) -> ProgramResult {
     let accounts_iter = &mut accounts.iter();
 
+    // Jon: just a nit, but if we decide to go with the stake authority, can we change
+    // this to `stake_authority_info` everywhere?
     let validator_info = next_account_info(accounts_iter)?;
     let stake_info = next_account_info(accounts_iter)?;
     let stake_config_info = next_account_info(accounts_iter)?;
@@ -309,6 +316,7 @@ fn process_vote(program_id: &Pubkey, accounts: &[AccountInfo], vote: bool) -> Pr
             ProposalVote::new(proposal_info.key, stake, validator_info.key, vote);
     }
 
+    // Jon: this will also need a state check to make sure it's in the voting stage
     // Update the proposal with the newly cast vote.
     let mut proposal_data = proposal_info.try_borrow_mut_data()?;
     let proposal_state = bytemuck::try_from_bytes_mut::<Proposal>(&mut proposal_data)
@@ -348,6 +356,10 @@ fn process_vote(program_id: &Pubkey, accounts: &[AccountInfo], vote: bool) -> Pr
             // If the proposal has met the rejection threshold, cancel the proposal.
             // This is done regardless of any cooldown period.
             drop(proposal_data);
+            // Jon: let's keep the proposal account open and just set its status to
+            // failed / defeated, otherwise it's possible to re-create the proposal
+            // account, at which point, what happens to all those dangling proposal
+            // vote accouts?
             return close_proposal_account(proposal_info);
         }
     }
@@ -406,10 +418,18 @@ fn process_switch_vote(
             return Err(ProgramError::UninitializedAccount);
         }
 
+        // Jon: I think we might be ok without it technically, but to be safe, can we
+        // have a discriminator check here?
+
         // Update the vote.
         let mut data = vote_info.try_borrow_mut_data()?;
         let state = bytemuck::try_from_bytes_mut::<ProposalVote>(&mut data)
             .map_err(|_| ProgramError::InvalidAccountData)?;
+
+        // Jon: a stake account's stake might have changed between the initial vote and
+        // the switch here, so the vote amount should get updated too. This complicates
+        // the logic later a bit, but it shouldn't be too bad. You'll just need to keep
+        // track of the old stake amount.
 
         let pod_new_vote = PodBool::from(new_vote);
         if state.vote == pod_new_vote {
@@ -471,6 +491,8 @@ fn process_switch_vote(
         {
             // If the proposal has met the rejection threshold, cancel the proposal.
             // This is done regardless of any cooldown period.
+            // Jon: same here, let's set the status to defeated rather than closing
+            // the account
             drop(proposal_data);
             return close_proposal_account(proposal_info);
         }
@@ -482,6 +504,9 @@ fn process_switch_vote(
             // If the proposal has fallen below the acceptance threshold, and
             // it's currently in a cooldown period, terminate the cooldown
             // period.
+            // Jon: I think the cooldown period should continue in this case, otherwise
+            // you can have bad actors keep a proposal in limbo forever, but we should
+            // double check that with Uri.
             proposal_state.cooldown_timestamp = None;
         }
     }
@@ -524,6 +549,7 @@ fn process_process_proposal(program_id: &Pubkey, accounts: &[AccountInfo]) -> Pr
         // TODO!
     }
 
+    // Jon: same here, let's avoid closing the accounts
     close_proposal_account(proposal_info)?;
 
     Ok(())
@@ -601,6 +627,9 @@ fn process_update_governance(
     proposal_rejection_threshold: u64,
 ) -> ProgramResult {
     let accounts_iter = &mut accounts.iter();
+
+    // Jon: you'll just need to check that the governance PDA is a signer, no proposal
+    // or anything needed!
 
     let governance_info = next_account_info(accounts_iter)?;
     let proposal_info = next_account_info(accounts_iter)?;

@@ -28,7 +28,14 @@ pub enum PaladinGovernanceInstruction {
     /// 0. `[s]` Validator vote account.
     /// 1. `[ ]` Paladin stake account.
     /// 2. `[w]` Proposal account.
+    // Jon: we'll definitely need a way to add instructions to a proposal while it's
+    // in "draft" phase. We can add it to this instruction, but then we're limited by
+    // the total transaction size when it comes to the proposal. For max flexibility,
+    // we can add a separate governance instruction to add an instruction to a proposal
+    // in the "draft" phase, signed by the author.
     CreateProposal,
+    // Jon: to go with the state machine concept, we'll need an instruction to move a
+    // proposal from "draft" to "voting", signed by the proposal author
     /// Cancel a governance proposal.
     ///
     /// Stake account provided must be the proposal creator.
@@ -36,7 +43,7 @@ pub enum PaladinGovernanceInstruction {
     /// Accounts expected by this instruction:
     ///
     /// 0. `[s]` Validator vote account.
-    /// 1. `[ ]` Paladin stake account.
+    /// 1. `[ ]` Paladin stake account. // Jon: is this account needed?
     /// 2. `[w]` Proposal account.
     CancelProposal,
     /// Vote on a governance proposal.
@@ -58,6 +65,7 @@ pub enum PaladinGovernanceInstruction {
         ///
         /// * `true`: In favor.
         /// * `false`: Against.
+        // Jon: probably use that enum described in state.rs
         vote: bool,
     },
     /// Vote on a governance proposal.
@@ -82,6 +90,7 @@ pub enum PaladinGovernanceInstruction {
         ///
         /// * `true`: In favor.
         /// * `false`: Against.
+        // Jon: probably use that enum described in state.rs
         vote: bool,
     },
     /// Process a governance proposal.
