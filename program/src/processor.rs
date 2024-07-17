@@ -22,7 +22,7 @@ use {
         system_instruction, system_program,
         sysvar::Sysvar,
     },
-    spl_discriminator::SplDiscriminate,
+    spl_discriminator::{ArrayDiscriminator, SplDiscriminate},
     spl_pod::primitives::PodBool,
     std::num::NonZeroU64,
 };
@@ -190,7 +190,7 @@ fn process_create_proposal(program_id: &Pubkey, accounts: &[AccountInfo]) -> Pro
     }
 
     // Ensure the proposal account is not initialized.
-    if &proposal_info.try_borrow_data()?[0..8] == Proposal::SPL_DISCRIMINATOR_SLICE {
+    if &proposal_info.try_borrow_data()?[0..8] != ArrayDiscriminator::UNINITIALIZED.as_slice() {
         return Err(ProgramError::AccountAlreadyInitialized);
     }
 
