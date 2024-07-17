@@ -39,11 +39,8 @@ async fn fail_stake_authority_not_signer() {
         &paladin_stake_program::id(),
     )
     .0;
-    let proposal_vote = get_proposal_vote_address(
-        &stake_authority.pubkey(),
-        &proposal,
-        &paladin_governance_program::id(),
-    );
+    let proposal_vote =
+        get_proposal_vote_address(&stake, &proposal, &paladin_governance_program::id());
     let governance = get_governance_address(&paladin_governance_program::id());
 
     let mut context = setup().start_with_context().await;
@@ -91,11 +88,8 @@ async fn fail_stake_incorrect_owner() {
         &paladin_stake_program::id(),
     )
     .0;
-    let proposal_vote = get_proposal_vote_address(
-        &stake_authority.pubkey(),
-        &proposal,
-        &paladin_governance_program::id(),
-    );
+    let proposal_vote =
+        get_proposal_vote_address(&stake, &proposal, &paladin_governance_program::id());
     let governance = get_governance_address(&paladin_governance_program::id());
 
     let mut context = setup().start_with_context().await;
@@ -153,11 +147,8 @@ async fn fail_stake_not_initialized() {
         &paladin_stake_program::id(),
     )
     .0;
-    let proposal_vote = get_proposal_vote_address(
-        &stake_authority.pubkey(),
-        &proposal,
-        &paladin_governance_program::id(),
-    );
+    let proposal_vote =
+        get_proposal_vote_address(&stake, &proposal, &paladin_governance_program::id());
     let governance = get_governance_address(&paladin_governance_program::id());
 
     let mut context = setup().start_with_context().await;
@@ -215,11 +206,8 @@ async fn fail_stake_incorrect_stake_authority() {
         &paladin_stake_program::id(),
     )
     .0;
-    let proposal_vote = get_proposal_vote_address(
-        &stake_authority.pubkey(),
-        &proposal,
-        &paladin_governance_program::id(),
-    );
+    let proposal_vote =
+        get_proposal_vote_address(&stake, &proposal, &paladin_governance_program::id());
     let governance = get_governance_address(&paladin_governance_program::id());
 
     let mut context = setup().start_with_context().await;
@@ -275,11 +263,8 @@ async fn fail_stake_config_incorrect_owner() {
         &paladin_stake_program::id(),
     )
     .0;
-    let proposal_vote = get_proposal_vote_address(
-        &stake_authority.pubkey(),
-        &proposal,
-        &paladin_governance_program::id(),
-    );
+    let proposal_vote =
+        get_proposal_vote_address(&stake, &proposal, &paladin_governance_program::id());
     let governance = get_governance_address(&paladin_governance_program::id());
 
     let mut context = setup().start_with_context().await;
@@ -339,11 +324,8 @@ async fn fail_stake_config_not_initialized() {
         &paladin_stake_program::id(),
     )
     .0;
-    let proposal_vote = get_proposal_vote_address(
-        &stake_authority.pubkey(),
-        &proposal,
-        &paladin_governance_program::id(),
-    );
+    let proposal_vote =
+        get_proposal_vote_address(&stake, &proposal, &paladin_governance_program::id());
     let governance = get_governance_address(&paladin_governance_program::id());
 
     let mut context = setup().start_with_context().await;
@@ -403,11 +385,8 @@ async fn fail_governance_incorrect_address() {
         &paladin_stake_program::id(),
     )
     .0;
-    let proposal_vote = get_proposal_vote_address(
-        &stake_authority.pubkey(),
-        &proposal,
-        &paladin_governance_program::id(),
-    );
+    let proposal_vote =
+        get_proposal_vote_address(&stake, &proposal, &paladin_governance_program::id());
     let governance = Pubkey::new_unique(); // Incorrect governance address.
 
     let mut context = setup().start_with_context().await;
@@ -462,11 +441,8 @@ async fn fail_governance_incorrect_owner() {
         &paladin_stake_program::id(),
     )
     .0;
-    let proposal_vote = get_proposal_vote_address(
-        &stake_authority.pubkey(),
-        &proposal,
-        &paladin_governance_program::id(),
-    );
+    let proposal_vote =
+        get_proposal_vote_address(&stake, &proposal, &paladin_governance_program::id());
     let governance = get_governance_address(&paladin_governance_program::id());
 
     let mut context = setup().start_with_context().await;
@@ -526,11 +502,8 @@ async fn fail_governance_not_initialized() {
         &paladin_stake_program::id(),
     )
     .0;
-    let proposal_vote = get_proposal_vote_address(
-        &stake_authority.pubkey(),
-        &proposal,
-        &paladin_governance_program::id(),
-    );
+    let proposal_vote =
+        get_proposal_vote_address(&stake, &proposal, &paladin_governance_program::id());
     let governance = get_governance_address(&paladin_governance_program::id());
 
     let mut context = setup().start_with_context().await;
@@ -589,11 +562,8 @@ async fn fail_proposal_incorrect_owner() {
         &paladin_stake_program::id(),
     )
     .0;
-    let proposal_vote = get_proposal_vote_address(
-        &stake_authority.pubkey(),
-        &proposal,
-        &paladin_governance_program::id(),
-    );
+    let proposal_vote =
+        get_proposal_vote_address(&stake, &proposal, &paladin_governance_program::id());
     let governance = get_governance_address(&paladin_governance_program::id());
 
     let mut context = setup().start_with_context().await;
@@ -654,11 +624,8 @@ async fn fail_proposal_not_initialized() {
         &paladin_stake_program::id(),
     )
     .0;
-    let proposal_vote = get_proposal_vote_address(
-        &stake_authority.pubkey(),
-        &proposal,
-        &paladin_governance_program::id(),
-    );
+    let proposal_vote =
+        get_proposal_vote_address(&stake, &proposal, &paladin_governance_program::id());
     let governance = get_governance_address(&paladin_governance_program::id());
 
     let mut context = setup().start_with_context().await;
@@ -773,11 +740,8 @@ async fn fail_proposal_vote_not_initialized() {
         &paladin_stake_program::id(),
     )
     .0;
-    let proposal_vote = get_proposal_vote_address(
-        &stake_authority.pubkey(),
-        &proposal,
-        &paladin_governance_program::id(),
-    );
+    let proposal_vote =
+        get_proposal_vote_address(&stake, &proposal, &paladin_governance_program::id());
     let governance = get_governance_address(&paladin_governance_program::id());
 
     let mut context = setup().start_with_context().await;
@@ -988,11 +952,8 @@ async fn success(proposal_setup: ProposalSetup, vote_test: SwitchVoteTest) {
         &paladin_stake_program::id(),
     )
     .0;
-    let proposal_vote = get_proposal_vote_address(
-        &stake_authority.pubkey(),
-        &proposal,
-        &paladin_governance_program::id(),
-    );
+    let proposal_vote =
+        get_proposal_vote_address(&stake, &proposal, &paladin_governance_program::id());
     let governance = get_governance_address(&paladin_governance_program::id());
 
     let mut context = setup().start_with_context().await;

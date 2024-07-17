@@ -258,14 +258,11 @@ fn process_vote(program_id: &Pubkey, accounts: &[AccountInfo], vote: bool) -> Pr
 
     // Create the proposal vote account.
     {
-        let (proposal_vote_address, bump_seed) = get_proposal_vote_address_and_bump_seed(
-            stake_authority_info.key,
-            proposal_info.key,
-            program_id,
-        );
+        let (proposal_vote_address, bump_seed) =
+            get_proposal_vote_address_and_bump_seed(stake_info.key, proposal_info.key, program_id);
         let bump_seed = [bump_seed];
         let proposal_vote_signer_seeds =
-            collect_vote_signer_seeds(stake_authority_info.key, proposal_info.key, &bump_seed);
+            collect_vote_signer_seeds(stake_info.key, proposal_info.key, &bump_seed);
 
         // Ensure the provided proposal vote address is the correct address
         // derived from the stake authority and proposal.
@@ -379,7 +376,7 @@ fn process_switch_vote(
         // Ensure the provided proposal vote address is the correct address
         // derived from the stake authority and proposal.
         if !proposal_vote_info.key.eq(&get_proposal_vote_address(
-            stake_authority_info.key,
+            stake_info.key,
             proposal_info.key,
             program_id,
         )) {
