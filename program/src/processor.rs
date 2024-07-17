@@ -583,7 +583,6 @@ fn process_initialize_governance(
                 cooldown_period_seconds,
                 proposal_acceptance_threshold,
                 proposal_rejection_threshold,
-                total_staked: 0,
             };
     }
 
@@ -635,7 +634,6 @@ fn process_update_governance(
             cooldown_period_seconds,
             proposal_acceptance_threshold,
             proposal_rejection_threshold,
-            total_staked: 0,
         };
 
     Ok(())

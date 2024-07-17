@@ -703,7 +703,7 @@ async fn fail_proposal_incorrect_owner() {
         0,
     )
     .await;
-    setup_governance(&mut context, &governance, 0, 0, 0, 0).await;
+    setup_governance(&mut context, &governance, 0, 0, 0).await;
 
     // Set up the proposal account with the incorrect owner.
     {
@@ -775,7 +775,7 @@ async fn fail_proposal_not_initialized() {
         0,
     )
     .await;
-    setup_governance(&mut context, &governance, 0, 0, 0, 0).await;
+    setup_governance(&mut context, &governance, 0, 0, 0).await;
 
     // Set up the proposal account uninitialized.
     {
@@ -843,7 +843,7 @@ async fn fail_vote_incorrect_address() {
         0,
     )
     .await;
-    setup_governance(&mut context, &governance, 0, 0, 0, 0).await;
+    setup_governance(&mut context, &governance, 0, 0, 0).await;
     setup_proposal(&mut context, &proposal, &validator.pubkey(), 0, 0).await;
 
     let instruction = paladin_governance_program::instruction::vote(
@@ -908,7 +908,7 @@ async fn fail_vote_already_initialized() {
         0,
     )
     .await;
-    setup_governance(&mut context, &governance, 0, 0, 0, 0).await;
+    setup_governance(&mut context, &governance, 0, 0, 0).await;
     setup_proposal(&mut context, &proposal, &validator.pubkey(), 0, 0).await;
 
     // Set up an initialized vote account.
@@ -1123,7 +1123,6 @@ async fn success(proposal_setup: ProposalSetup, vote_test: VoteTest) {
         /* cooldown_period_seconds */ 10, // Unused here.
         acceptance_threshold,
         rejection_threshold,
-        total_stake,
     )
     .await;
     setup_proposal(&mut context, &proposal, &validator.pubkey(), 0, 0).await;

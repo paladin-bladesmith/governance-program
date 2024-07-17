@@ -140,7 +140,7 @@ async fn fail_proposal_incorrect_owner() {
     let governance = get_governance_address(&paladin_governance_program::id());
 
     let mut context = setup().start_with_context().await;
-    setup_governance(&mut context, &governance, 0, 0, 0, 0).await;
+    setup_governance(&mut context, &governance, 0, 0, 0).await;
 
     // Set up the proposal account with the incorrect owner.
     {
@@ -181,7 +181,7 @@ async fn fail_proposal_not_initialized() {
     let governance = get_governance_address(&paladin_governance_program::id());
 
     let mut context = setup().start_with_context().await;
-    setup_governance(&mut context, &governance, 0, 0, 0, 0).await;
+    setup_governance(&mut context, &governance, 0, 0, 0).await;
 
     // Set up the proposal account uninitialized.
     {
@@ -226,7 +226,7 @@ async fn fail_proposal_not_accepted() {
     // Set up an unaccepted proposal.
     // Simply set the cooldown timestamp to the current clock timestamp,
     // and require more than 0 seconds for cooldown.
-    setup_governance(&mut context, &governance, 1_000_000, 0, 0, 0).await;
+    setup_governance(&mut context, &governance, 1_000_000, 0, 0).await;
     let clock = context.banks_client.get_sysvar::<Clock>().await.unwrap();
     setup_proposal_with_stake_and_cooldown(
         &mut context,
@@ -271,7 +271,7 @@ async fn success() {
     let governance = get_governance_address(&paladin_governance_program::id());
 
     let mut context = setup().start_with_context().await;
-    setup_governance(&mut context, &governance, 0, 0, 0, 0).await;
+    setup_governance(&mut context, &governance, 0, 0, 0).await;
     setup_proposal_with_stake_and_cooldown(
         &mut context,
         &proposal,
