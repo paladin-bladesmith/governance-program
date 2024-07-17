@@ -25,17 +25,17 @@ pub enum PaladinGovernanceInstruction {
     ///
     /// Accounts expected by this instruction:
     ///
-    /// 0. `[s]` Validator vote account.
+    /// 0. `[s]` Paladin stake authority account.
     /// 1. `[ ]` Paladin stake account.
     /// 2. `[w]` Proposal account.
     CreateProposal,
     /// Cancel a governance proposal.
     ///
-    /// Validator account provided must be the proposal creator.
+    /// Authority account provided must be the proposal creator.
     ///
     /// Accounts expected by this instruction:
     ///
-    /// 0. `[s]` Validator vote account.
+    /// 0. `[s]` Paladin stake authority account.
     /// 1. `[w]` Proposal account.
     CancelProposal,
     /// Vote on a governance proposal.
@@ -45,7 +45,7 @@ pub enum PaladinGovernanceInstruction {
     ///
     /// Accounts expected by this instruction:
     ///
-    /// 0. `[s]` Validator vote account.
+    /// 0. `[s]` Paladin stake authority account.
     /// 1. `[ ]` Paladin stake account.
     /// 2. `[ ]` Paladin stake config account.
     /// 3. `[w]` Proposal vote account.
@@ -71,7 +71,7 @@ pub enum PaladinGovernanceInstruction {
     ///
     /// Accounts expected by this instruction:
     ///
-    /// 0. `[s]` Validator vote account.
+    /// 0. `[s]` Paladin stake authority account.
     /// 1. `[ ]` Paladin stake account.
     /// 2. `[ ]` Paladin stake config account.
     /// 3. `[w]` Proposal vote account.
@@ -237,12 +237,12 @@ impl PaladinGovernanceInstruction {
 /// [CreateProposal](enum.PaladinGovernanceInstruction.html)
 /// instruction.
 pub fn create_proposal(
-    validator_address: &Pubkey,
+    stake_authority_address: &Pubkey,
     stake_address: &Pubkey,
     proposal_address: &Pubkey,
 ) -> Instruction {
     let accounts = vec![
-        AccountMeta::new_readonly(*validator_address, true),
+        AccountMeta::new_readonly(*stake_authority_address, true),
         AccountMeta::new_readonly(*stake_address, false),
         AccountMeta::new(*proposal_address, false),
     ];
@@ -253,9 +253,9 @@ pub fn create_proposal(
 /// Creates a
 /// [CancelProposal](enum.PaladinGovernanceInstruction.html)
 /// instruction.
-pub fn cancel_proposal(validator_address: &Pubkey, proposal_address: &Pubkey) -> Instruction {
+pub fn cancel_proposal(stake_authority_address: &Pubkey, proposal_address: &Pubkey) -> Instruction {
     let accounts = vec![
-        AccountMeta::new_readonly(*validator_address, true),
+        AccountMeta::new_readonly(*stake_authority_address, true),
         AccountMeta::new(*proposal_address, false),
     ];
     let data = PaladinGovernanceInstruction::CancelProposal.pack();
@@ -266,7 +266,7 @@ pub fn cancel_proposal(validator_address: &Pubkey, proposal_address: &Pubkey) ->
 /// [Vote](enum.PaladinGovernanceInstruction.html)
 /// instruction.
 pub fn vote(
-    validator_address: &Pubkey,
+    stake_authority_address: &Pubkey,
     stake_address: &Pubkey,
     stake_config_address: &Pubkey,
     proposal_vote_address: &Pubkey,
@@ -275,7 +275,7 @@ pub fn vote(
     vote: bool,
 ) -> Instruction {
     let accounts = vec![
-        AccountMeta::new_readonly(*validator_address, true),
+        AccountMeta::new_readonly(*stake_authority_address, true),
         AccountMeta::new_readonly(*stake_address, false),
         AccountMeta::new_readonly(*stake_config_address, false),
         AccountMeta::new(*proposal_vote_address, false),
@@ -291,7 +291,7 @@ pub fn vote(
 /// [SwitchVote](enum.PaladinGovernanceInstruction.html)
 /// instruction.
 pub fn switch_vote(
-    validator_address: &Pubkey,
+    stake_authority_address: &Pubkey,
     stake_address: &Pubkey,
     stake_config_address: &Pubkey,
     proposal_vote_address: &Pubkey,
@@ -300,7 +300,7 @@ pub fn switch_vote(
     new_vote: bool,
 ) -> Instruction {
     let accounts = vec![
-        AccountMeta::new_readonly(*validator_address, true),
+        AccountMeta::new_readonly(*stake_authority_address, true),
         AccountMeta::new_readonly(*stake_address, false),
         AccountMeta::new_readonly(*stake_config_address, false),
         AccountMeta::new(*proposal_vote_address, false),

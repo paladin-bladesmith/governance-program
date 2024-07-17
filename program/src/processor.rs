@@ -10,7 +10,7 @@ use {
             get_proposal_vote_address_and_bump_seed, Config, Proposal, ProposalVote,
         },
     },
-    paladin_stake_program::state::{find_stake_pda, Config as StakeConfig, Stake},
+    paladin_stake_program::state::{Config as StakeConfig, Stake},
     solana_program::{
         account_info::{next_account_info, AccountInfo},
         clock::Clock,
@@ -42,8 +42,8 @@ fn calculate_proposal_vote_threshold(stake: u64, total_stake: u64) -> Result<u64
         .ok_or(ProgramError::ArithmeticOverflow)
 }
 
-fn get_validator_stake_checked(
-    validator_key: &Pubkey,
+fn get_stake_checked(
+    authority_key: &Pubkey,
     stake_info: &AccountInfo,
 ) -> Result<u64, ProgramError> {
     // Ensure the stake account is owned by the Paladin Stake program.
@@ -60,9 +60,9 @@ fn get_validator_stake_checked(
         return Err(ProgramError::UninitializedAccount);
     }
 
-    // Ensure the stake account belongs to the validator.
-    if state.validator != *validator_key {
-        return Err(PaladinGovernanceError::ValidatorStakeAccountMismatch.into());
+    // Ensure the stake account belongs to the authority.
+    if state.authority != *authority_key {
+        return Err(ProgramError::IncorrectAuthority);
     }
 
     // Return the currently active stake amount.
@@ -70,22 +70,10 @@ fn get_validator_stake_checked(
 }
 
 fn get_total_stake_checked(
-    validator_key: &Pubkey,
-    stake_key: &Pubkey,
+    _authority_key: &Pubkey,
+    _stake_key: &Pubkey,
     stake_config_info: &AccountInfo,
 ) -> Result<u64, ProgramError> {
-    // Ensure the stake address is derived from the validator and config keys.
-    if stake_key
-        != &find_stake_pda(
-            validator_key,
-            stake_config_info.key,
-            &paladin_stake_program::id(),
-        )
-        .0
-    {
-        return Err(PaladinGovernanceError::IncorrectStakeConfig.into());
-    }
-
     // Ensure the config account is owned by the Paladin Stake program.
     if stake_config_info.owner != &paladin_stake_program::id() {
         return Err(ProgramError::InvalidAccountOwner);
@@ -99,6 +87,8 @@ fn get_total_stake_checked(
     if !state.is_initialized() {
         return Err(ProgramError::UninitializedAccount);
     }
+
+    // TODO: How to check the config account is the correct one?
 
     // Return the total stake amount.
     Ok(state.token_amount_delegated)
@@ -167,17 +157,18 @@ fn close_proposal_account(proposal_info: &AccountInfo) -> ProgramResult {
 fn process_create_proposal(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
     let accounts_iter = &mut accounts.iter();
 
-    let validator_info = next_account_info(accounts_iter)?;
+    let stake_authority_info = next_account_info(accounts_iter)?;
     let stake_info = next_account_info(accounts_iter)?;
     let proposal_info = next_account_info(accounts_iter)?;
 
-    // Ensure the validator vote account is a signer.
-    if !validator_info.is_signer {
+    // Ensure the stake authority is a signer.
+    if !stake_authority_info.is_signer {
         return Err(ProgramError::MissingRequiredSignature);
     }
 
-    // Ensure the provided stake account belongs to the validator.
-    let _ = get_validator_stake_checked(validator_info.key, stake_info)?;
+    // Ensure the provided authority is the correct authority for the provided
+    // stake account, and the stake account is valid.
+    let _ = get_stake_checked(stake_authority_info.key, stake_info)?;
 
     // Ensure the proposal account is owned by the Paladin Governance program.
     if proposal_info.owner != program_id {
@@ -202,7 +193,7 @@ fn process_create_proposal(program_id: &Pubkey, accounts: &[AccountInfo]) -> Pro
     let mut proposal_data = proposal_info.try_borrow_mut_data()?;
     *bytemuck::try_from_bytes_mut::<Proposal>(&mut proposal_data)
         .map_err(|_| ProgramError::InvalidAccountData)? =
-        Proposal::new(validator_info.key, creation_timestamp, instruction);
+        Proposal::new(stake_authority_info.key, creation_timestamp, instruction);
 
     Ok(())
 }
@@ -213,23 +204,23 @@ fn process_create_proposal(program_id: &Pubkey, accounts: &[AccountInfo]) -> Pro
 fn process_cancel_proposal(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
     let accounts_iter = &mut accounts.iter();
 
-    let validator_info = next_account_info(accounts_iter)?;
+    let stake_authority_info = next_account_info(accounts_iter)?;
     let proposal_info = next_account_info(accounts_iter)?;
 
-    // Ensure the validator vote account is a signer.
-    if !validator_info.is_signer {
+    // Ensure the stake authority is a signer.
+    if !stake_authority_info.is_signer {
         return Err(ProgramError::MissingRequiredSignature);
     }
 
     check_proposal_exists(program_id, proposal_info)?;
 
-    // Ensure the validator is the proposal author.
+    // Ensure the stake authority is the proposal author.
     {
         let proposal_data = proposal_info.try_borrow_data()?;
         let proposal_state = bytemuck::try_from_bytes::<Proposal>(&proposal_data)
             .map_err(|_| ProgramError::InvalidAccountData)?;
 
-        if proposal_state.author != *validator_info.key {
+        if proposal_state.author != *stake_authority_info.key {
             return Err(ProgramError::IncorrectAuthority);
         }
     }
@@ -245,7 +236,7 @@ fn process_cancel_proposal(program_id: &Pubkey, accounts: &[AccountInfo]) -> Pro
 fn process_vote(program_id: &Pubkey, accounts: &[AccountInfo], vote: bool) -> ProgramResult {
     let accounts_iter = &mut accounts.iter();
 
-    let validator_info = next_account_info(accounts_iter)?;
+    let stake_authority_info = next_account_info(accounts_iter)?;
     let stake_info = next_account_info(accounts_iter)?;
     let stake_config_info = next_account_info(accounts_iter)?;
     let proposal_vote_info = next_account_info(accounts_iter)?;
@@ -253,14 +244,14 @@ fn process_vote(program_id: &Pubkey, accounts: &[AccountInfo], vote: bool) -> Pr
     let governance_info = next_account_info(accounts_iter)?;
     let _system_program_info = next_account_info(accounts_iter)?;
 
-    // Ensure the validator vote account is a signer.
-    if !validator_info.is_signer {
+    // Ensure the stake authority is a signer.
+    if !stake_authority_info.is_signer {
         return Err(ProgramError::MissingRequiredSignature);
     }
 
-    let stake = get_validator_stake_checked(validator_info.key, stake_info)?;
+    let stake = get_stake_checked(stake_authority_info.key, stake_info)?;
     let total_stake =
-        get_total_stake_checked(validator_info.key, stake_info.key, stake_config_info)?;
+        get_total_stake_checked(stake_authority_info.key, stake_info.key, stake_config_info)?;
 
     check_governance_exists(program_id, governance_info)?;
     check_proposal_exists(program_id, proposal_info)?;
@@ -268,16 +259,16 @@ fn process_vote(program_id: &Pubkey, accounts: &[AccountInfo], vote: bool) -> Pr
     // Create the proposal vote account.
     {
         let (proposal_vote_address, bump_seed) = get_proposal_vote_address_and_bump_seed(
-            validator_info.key,
+            stake_authority_info.key,
             proposal_info.key,
             program_id,
         );
         let bump_seed = [bump_seed];
         let proposal_vote_signer_seeds =
-            collect_vote_signer_seeds(validator_info.key, proposal_info.key, &bump_seed);
+            collect_vote_signer_seeds(stake_authority_info.key, proposal_info.key, &bump_seed);
 
         // Ensure the provided proposal vote address is the correct address
-        // derived from the validator and proposal.
+        // derived from the stake authority and proposal.
         if !proposal_vote_info.key.eq(&proposal_vote_address) {
             return Err(PaladinGovernanceError::IncorrectProposalVoteAddress.into());
         }
@@ -305,7 +296,7 @@ fn process_vote(program_id: &Pubkey, accounts: &[AccountInfo], vote: bool) -> Pr
         // Write the data.
         let mut data = proposal_vote_info.try_borrow_mut_data()?;
         *bytemuck::try_from_bytes_mut(&mut data).map_err(|_| ProgramError::InvalidAccountData)? =
-            ProposalVote::new(proposal_info.key, stake, validator_info.key, vote);
+            ProposalVote::new(proposal_info.key, stake, stake_authority_info.key, vote);
     }
 
     // Update the proposal with the newly cast vote.
@@ -364,21 +355,21 @@ fn process_switch_vote(
 ) -> ProgramResult {
     let accounts_iter = &mut accounts.iter();
 
-    let validator_info = next_account_info(accounts_iter)?;
+    let stake_authority_info = next_account_info(accounts_iter)?;
     let stake_info = next_account_info(accounts_iter)?;
     let stake_config_info = next_account_info(accounts_iter)?;
     let proposal_vote_info = next_account_info(accounts_iter)?;
     let proposal_info = next_account_info(accounts_iter)?;
     let governance_info = next_account_info(accounts_iter)?;
 
-    // Ensure the validator vote account is a signer.
-    if !validator_info.is_signer {
+    // Ensure the stake authority is a signer.
+    if !stake_authority_info.is_signer {
         return Err(ProgramError::MissingRequiredSignature);
     }
 
-    let stake = get_validator_stake_checked(validator_info.key, stake_info)?;
+    let stake = get_stake_checked(stake_authority_info.key, stake_info)?;
     let total_stake =
-        get_total_stake_checked(validator_info.key, stake_info.key, stake_config_info)?;
+        get_total_stake_checked(stake_authority_info.key, stake_info.key, stake_config_info)?;
 
     check_governance_exists(program_id, governance_info)?;
     check_proposal_exists(program_id, proposal_info)?;
@@ -386,9 +377,9 @@ fn process_switch_vote(
     // Update the proposal vote account.
     {
         // Ensure the provided proposal vote address is the correct address
-        // derived from the validator and proposal.
+        // derived from the stake authority and proposal.
         if !proposal_vote_info.key.eq(&get_proposal_vote_address(
-            validator_info.key,
+            stake_authority_info.key,
             proposal_info.key,
             program_id,
         )) {

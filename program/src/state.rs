@@ -19,7 +19,7 @@ pub const SEED_PREFIX_GOVERNANCE: &[u8] = b"governance";
 /// The seed prefix (`"proposal_vote"`) in bytes used to derive the address of
 /// the proposal vote account, representing a vote cast by a validator for a
 /// proposal.
-/// Seeds: `"proposal_vote" + validator_address + proposal_address`.
+/// Seeds: `"proposal_vote" + authority_address + proposal_address`.
 pub const SEED_PREFIX_PROPOSAL_VOTE: &[u8] = b"proposal_vote";
 
 /// Derive the address of the treasury account.
@@ -56,44 +56,44 @@ pub(crate) fn collect_governance_signer_seeds(bump_seed: &[u8]) -> [&[u8]; 2] {
 
 /// Derive the address of a proposal vote account.
 pub fn get_proposal_vote_address(
-    validator_address: &Pubkey,
+    authority_address: &Pubkey,
     proposal_address: &Pubkey,
     program_id: &Pubkey,
 ) -> Pubkey {
-    get_proposal_vote_address_and_bump_seed(validator_address, proposal_address, program_id).0
+    get_proposal_vote_address_and_bump_seed(authority_address, proposal_address, program_id).0
 }
 
 /// Derive the address of a proposal vote account, with bump seed.
 pub fn get_proposal_vote_address_and_bump_seed(
-    validator_address: &Pubkey,
+    authority_address: &Pubkey,
     proposal_address: &Pubkey,
     program_id: &Pubkey,
 ) -> (Pubkey, u8) {
     Pubkey::find_program_address(
-        &collect_proposal_vote_seeds(validator_address, proposal_address),
+        &collect_proposal_vote_seeds(authority_address, proposal_address),
         program_id,
     )
 }
 
 pub(crate) fn collect_proposal_vote_seeds<'a>(
-    validator_address: &'a Pubkey,
+    authority_address: &'a Pubkey,
     proposal_address: &'a Pubkey,
 ) -> [&'a [u8]; 3] {
     [
         SEED_PREFIX_PROPOSAL_VOTE,
-        validator_address.as_ref(),
+        authority_address.as_ref(),
         proposal_address.as_ref(),
     ]
 }
 
 pub(crate) fn collect_vote_signer_seeds<'a>(
-    validator_address: &'a Pubkey,
+    authority_address: &'a Pubkey,
     proposal_address: &'a Pubkey,
     bump_seed: &'a [u8],
 ) -> [&'a [u8]; 4] {
     [
         SEED_PREFIX_PROPOSAL_VOTE,
-        validator_address.as_ref(),
+        authority_address.as_ref(),
         proposal_address.as_ref(),
         bump_seed,
     ]
@@ -166,8 +166,8 @@ pub struct ProposalVote {
     pub proposal_address: Pubkey,
     /// Amount of stake.
     pub stake: u64,
-    /// Validator address.
-    pub validator_address: Pubkey,
+    /// Authority address.
+    pub authority_address: Pubkey,
     /// Vote.
     ///
     /// * `true`: In favor.
@@ -181,13 +181,13 @@ impl ProposalVote {
     pub fn new(
         proposal_address: &Pubkey,
         stake: u64,
-        validator_address: &Pubkey,
+        authority_address: &Pubkey,
         vote: bool,
     ) -> Self {
         Self {
             proposal_address: *proposal_address,
             stake,
-            validator_address: *validator_address,
+            authority_address: *authority_address,
             vote: vote.into(),
             _padding: [0; 7],
         }

@@ -25,10 +25,12 @@ pub async fn setup_stake(
     context: &mut ProgramTestContext,
     stake_address: &Pubkey,
     authority_address: &Pubkey,
-    validator_address: &Pubkey,
     amount: u64,
 ) {
-    let mut state = Stake::new(*authority_address, *validator_address);
+    let mut state = Stake::new(
+        *authority_address,
+        /* validator */ Pubkey::new_unique(),
+    );
     state.amount = amount;
     let data = bytemuck::bytes_of(&state).to_vec();
 
@@ -201,10 +203,10 @@ pub async fn setup_proposal_vote(
     proposal_vote_address: &Pubkey,
     proposal_address: &Pubkey,
     stake: u64,
-    validator_address: &Pubkey,
+    stake_authority_address: &Pubkey,
     vote: bool,
 ) {
-    let state = ProposalVote::new(proposal_address, stake, validator_address, vote);
+    let state = ProposalVote::new(proposal_address, stake, stake_authority_address, vote);
     let data = bytemuck::bytes_of(&state).to_vec();
 
     let rent = context.banks_client.get_rent().await.unwrap();

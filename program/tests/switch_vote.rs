@@ -28,19 +28,19 @@ use {
 };
 
 #[tokio::test]
-async fn fail_validator_not_signer() {
-    let validator = Keypair::new();
+async fn fail_stake_authority_not_signer() {
+    let stake_authority = Keypair::new();
     let stake_config = Pubkey::new_unique();
     let proposal = Pubkey::new_unique();
 
     let stake = find_stake_pda(
-        &validator.pubkey(),
+        &stake_authority.pubkey(),
         &stake_config,
         &paladin_stake_program::id(),
     )
     .0;
     let proposal_vote = get_proposal_vote_address(
-        &validator.pubkey(),
+        &stake_authority.pubkey(),
         &proposal,
         &paladin_governance_program::id(),
     );
@@ -49,7 +49,7 @@ async fn fail_validator_not_signer() {
     let mut context = setup().start_with_context().await;
 
     let mut instruction = paladin_governance_program::instruction::switch_vote(
-        &validator.pubkey(),
+        &stake_authority.pubkey(),
         &stake,
         &stake_config,
         &proposal_vote,
@@ -57,12 +57,12 @@ async fn fail_validator_not_signer() {
         &governance,
         /* new_vote */ true,
     );
-    instruction.accounts[0].is_signer = false; // Validator not signer.
+    instruction.accounts[0].is_signer = false; // Stake authority not signer.
 
     let transaction = Transaction::new_signed_with_payer(
         &[instruction],
         Some(&context.payer.pubkey()),
-        &[&context.payer], // Validator not signer.
+        &[&context.payer], // Stake authority not signer.
         context.last_blockhash,
     );
 
@@ -81,18 +81,18 @@ async fn fail_validator_not_signer() {
 
 #[tokio::test]
 async fn fail_stake_incorrect_owner() {
-    let validator = Keypair::new();
+    let stake_authority = Keypair::new();
     let stake_config = Pubkey::new_unique();
     let proposal = Pubkey::new_unique();
 
     let stake = find_stake_pda(
-        &validator.pubkey(),
+        &stake_authority.pubkey(),
         &stake_config,
         &paladin_stake_program::id(),
     )
     .0;
     let proposal_vote = get_proposal_vote_address(
-        &validator.pubkey(),
+        &stake_authority.pubkey(),
         &proposal,
         &paladin_governance_program::id(),
     );
@@ -112,7 +112,7 @@ async fn fail_stake_incorrect_owner() {
     }
 
     let instruction = paladin_governance_program::instruction::switch_vote(
-        &validator.pubkey(),
+        &stake_authority.pubkey(),
         &stake,
         &stake_config,
         &proposal_vote,
@@ -124,7 +124,7 @@ async fn fail_stake_incorrect_owner() {
     let transaction = Transaction::new_signed_with_payer(
         &[instruction],
         Some(&context.payer.pubkey()),
-        &[&context.payer, &validator],
+        &[&context.payer, &stake_authority],
         context.last_blockhash,
     );
 
@@ -143,18 +143,18 @@ async fn fail_stake_incorrect_owner() {
 
 #[tokio::test]
 async fn fail_stake_not_initialized() {
-    let validator = Keypair::new();
+    let stake_authority = Keypair::new();
     let stake_config = Pubkey::new_unique();
     let proposal = Pubkey::new_unique();
 
     let stake = find_stake_pda(
-        &validator.pubkey(),
+        &stake_authority.pubkey(),
         &stake_config,
         &paladin_stake_program::id(),
     )
     .0;
     let proposal_vote = get_proposal_vote_address(
-        &validator.pubkey(),
+        &stake_authority.pubkey(),
         &proposal,
         &paladin_governance_program::id(),
     );
@@ -174,7 +174,7 @@ async fn fail_stake_not_initialized() {
     }
 
     let instruction = paladin_governance_program::instruction::switch_vote(
-        &validator.pubkey(),
+        &stake_authority.pubkey(),
         &stake,
         &stake_config,
         &proposal_vote,
@@ -186,7 +186,7 @@ async fn fail_stake_not_initialized() {
     let transaction = Transaction::new_signed_with_payer(
         &[instruction],
         Some(&context.payer.pubkey()),
-        &[&context.payer, &validator],
+        &[&context.payer, &stake_authority],
         context.last_blockhash,
     );
 
@@ -204,19 +204,19 @@ async fn fail_stake_not_initialized() {
 }
 
 #[tokio::test]
-async fn fail_stake_incorrect_validator() {
-    let validator = Keypair::new();
+async fn fail_stake_incorrect_stake_authority() {
+    let stake_authority = Keypair::new();
     let stake_config = Pubkey::new_unique();
     let proposal = Pubkey::new_unique();
 
     let stake = find_stake_pda(
-        &validator.pubkey(),
+        &stake_authority.pubkey(),
         &stake_config,
         &paladin_stake_program::id(),
     )
     .0;
     let proposal_vote = get_proposal_vote_address(
-        &validator.pubkey(),
+        &stake_authority.pubkey(),
         &proposal,
         &paladin_governance_program::id(),
     );
@@ -224,18 +224,17 @@ async fn fail_stake_incorrect_validator() {
 
     let mut context = setup().start_with_context().await;
 
-    // Set up a stake account with the wrong validator address.
+    // Set up a stake account with the wrong stake_authority address.
     setup_stake(
         &mut context,
         &stake,
-        /* authority_address */ &Pubkey::new_unique(),
-        &Pubkey::new_unique(), // Incorrect validator.
+        &Pubkey::new_unique(), // Incorrect stake_authority.
         0,
     )
     .await;
 
     let instruction = paladin_governance_program::instruction::switch_vote(
-        &validator.pubkey(),
+        &stake_authority.pubkey(),
         &stake,
         &stake_config,
         &proposal_vote,
@@ -247,7 +246,7 @@ async fn fail_stake_incorrect_validator() {
     let transaction = Transaction::new_signed_with_payer(
         &[instruction],
         Some(&context.payer.pubkey()),
-        &[&context.payer, &validator],
+        &[&context.payer, &stake_authority],
         context.last_blockhash,
     );
 
@@ -260,105 +259,32 @@ async fn fail_stake_incorrect_validator() {
 
     assert_eq!(
         err,
-        TransactionError::InstructionError(
-            0,
-            InstructionError::Custom(PaladinGovernanceError::ValidatorStakeAccountMismatch as u32)
-        )
-    );
-}
-
-#[tokio::test]
-async fn fail_stake_config_incorrect_account() {
-    let validator = Keypair::new();
-    let stake_config = Pubkey::new_unique();
-    let proposal = Pubkey::new_unique();
-
-    let stake = find_stake_pda(
-        &validator.pubkey(),
-        &Pubkey::new_unique(), // Incorrect stake config.
-        &paladin_stake_program::id(),
-    )
-    .0;
-    let proposal_vote = get_proposal_vote_address(
-        &validator.pubkey(),
-        &proposal,
-        &paladin_governance_program::id(),
-    );
-    let governance = get_governance_address(&paladin_governance_program::id());
-
-    let mut context = setup().start_with_context().await;
-    setup_stake(
-        &mut context,
-        &stake,
-        /* authority_address */ &Pubkey::new_unique(),
-        &validator.pubkey(),
-        0,
-    )
-    .await;
-    setup_proposal(&mut context, &proposal, &validator.pubkey(), 0, 0).await;
-
-    let instruction = paladin_governance_program::instruction::switch_vote(
-        &validator.pubkey(),
-        &stake,
-        &stake_config,
-        &proposal_vote,
-        &proposal,
-        &governance,
-        /* new_vote */ true,
-    );
-
-    let transaction = Transaction::new_signed_with_payer(
-        &[instruction],
-        Some(&context.payer.pubkey()),
-        &[&context.payer, &validator],
-        context.last_blockhash,
-    );
-
-    let err = context
-        .banks_client
-        .process_transaction(transaction)
-        .await
-        .unwrap_err()
-        .unwrap();
-
-    assert_eq!(
-        err,
-        TransactionError::InstructionError(
-            0,
-            InstructionError::Custom(PaladinGovernanceError::IncorrectStakeConfig as u32)
-        )
+        TransactionError::InstructionError(0, InstructionError::IncorrectAuthority)
     );
 }
 
 #[tokio::test]
 async fn fail_stake_config_incorrect_owner() {
-    let validator = Keypair::new();
+    let stake_authority = Keypair::new();
     let stake_config = Pubkey::new_unique();
     let proposal = Pubkey::new_unique();
 
     let stake = find_stake_pda(
-        &validator.pubkey(),
+        &stake_authority.pubkey(),
         &stake_config,
         &paladin_stake_program::id(),
     )
     .0;
     let proposal_vote = get_proposal_vote_address(
-        &validator.pubkey(),
+        &stake_authority.pubkey(),
         &proposal,
         &paladin_governance_program::id(),
     );
     let governance = get_governance_address(&paladin_governance_program::id());
 
     let mut context = setup().start_with_context().await;
-    setup_stake(
-        &mut context,
-        &stake,
-        /* authority_address */ &Pubkey::new_unique(),
-        &validator.pubkey(),
-        0,
-    )
-    .await;
-    setup_proposal(&mut context, &proposal, &validator.pubkey(), 0, 0).await;
+    setup_stake(&mut context, &stake, &stake_authority.pubkey(), 0).await;
+    setup_proposal(&mut context, &proposal, &stake_authority.pubkey(), 0, 0).await;
 
     // Set up a stake config account with an incorrect owner.
     {
@@ -372,7 +298,7 @@ async fn fail_stake_config_incorrect_owner() {
     }
 
     let instruction = paladin_governance_program::instruction::switch_vote(
-        &validator.pubkey(),
+        &stake_authority.pubkey(),
         &stake,
         &stake_config,
         &proposal_vote,
@@ -384,7 +310,7 @@ async fn fail_stake_config_incorrect_owner() {
     let transaction = Transaction::new_signed_with_payer(
         &[instruction],
         Some(&context.payer.pubkey()),
-        &[&context.payer, &validator],
+        &[&context.payer, &stake_authority],
         context.last_blockhash,
     );
 
@@ -403,33 +329,26 @@ async fn fail_stake_config_incorrect_owner() {
 
 #[tokio::test]
 async fn fail_stake_config_not_initialized() {
-    let validator = Keypair::new();
+    let stake_authority = Keypair::new();
     let stake_config = Pubkey::new_unique();
     let proposal = Pubkey::new_unique();
 
     let stake = find_stake_pda(
-        &validator.pubkey(),
+        &stake_authority.pubkey(),
         &stake_config,
         &paladin_stake_program::id(),
     )
     .0;
     let proposal_vote = get_proposal_vote_address(
-        &validator.pubkey(),
+        &stake_authority.pubkey(),
         &proposal,
         &paladin_governance_program::id(),
     );
     let governance = get_governance_address(&paladin_governance_program::id());
 
     let mut context = setup().start_with_context().await;
-    setup_stake(
-        &mut context,
-        &stake,
-        /* authority_address */ &Pubkey::new_unique(),
-        &validator.pubkey(),
-        0,
-    )
-    .await;
-    setup_proposal(&mut context, &proposal, &validator.pubkey(), 0, 0).await;
+    setup_stake(&mut context, &stake, &stake_authority.pubkey(), 0).await;
+    setup_proposal(&mut context, &proposal, &stake_authority.pubkey(), 0, 0).await;
 
     // Set up an uninitialized stake config account.
     {
@@ -443,7 +362,7 @@ async fn fail_stake_config_not_initialized() {
     }
 
     let instruction = paladin_governance_program::instruction::switch_vote(
-        &validator.pubkey(),
+        &stake_authority.pubkey(),
         &stake,
         &stake_config,
         &proposal_vote,
@@ -455,7 +374,7 @@ async fn fail_stake_config_not_initialized() {
     let transaction = Transaction::new_signed_with_payer(
         &[instruction],
         Some(&context.payer.pubkey()),
-        &[&context.payer, &validator],
+        &[&context.payer, &stake_authority],
         context.last_blockhash,
     );
 
@@ -474,18 +393,18 @@ async fn fail_stake_config_not_initialized() {
 
 #[tokio::test]
 async fn fail_governance_incorrect_address() {
-    let validator = Keypair::new();
+    let stake_authority = Keypair::new();
     let stake_config = Pubkey::new_unique();
     let proposal = Pubkey::new_unique();
 
     let stake = find_stake_pda(
-        &validator.pubkey(),
+        &stake_authority.pubkey(),
         &stake_config,
         &paladin_stake_program::id(),
     )
     .0;
     let proposal_vote = get_proposal_vote_address(
-        &validator.pubkey(),
+        &stake_authority.pubkey(),
         &proposal,
         &paladin_governance_program::id(),
     );
@@ -493,18 +412,11 @@ async fn fail_governance_incorrect_address() {
 
     let mut context = setup().start_with_context().await;
     setup_stake_config(&mut context, &stake_config, 0).await;
-    setup_stake(
-        &mut context,
-        &stake,
-        /* authority_address */ &Pubkey::new_unique(),
-        &validator.pubkey(),
-        0,
-    )
-    .await;
-    setup_proposal(&mut context, &proposal, &validator.pubkey(), 0, 0).await;
+    setup_stake(&mut context, &stake, &stake_authority.pubkey(), 0).await;
+    setup_proposal(&mut context, &proposal, &stake_authority.pubkey(), 0, 0).await;
 
     let instruction = paladin_governance_program::instruction::switch_vote(
-        &validator.pubkey(),
+        &stake_authority.pubkey(),
         &stake,
         &stake_config,
         &proposal_vote,
@@ -516,7 +428,7 @@ async fn fail_governance_incorrect_address() {
     let transaction = Transaction::new_signed_with_payer(
         &[instruction],
         Some(&context.payer.pubkey()),
-        &[&context.payer, &validator],
+        &[&context.payer, &stake_authority],
         context.last_blockhash,
     );
 
@@ -540,18 +452,18 @@ async fn fail_governance_incorrect_address() {
 
 #[tokio::test]
 async fn fail_governance_incorrect_owner() {
-    let validator = Keypair::new();
+    let stake_authority = Keypair::new();
     let stake_config = Pubkey::new_unique();
     let proposal = Pubkey::new_unique();
 
     let stake = find_stake_pda(
-        &validator.pubkey(),
+        &stake_authority.pubkey(),
         &stake_config,
         &paladin_stake_program::id(),
     )
     .0;
     let proposal_vote = get_proposal_vote_address(
-        &validator.pubkey(),
+        &stake_authority.pubkey(),
         &proposal,
         &paladin_governance_program::id(),
     );
@@ -559,14 +471,7 @@ async fn fail_governance_incorrect_owner() {
 
     let mut context = setup().start_with_context().await;
     setup_stake_config(&mut context, &stake_config, 0).await;
-    setup_stake(
-        &mut context,
-        &stake,
-        /* authority_address */ &Pubkey::new_unique(),
-        &validator.pubkey(),
-        0,
-    )
-    .await;
+    setup_stake(&mut context, &stake, &stake_authority.pubkey(), 0).await;
 
     // Set up the governance account with the incorrect owner.
     {
@@ -580,7 +485,7 @@ async fn fail_governance_incorrect_owner() {
     }
 
     let instruction = paladin_governance_program::instruction::switch_vote(
-        &validator.pubkey(),
+        &stake_authority.pubkey(),
         &stake,
         &stake_config,
         &proposal_vote,
@@ -592,7 +497,7 @@ async fn fail_governance_incorrect_owner() {
     let transaction = Transaction::new_signed_with_payer(
         &[instruction],
         Some(&context.payer.pubkey()),
-        &[&context.payer, &validator],
+        &[&context.payer, &stake_authority],
         context.last_blockhash,
     );
 
@@ -611,18 +516,18 @@ async fn fail_governance_incorrect_owner() {
 
 #[tokio::test]
 async fn fail_governance_not_initialized() {
-    let validator = Keypair::new();
+    let stake_authority = Keypair::new();
     let stake_config = Pubkey::new_unique();
     let proposal = Pubkey::new_unique();
 
     let stake = find_stake_pda(
-        &validator.pubkey(),
+        &stake_authority.pubkey(),
         &stake_config,
         &paladin_stake_program::id(),
     )
     .0;
     let proposal_vote = get_proposal_vote_address(
-        &validator.pubkey(),
+        &stake_authority.pubkey(),
         &proposal,
         &paladin_governance_program::id(),
     );
@@ -630,14 +535,7 @@ async fn fail_governance_not_initialized() {
 
     let mut context = setup().start_with_context().await;
     setup_stake_config(&mut context, &stake_config, 0).await;
-    setup_stake(
-        &mut context,
-        &stake,
-        /* authority_address */ &Pubkey::new_unique(),
-        &validator.pubkey(),
-        0,
-    )
-    .await;
+    setup_stake(&mut context, &stake, &stake_authority.pubkey(), 0).await;
 
     // Set up the governance account uninitialized.
     {
@@ -650,7 +548,7 @@ async fn fail_governance_not_initialized() {
     }
 
     let instruction = paladin_governance_program::instruction::switch_vote(
-        &validator.pubkey(),
+        &stake_authority.pubkey(),
         &stake,
         &stake_config,
         &proposal_vote,
@@ -662,7 +560,7 @@ async fn fail_governance_not_initialized() {
     let transaction = Transaction::new_signed_with_payer(
         &[instruction],
         Some(&context.payer.pubkey()),
-        &[&context.payer, &validator],
+        &[&context.payer, &stake_authority],
         context.last_blockhash,
     );
 
@@ -681,18 +579,18 @@ async fn fail_governance_not_initialized() {
 
 #[tokio::test]
 async fn fail_proposal_incorrect_owner() {
-    let validator = Keypair::new();
+    let stake_authority = Keypair::new();
     let stake_config = Pubkey::new_unique();
     let proposal = Pubkey::new_unique();
 
     let stake = find_stake_pda(
-        &validator.pubkey(),
+        &stake_authority.pubkey(),
         &stake_config,
         &paladin_stake_program::id(),
     )
     .0;
     let proposal_vote = get_proposal_vote_address(
-        &validator.pubkey(),
+        &stake_authority.pubkey(),
         &proposal,
         &paladin_governance_program::id(),
     );
@@ -700,14 +598,7 @@ async fn fail_proposal_incorrect_owner() {
 
     let mut context = setup().start_with_context().await;
     setup_stake_config(&mut context, &stake_config, 0).await;
-    setup_stake(
-        &mut context,
-        &stake,
-        /* authority_address */ &Pubkey::new_unique(),
-        &validator.pubkey(),
-        0,
-    )
-    .await;
+    setup_stake(&mut context, &stake, &stake_authority.pubkey(), 0).await;
     setup_governance(&mut context, &governance, 0, 0, 0).await;
 
     // Set up the proposal account with the incorrect owner.
@@ -722,7 +613,7 @@ async fn fail_proposal_incorrect_owner() {
     }
 
     let instruction = paladin_governance_program::instruction::switch_vote(
-        &validator.pubkey(),
+        &stake_authority.pubkey(),
         &stake,
         &stake_config,
         &proposal_vote,
@@ -734,7 +625,7 @@ async fn fail_proposal_incorrect_owner() {
     let transaction = Transaction::new_signed_with_payer(
         &[instruction],
         Some(&context.payer.pubkey()),
-        &[&context.payer, &validator],
+        &[&context.payer, &stake_authority],
         context.last_blockhash,
     );
 
@@ -753,18 +644,18 @@ async fn fail_proposal_incorrect_owner() {
 
 #[tokio::test]
 async fn fail_proposal_not_initialized() {
-    let validator = Keypair::new();
+    let stake_authority = Keypair::new();
     let stake_config = Pubkey::new_unique();
     let proposal = Pubkey::new_unique();
 
     let stake = find_stake_pda(
-        &validator.pubkey(),
+        &stake_authority.pubkey(),
         &stake_config,
         &paladin_stake_program::id(),
     )
     .0;
     let proposal_vote = get_proposal_vote_address(
-        &validator.pubkey(),
+        &stake_authority.pubkey(),
         &proposal,
         &paladin_governance_program::id(),
     );
@@ -772,14 +663,7 @@ async fn fail_proposal_not_initialized() {
 
     let mut context = setup().start_with_context().await;
     setup_stake_config(&mut context, &stake_config, 0).await;
-    setup_stake(
-        &mut context,
-        &stake,
-        /* authority_address */ &Pubkey::new_unique(),
-        &validator.pubkey(),
-        0,
-    )
-    .await;
+    setup_stake(&mut context, &stake, &stake_authority.pubkey(), 0).await;
     setup_governance(&mut context, &governance, 0, 0, 0).await;
 
     // Set up the proposal account uninitialized.
@@ -794,7 +678,7 @@ async fn fail_proposal_not_initialized() {
     }
 
     let instruction = paladin_governance_program::instruction::switch_vote(
-        &validator.pubkey(),
+        &stake_authority.pubkey(),
         &stake,
         &stake_config,
         &proposal_vote,
@@ -806,7 +690,7 @@ async fn fail_proposal_not_initialized() {
     let transaction = Transaction::new_signed_with_payer(
         &[instruction],
         Some(&context.payer.pubkey()),
-        &[&context.payer, &validator],
+        &[&context.payer, &stake_authority],
         context.last_blockhash,
     );
 
@@ -825,12 +709,12 @@ async fn fail_proposal_not_initialized() {
 
 #[tokio::test]
 async fn fail_proposal_vote_incorrect_address() {
-    let validator = Keypair::new();
+    let stake_authority = Keypair::new();
     let stake_config = Pubkey::new_unique();
     let proposal = Pubkey::new_unique();
 
     let stake = find_stake_pda(
-        &validator.pubkey(),
+        &stake_authority.pubkey(),
         &stake_config,
         &paladin_stake_program::id(),
     )
@@ -840,19 +724,12 @@ async fn fail_proposal_vote_incorrect_address() {
 
     let mut context = setup().start_with_context().await;
     setup_stake_config(&mut context, &stake_config, 0).await;
-    setup_stake(
-        &mut context,
-        &stake,
-        /* authority_address */ &Pubkey::new_unique(),
-        &validator.pubkey(),
-        0,
-    )
-    .await;
+    setup_stake(&mut context, &stake, &stake_authority.pubkey(), 0).await;
     setup_governance(&mut context, &governance, 0, 0, 0).await;
-    setup_proposal(&mut context, &proposal, &validator.pubkey(), 0, 0).await;
+    setup_proposal(&mut context, &proposal, &stake_authority.pubkey(), 0, 0).await;
 
     let instruction = paladin_governance_program::instruction::switch_vote(
-        &validator.pubkey(),
+        &stake_authority.pubkey(),
         &stake,
         &stake_config,
         &proposal_vote,
@@ -864,7 +741,7 @@ async fn fail_proposal_vote_incorrect_address() {
     let transaction = Transaction::new_signed_with_payer(
         &[instruction],
         Some(&context.payer.pubkey()),
-        &[&context.payer, &validator],
+        &[&context.payer, &stake_authority],
         context.last_blockhash,
     );
 
@@ -886,18 +763,18 @@ async fn fail_proposal_vote_incorrect_address() {
 
 #[tokio::test]
 async fn fail_proposal_vote_not_initialized() {
-    let validator = Keypair::new();
+    let stake_authority = Keypair::new();
     let stake_config = Pubkey::new_unique();
     let proposal = Pubkey::new_unique();
 
     let stake = find_stake_pda(
-        &validator.pubkey(),
+        &stake_authority.pubkey(),
         &stake_config,
         &paladin_stake_program::id(),
     )
     .0;
     let proposal_vote = get_proposal_vote_address(
-        &validator.pubkey(),
+        &stake_authority.pubkey(),
         &proposal,
         &paladin_governance_program::id(),
     );
@@ -905,16 +782,9 @@ async fn fail_proposal_vote_not_initialized() {
 
     let mut context = setup().start_with_context().await;
     setup_stake_config(&mut context, &stake_config, 0).await;
-    setup_stake(
-        &mut context,
-        &stake,
-        /* authority_address */ &Pubkey::new_unique(),
-        &validator.pubkey(),
-        0,
-    )
-    .await;
+    setup_stake(&mut context, &stake, &stake_authority.pubkey(), 0).await;
     setup_governance(&mut context, &governance, 0, 0, 0).await;
-    setup_proposal(&mut context, &proposal, &validator.pubkey(), 0, 0).await;
+    setup_proposal(&mut context, &proposal, &stake_authority.pubkey(), 0, 0).await;
 
     // Set up an uninitialized proposal vote account.
     {
@@ -927,7 +797,7 @@ async fn fail_proposal_vote_not_initialized() {
     }
 
     let instruction = paladin_governance_program::instruction::switch_vote(
-        &validator.pubkey(),
+        &stake_authority.pubkey(),
         &stake,
         &stake_config,
         &proposal_vote,
@@ -939,7 +809,7 @@ async fn fail_proposal_vote_not_initialized() {
     let transaction = Transaction::new_signed_with_payer(
         &[instruction],
         Some(&context.payer.pubkey()),
-        &[&context.payer, &validator],
+        &[&context.payer, &stake_authority],
         context.last_blockhash,
     );
 
@@ -1108,18 +978,18 @@ async fn success(proposal_setup: ProposalSetup, vote_test: SwitchVoteTest) {
         should_terminate,
     } = vote_test;
 
-    let validator = Keypair::new();
+    let stake_authority = Keypair::new();
     let stake_config = Pubkey::new_unique();
     let proposal = Pubkey::new_unique();
 
     let stake = find_stake_pda(
-        &validator.pubkey(),
+        &stake_authority.pubkey(),
         &stake_config,
         &paladin_stake_program::id(),
     )
     .0;
     let proposal_vote = get_proposal_vote_address(
-        &validator.pubkey(),
+        &stake_authority.pubkey(),
         &proposal,
         &paladin_governance_program::id(),
     );
@@ -1127,14 +997,7 @@ async fn success(proposal_setup: ProposalSetup, vote_test: SwitchVoteTest) {
 
     let mut context = setup().start_with_context().await;
     setup_stake_config(&mut context, &stake_config, total_stake).await;
-    setup_stake(
-        &mut context,
-        &stake,
-        /* authority_address */ &Pubkey::new_unique(),
-        &validator.pubkey(),
-        vote_stake,
-    )
-    .await;
+    setup_stake(&mut context, &stake, &stake_authority.pubkey(), vote_stake).await;
     setup_governance(
         &mut context,
         &governance,
@@ -1150,7 +1013,7 @@ async fn success(proposal_setup: ProposalSetup, vote_test: SwitchVoteTest) {
         &proposal_vote,
         &proposal,
         vote_stake,
-        &validator.pubkey(),
+        &stake_authority.pubkey(),
         !new_vote,
     )
     .await;
@@ -1160,7 +1023,7 @@ async fn success(proposal_setup: ProposalSetup, vote_test: SwitchVoteTest) {
         setup_proposal_with_stake_and_cooldown(
             &mut context,
             &proposal,
-            &validator.pubkey(),
+            &stake_authority.pubkey(),
             0,
             0,
             proposal_stake_for,
@@ -1172,7 +1035,7 @@ async fn success(proposal_setup: ProposalSetup, vote_test: SwitchVoteTest) {
         setup_proposal_with_stake(
             &mut context,
             &proposal,
-            &validator.pubkey(),
+            &stake_authority.pubkey(),
             0,
             0,
             proposal_stake_for,
@@ -1182,7 +1045,7 @@ async fn success(proposal_setup: ProposalSetup, vote_test: SwitchVoteTest) {
     }
 
     let instruction = paladin_governance_program::instruction::switch_vote(
-        &validator.pubkey(),
+        &stake_authority.pubkey(),
         &stake,
         &stake_config,
         &proposal_vote,
@@ -1194,7 +1057,7 @@ async fn success(proposal_setup: ProposalSetup, vote_test: SwitchVoteTest) {
     let transaction = Transaction::new_signed_with_payer(
         &[instruction],
         Some(&context.payer.pubkey()),
-        &[&context.payer, &validator],
+        &[&context.payer, &stake_authority],
         context.last_blockhash,
     );
 
@@ -1213,7 +1076,7 @@ async fn success(proposal_setup: ProposalSetup, vote_test: SwitchVoteTest) {
         .unwrap();
     assert_eq!(
         bytemuck::from_bytes::<ProposalVote>(&vote_account.data),
-        &ProposalVote::new(&proposal, vote_stake, &validator.pubkey(), new_vote)
+        &ProposalVote::new(&proposal, vote_stake, &stake_authority.pubkey(), new_vote)
     );
 
     let proposal_account = context
