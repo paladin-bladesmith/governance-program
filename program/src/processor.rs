@@ -5,9 +5,10 @@ use {
         error::PaladinGovernanceError,
         instruction::PaladinGovernanceInstruction,
         state::{
-            collect_governance_signer_seeds, collect_vote_signer_seeds, get_governance_address,
-            get_governance_address_and_bump_seed, get_proposal_vote_address,
-            get_proposal_vote_address_and_bump_seed, Config, Proposal, ProposalVote,
+            collect_governance_signer_seeds, collect_proposal_vote_signer_seeds,
+            get_governance_address, get_governance_address_and_bump_seed,
+            get_proposal_vote_address, get_proposal_vote_address_and_bump_seed, Config, Proposal,
+            ProposalVote,
         },
     },
     paladin_stake_program::state::{find_stake_pda, Config as StakeConfig, Stake},
@@ -294,7 +295,7 @@ fn process_vote(program_id: &Pubkey, accounts: &[AccountInfo], vote: bool) -> Pr
             get_proposal_vote_address_and_bump_seed(stake_info.key, proposal_info.key, program_id);
         let bump_seed = [bump_seed];
         let proposal_vote_signer_seeds =
-            collect_vote_signer_seeds(stake_info.key, proposal_info.key, &bump_seed);
+            collect_proposal_vote_signer_seeds(stake_info.key, proposal_info.key, &bump_seed);
 
         // Ensure the provided proposal vote address is the correct address
         // derived from the stake authority and proposal.

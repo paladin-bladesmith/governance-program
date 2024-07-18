@@ -86,7 +86,7 @@ pub(crate) fn collect_proposal_vote_seeds<'a>(
     ]
 }
 
-pub(crate) fn collect_vote_signer_seeds<'a>(
+pub(crate) fn collect_proposal_vote_signer_seeds<'a>(
     stake_address: &'a Pubkey,
     proposal_address: &'a Pubkey,
     bump_seed: &'a [u8],
