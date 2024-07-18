@@ -83,6 +83,11 @@ fn get_stake_checked(
         state.amount
     };
 
+    // TODO: This will probably require the governance config account, once
+    // the program can support multiple governance configs.
+    // Something like storing the stake config address on the governance config
+    // should do it.
+
     // Ensure the stake config account is owned by the Paladin Stake program.
     if stake_config_info.owner != &paladin_stake_program::id() {
         return Err(ProgramError::InvalidAccountOwner);

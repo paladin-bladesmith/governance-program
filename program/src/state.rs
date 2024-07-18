@@ -119,6 +119,9 @@ pub struct Config {
     /// Stored as a `u64`, which includes a scaling factor of `1e9` to
     /// represent the threshold with 9 decimal places of precision.
     pub proposal_rejection_threshold: u64,
+    // TODO: We may need to store the stake config account, so we can check
+    // that a provide stake config account is the correct one for the
+    // particular governance config a proposal is using.
 }
 
 /// Governance proposal account.
