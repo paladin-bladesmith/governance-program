@@ -34,6 +34,7 @@ async fn fail_governance_incorrect_address() {
         /* cooldown_period_seconds */ 0,
         /* proposal_acceptance_threshold */ 0,
         /* proposal_rejection_threshold */ 0,
+        /* stake_config_address */ &Pubkey::new_unique(),
     );
 
     let transaction = Transaction::new_signed_with_payer(
@@ -85,6 +86,7 @@ async fn fail_governance_incorrect_owner() {
         /* cooldown_period_seconds */ 0,
         /* proposal_acceptance_threshold */ 0,
         /* proposal_rejection_threshold */ 0,
+        /* stake_config_address */ &Pubkey::new_unique(),
     );
 
     let transaction = Transaction::new_signed_with_payer(
@@ -130,6 +132,7 @@ async fn fail_governance_not_initialized() {
         /* cooldown_period_seconds */ 0,
         /* proposal_acceptance_threshold */ 0,
         /* proposal_rejection_threshold */ 0,
+        /* stake_config_address */ &Pubkey::new_unique(),
     );
 
     let transaction = Transaction::new_signed_with_payer(
@@ -158,7 +161,15 @@ async fn fail_proposal_incorrect_owner() {
     let governance = get_governance_address(&paladin_governance_program::id());
 
     let mut context = setup().start_with_context().await;
-    setup_governance(&mut context, &governance, 0, 0, 0).await;
+    setup_governance(
+        &mut context,
+        &governance,
+        0,
+        0,
+        0,
+        /* stake_config_address */ &Pubkey::new_unique(),
+    )
+    .await;
 
     // Set up the proposal account with the incorrect owner.
     {
@@ -177,6 +188,7 @@ async fn fail_proposal_incorrect_owner() {
         /* cooldown_period_seconds */ 0,
         /* proposal_acceptance_threshold */ 0,
         /* proposal_rejection_threshold */ 0,
+        /* stake_config_address */ &Pubkey::new_unique(),
     );
 
     let transaction = Transaction::new_signed_with_payer(
@@ -205,7 +217,15 @@ async fn fail_proposal_not_initialized() {
     let governance = get_governance_address(&paladin_governance_program::id());
 
     let mut context = setup().start_with_context().await;
-    setup_governance(&mut context, &governance, 0, 0, 0).await;
+    setup_governance(
+        &mut context,
+        &governance,
+        0,
+        0,
+        0,
+        /* stake_config_address */ &Pubkey::new_unique(),
+    )
+    .await;
 
     // Set up the proposal account uninitialized.
     {
@@ -224,6 +244,7 @@ async fn fail_proposal_not_initialized() {
         /* cooldown_period_seconds */ 0,
         /* proposal_acceptance_threshold */ 0,
         /* proposal_rejection_threshold */ 0,
+        /* stake_config_address */ &Pubkey::new_unique(),
     );
 
     let transaction = Transaction::new_signed_with_payer(
@@ -256,7 +277,15 @@ async fn fail_proposal_not_accepted() {
     // Set up an unaccepted proposal.
     // Simply set the cooldown timestamp to the current clock timestamp,
     // and require more than 0 seconds for cooldown.
-    setup_governance(&mut context, &governance, 1_000_000, 0, 0).await;
+    setup_governance(
+        &mut context,
+        &governance,
+        1_000_000,
+        0,
+        0,
+        /* stake_config_address */ &Pubkey::new_unique(),
+    )
+    .await;
     let clock = context.banks_client.get_sysvar::<Clock>().await.unwrap();
     setup_proposal_with_stake_and_cooldown(
         &mut context,
@@ -276,6 +305,7 @@ async fn fail_proposal_not_accepted() {
         /* cooldown_period_seconds */ 0,
         /* proposal_acceptance_threshold */ 0,
         /* proposal_rejection_threshold */ 0,
+        /* stake_config_address */ &Pubkey::new_unique(),
     );
 
     let transaction = Transaction::new_signed_with_payer(
@@ -307,7 +337,15 @@ async fn success() {
     let governance = get_governance_address(&paladin_governance_program::id());
 
     let mut context = setup().start_with_context().await;
-    setup_governance(&mut context, &governance, 0, 0, 0).await;
+    setup_governance(
+        &mut context,
+        &governance,
+        0,
+        0,
+        0,
+        /* stake_config_address */ &Pubkey::new_unique(),
+    )
+    .await;
     setup_proposal_with_stake_and_cooldown(
         &mut context,
         &proposal,
@@ -320,12 +358,15 @@ async fn success() {
     )
     .await;
 
+    let new_stake_config_address = Pubkey::new_unique();
+
     let instruction = update_governance(
         &governance,
         &proposal,
         /* cooldown_period_seconds */ 1,
         /* proposal_acceptance_threshold */ 2,
         /* proposal_rejection_threshold */ 3,
+        &new_stake_config_address,
     );
 
     let transaction = Transaction::new_signed_with_payer(
@@ -354,6 +395,7 @@ async fn success() {
             cooldown_period_seconds: 1,
             proposal_acceptance_threshold: 2,
             proposal_rejection_threshold: 3,
+            stake_config_address: new_stake_config_address,
         }
     );
 }

@@ -76,11 +76,13 @@ pub async fn setup_governance(
     cooldown_period_seconds: u64,
     proposal_acceptance_threshold: u64,
     proposal_rejection_threshold: u64,
+    stake_config_address: &Pubkey,
 ) {
     let state = Config {
         cooldown_period_seconds,
         proposal_acceptance_threshold,
         proposal_rejection_threshold,
+        stake_config_address: *stake_config_address,
     };
     let data = bytemuck::bytes_of(&state).to_vec();
 
