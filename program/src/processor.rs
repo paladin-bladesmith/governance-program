@@ -10,7 +10,7 @@ use {
             get_proposal_vote_address_and_bump_seed, Config, Proposal, ProposalVote,
         },
     },
-    paladin_stake_program::state::{Config as StakeConfig, Stake},
+    paladin_stake_program::state::{find_stake_pda, Config as StakeConfig, Stake},
     solana_program::{
         account_info::{next_account_info, AccountInfo},
         clock::Clock,
@@ -45,53 +45,63 @@ fn calculate_proposal_vote_threshold(stake: u64, total_stake: u64) -> Result<u64
 fn get_stake_checked(
     authority_key: &Pubkey,
     stake_info: &AccountInfo,
-) -> Result<u64, ProgramError> {
+    stake_config_info: &AccountInfo,
+) -> Result<(u64, u64), ProgramError> {
     // Ensure the stake account is owned by the Paladin Stake program.
     if stake_info.owner != &paladin_stake_program::id() {
         return Err(ProgramError::InvalidAccountOwner);
     }
 
-    let data = stake_info.try_borrow_data()?;
-    let state =
-        bytemuck::try_from_bytes::<Stake>(&data).map_err(|_| ProgramError::InvalidAccountData)?;
+    let stake = {
+        let data = stake_info.try_borrow_data()?;
+        let state = bytemuck::try_from_bytes::<Stake>(&data)
+            .map_err(|_| ProgramError::InvalidAccountData)?;
 
-    // Ensure the stake account is initialized.
-    if !state.is_initialized() {
-        return Err(ProgramError::UninitializedAccount);
-    }
+        // Ensure the stake account is initialized.
+        if !state.is_initialized() {
+            return Err(ProgramError::UninitializedAccount);
+        }
 
-    // Ensure the stake account belongs to the authority.
-    if state.authority != *authority_key {
-        return Err(ProgramError::IncorrectAuthority);
-    }
+        // Ensure the stake account belongs to the authority.
+        if state.authority != *authority_key {
+            return Err(ProgramError::IncorrectAuthority);
+        }
 
-    // Return the currently active stake amount.
-    Ok(state.amount)
-}
+        // Ensure the stake account has the correct address derived from the
+        // validator vote account and the stake config account.
+        if stake_info.key
+            != &find_stake_pda(
+                &state.validator_vote,
+                stake_config_info.key,
+                &paladin_stake_program::id(),
+            )
+            .0
+        {
+            return Err(PaladinGovernanceError::StakeConfigMismatch.into());
+        }
 
-fn get_total_stake_checked(
-    _authority_key: &Pubkey,
-    _stake_key: &Pubkey,
-    stake_config_info: &AccountInfo,
-) -> Result<u64, ProgramError> {
-    // Ensure the config account is owned by the Paladin Stake program.
+        state.amount
+    };
+
+    // Ensure the stake config account is owned by the Paladin Stake program.
     if stake_config_info.owner != &paladin_stake_program::id() {
         return Err(ProgramError::InvalidAccountOwner);
     }
 
-    let data = stake_config_info.try_borrow_data()?;
-    let state = bytemuck::try_from_bytes::<StakeConfig>(&data)
-        .map_err(|_| ProgramError::InvalidAccountData)?;
+    let total_stake = {
+        let data = stake_config_info.try_borrow_data()?;
+        let state = bytemuck::try_from_bytes::<StakeConfig>(&data)
+            .map_err(|_| ProgramError::InvalidAccountData)?;
 
-    // Ensure the config account is initialized.
-    if !state.is_initialized() {
-        return Err(ProgramError::UninitializedAccount);
-    }
+        // Ensure the config account is initialized.
+        if !state.is_initialized() {
+            return Err(ProgramError::UninitializedAccount);
+        }
 
-    // TODO: How to check the config account is the correct one?
+        state.token_amount_delegated
+    };
 
-    // Return the total stake amount.
-    Ok(state.token_amount_delegated)
+    Ok((stake, total_stake))
 }
 
 fn check_governance_exists(program_id: &Pubkey, governance_info: &AccountInfo) -> ProgramResult {
@@ -166,9 +176,27 @@ fn process_create_proposal(program_id: &Pubkey, accounts: &[AccountInfo]) -> Pro
         return Err(ProgramError::MissingRequiredSignature);
     }
 
-    // Ensure the provided authority is the correct authority for the provided
-    // stake account, and the stake account is valid.
-    let _ = get_stake_checked(stake_authority_info.key, stake_info)?;
+    // Ensure a valid stake account was provided.
+    {
+        // Ensure the stake account is owned by the Paladin Stake program.
+        if stake_info.owner != &paladin_stake_program::id() {
+            return Err(ProgramError::InvalidAccountOwner);
+        }
+
+        let data = stake_info.try_borrow_data()?;
+        let state = bytemuck::try_from_bytes::<Stake>(&data)
+            .map_err(|_| ProgramError::InvalidAccountData)?;
+
+        // Ensure the stake account is initialized.
+        if !state.is_initialized() {
+            return Err(ProgramError::UninitializedAccount);
+        }
+
+        // Ensure the stake account belongs to the authority.
+        if state.authority != *stake_authority_info.key {
+            return Err(ProgramError::IncorrectAuthority);
+        }
+    }
 
     // Ensure the proposal account is owned by the Paladin Governance program.
     if proposal_info.owner != program_id {
@@ -249,9 +277,8 @@ fn process_vote(program_id: &Pubkey, accounts: &[AccountInfo], vote: bool) -> Pr
         return Err(ProgramError::MissingRequiredSignature);
     }
 
-    let stake = get_stake_checked(stake_authority_info.key, stake_info)?;
-    let total_stake =
-        get_total_stake_checked(stake_authority_info.key, stake_info.key, stake_config_info)?;
+    let (stake, total_stake) =
+        get_stake_checked(stake_authority_info.key, stake_info, stake_config_info)?;
 
     check_governance_exists(program_id, governance_info)?;
     check_proposal_exists(program_id, proposal_info)?;
@@ -364,9 +391,8 @@ fn process_switch_vote(
         return Err(ProgramError::MissingRequiredSignature);
     }
 
-    let stake = get_stake_checked(stake_authority_info.key, stake_info)?;
-    let total_stake =
-        get_total_stake_checked(stake_authority_info.key, stake_info.key, stake_config_info)?;
+    let (stake, total_stake) =
+        get_stake_checked(stake_authority_info.key, stake_info, stake_config_info)?;
 
     check_governance_exists(program_id, governance_info)?;
     check_proposal_exists(program_id, proposal_info)?;

@@ -25,12 +25,10 @@ pub async fn setup_stake(
     context: &mut ProgramTestContext,
     stake_address: &Pubkey,
     authority_address: &Pubkey,
+    validator_vote_address: &Pubkey,
     amount: u64,
 ) {
-    let mut state = Stake::new(
-        *authority_address,
-        /* validator */ Pubkey::new_unique(),
-    );
+    let mut state = Stake::new(*authority_address, *validator_vote_address);
     state.amount = amount;
     let data = bytemuck::bytes_of(&state).to_vec();
 

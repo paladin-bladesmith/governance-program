@@ -144,6 +144,7 @@ async fn fail_stake_incorrect_stake_authority() {
         &mut context,
         &stake,
         &Pubkey::new_unique(), // Incorrect stake authority.
+        /* validator_vote_address */ &Pubkey::new_unique(), // Unused here.
         0,
     )
     .await;
@@ -177,7 +178,14 @@ async fn fail_proposal_incorrect_owner() {
     let proposal = Pubkey::new_unique();
 
     let mut context = setup().start_with_context().await;
-    setup_stake(&mut context, &stake, &stake_authority.pubkey(), 0).await;
+    setup_stake(
+        &mut context,
+        &stake,
+        &stake_authority.pubkey(),
+        /* validator_vote_address */ &Pubkey::new_unique(), // Unused here.
+        0,
+    )
+    .await;
 
     // Set up the proposal account with the incorrect owner.
     {
@@ -219,7 +227,14 @@ async fn fail_proposal_not_enough_space() {
     let proposal = Pubkey::new_unique();
 
     let mut context = setup().start_with_context().await;
-    setup_stake(&mut context, &stake, &stake_authority.pubkey(), 0).await;
+    setup_stake(
+        &mut context,
+        &stake,
+        &stake_authority.pubkey(),
+        /* validator_vote_address */ &Pubkey::new_unique(), // Unused here.
+        0,
+    )
+    .await;
 
     // Set up the proposal account with not enough space.
     {
@@ -261,7 +276,14 @@ async fn fail_proposal_already_initialized() {
     let proposal = Pubkey::new_unique();
 
     let mut context = setup().start_with_context().await;
-    setup_stake(&mut context, &stake, &stake_authority.pubkey(), 0).await;
+    setup_stake(
+        &mut context,
+        &stake,
+        &stake_authority.pubkey(),
+        /* validator_vote_address */ &Pubkey::new_unique(), // Unused here.
+        0,
+    )
+    .await;
 
     // Set up an initialized proposal account.
     setup_proposal(&mut context, &proposal, &stake_authority.pubkey(), 0, 0).await;
@@ -295,7 +317,14 @@ async fn success() {
     let proposal = Pubkey::new_unique();
 
     let mut context = setup().start_with_context().await;
-    setup_stake(&mut context, &stake, &stake_authority.pubkey(), 0).await;
+    setup_stake(
+        &mut context,
+        &stake,
+        &stake_authority.pubkey(),
+        /* validator_vote_address */ &Pubkey::new_unique(), // Unused here.
+        0,
+    )
+    .await;
 
     // Fund the proposal account.
     {

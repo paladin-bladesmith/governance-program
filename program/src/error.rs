@@ -5,9 +5,9 @@ use spl_program_error::*;
 /// Errors that can be returned by the Paladin Governance program.
 #[spl_program_error]
 pub enum PaladinGovernanceError {
-    /// Incorrect stake config.
-    #[error("Incorrect stake config.")]
-    IncorrectStakeConfig,
+    /// Stake config accounts mismatch.
+    #[error("Stake config accounts mismatch.")]
+    StakeConfigMismatch,
     /// Incorrect proposal vote address.
     #[error("Incorrect proposal vote address.")]
     IncorrectProposalVoteAddress,
