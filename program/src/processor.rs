@@ -48,20 +48,12 @@ fn get_stake_checked(
     stake_info: &AccountInfo,
     stake_config_info: &AccountInfo,
 ) -> Result<(u64, u64), ProgramError> {
-    // Ensure the stake account is owned by the Paladin Stake program.
-    if stake_info.owner != &paladin_stake_program::id() {
-        return Err(ProgramError::InvalidAccountOwner);
-    }
-
     let stake = {
+        check_stake_exists(stake_info)?;
+
         let data = stake_info.try_borrow_data()?;
         let state = bytemuck::try_from_bytes::<Stake>(&data)
             .map_err(|_| ProgramError::InvalidAccountData)?;
-
-        // Ensure the stake account is initialized.
-        if !state.is_initialized() {
-            return Err(ProgramError::UninitializedAccount);
-        }
 
         // Ensure the stake account belongs to the authority.
         if state.authority != *authority_key {
@@ -89,25 +81,49 @@ fn get_stake_checked(
     // Something like storing the stake config address on the governance config
     // should do it.
 
-    // Ensure the stake config account is owned by the Paladin Stake program.
-    if stake_config_info.owner != &paladin_stake_program::id() {
-        return Err(ProgramError::InvalidAccountOwner);
-    }
-
     let total_stake = {
+        check_stake_config_exists(stake_config_info)?;
+
         let data = stake_config_info.try_borrow_data()?;
         let state = bytemuck::try_from_bytes::<StakeConfig>(&data)
             .map_err(|_| ProgramError::InvalidAccountData)?;
-
-        // Ensure the config account is initialized.
-        if !state.is_initialized() {
-            return Err(ProgramError::UninitializedAccount);
-        }
 
         state.token_amount_delegated
     };
 
     Ok((stake, total_stake))
+}
+
+fn check_stake_config_exists(stake_config_info: &AccountInfo) -> ProgramResult {
+    // Ensure the stake config account is owned by the Paladin Stake program.
+    if stake_config_info.owner != &paladin_stake_program::id() {
+        return Err(ProgramError::InvalidAccountOwner);
+    }
+
+    // Ensure the stake account is initialized.
+    if !(stake_config_info.data_len() == std::mem::size_of::<StakeConfig>()
+        && &stake_config_info.try_borrow_data()?[0..8] == StakeConfig::SPL_DISCRIMINATOR_SLICE)
+    {
+        return Err(ProgramError::UninitializedAccount);
+    }
+
+    Ok(())
+}
+
+fn check_stake_exists(stake_info: &AccountInfo) -> ProgramResult {
+    // Ensure the stake account is owned by the Paladin Stake program.
+    if stake_info.owner != &paladin_stake_program::id() {
+        return Err(ProgramError::InvalidAccountOwner);
+    }
+
+    // Ensure the stake account is initialized.
+    if !(stake_info.data_len() == std::mem::size_of::<Stake>()
+        && &stake_info.try_borrow_data()?[0..8] == Stake::SPL_DISCRIMINATOR_SLICE)
+    {
+        return Err(ProgramError::UninitializedAccount);
+    }
+
+    Ok(())
 }
 
 fn check_governance_exists(program_id: &Pubkey, governance_info: &AccountInfo) -> ProgramResult {
@@ -178,19 +194,11 @@ fn process_create_proposal(program_id: &Pubkey, accounts: &[AccountInfo]) -> Pro
 
     // Ensure a valid stake account was provided.
     {
-        // Ensure the stake account is owned by the Paladin Stake program.
-        if stake_info.owner != &paladin_stake_program::id() {
-            return Err(ProgramError::InvalidAccountOwner);
-        }
+        check_stake_exists(stake_info)?;
 
         let data = stake_info.try_borrow_data()?;
         let state = bytemuck::try_from_bytes::<Stake>(&data)
             .map_err(|_| ProgramError::InvalidAccountData)?;
-
-        // Ensure the stake account is initialized.
-        if !state.is_initialized() {
-            return Err(ProgramError::UninitializedAccount);
-        }
 
         // Ensure the stake account belongs to the authority.
         if state.authority != *stake_authority_info.key {
