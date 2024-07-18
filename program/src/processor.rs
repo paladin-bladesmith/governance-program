@@ -45,53 +45,48 @@ fn calculate_proposal_vote_threshold(stake: u64, total_stake: u64) -> Result<u64
 
 fn get_stake_checked(
     authority_key: &Pubkey,
+    stake_config_address: &Pubkey,
     stake_info: &AccountInfo,
+) -> Result<u64, ProgramError> {
+    let data = stake_info.try_borrow_data()?;
+    let state =
+        bytemuck::try_from_bytes::<Stake>(&data).map_err(|_| ProgramError::InvalidAccountData)?;
+
+    // Ensure the stake account belongs to the authority.
+    if state.authority != *authority_key {
+        return Err(ProgramError::IncorrectAuthority);
+    }
+
+    // Ensure the stake account has the correct address derived from the
+    // validator vote account and the stake config account.
+    if stake_info.key
+        != &find_stake_pda(
+            &state.validator_vote,
+            stake_config_address,
+            &paladin_stake_program::id(),
+        )
+        .0
+    {
+        return Err(PaladinGovernanceError::StakeConfigMismatch.into());
+    }
+
+    Ok(state.amount)
+}
+
+fn get_total_stake_checked(
+    _governance_config_address: &Pubkey,
     stake_config_info: &AccountInfo,
-) -> Result<(u64, u64), ProgramError> {
-    let stake = {
-        check_stake_exists(stake_info)?;
-
-        let data = stake_info.try_borrow_data()?;
-        let state = bytemuck::try_from_bytes::<Stake>(&data)
-            .map_err(|_| ProgramError::InvalidAccountData)?;
-
-        // Ensure the stake account belongs to the authority.
-        if state.authority != *authority_key {
-            return Err(ProgramError::IncorrectAuthority);
-        }
-
-        // Ensure the stake account has the correct address derived from the
-        // validator vote account and the stake config account.
-        if stake_info.key
-            != &find_stake_pda(
-                &state.validator_vote,
-                stake_config_info.key,
-                &paladin_stake_program::id(),
-            )
-            .0
-        {
-            return Err(PaladinGovernanceError::StakeConfigMismatch.into());
-        }
-
-        state.amount
-    };
+) -> Result<u64, ProgramError> {
+    let data = stake_config_info.try_borrow_data()?;
+    let state = bytemuck::try_from_bytes::<StakeConfig>(&data)
+        .map_err(|_| ProgramError::InvalidAccountData)?;
 
     // TODO: This will probably require the governance config account, once
     // the program can support multiple governance configs.
     // Something like storing the stake config address on the governance config
     // should do it.
 
-    let total_stake = {
-        check_stake_config_exists(stake_config_info)?;
-
-        let data = stake_config_info.try_borrow_data()?;
-        let state = bytemuck::try_from_bytes::<StakeConfig>(&data)
-            .map_err(|_| ProgramError::InvalidAccountData)?;
-
-        state.token_amount_delegated
-    };
-
-    Ok((stake, total_stake))
+    Ok(state.token_amount_delegated)
 }
 
 fn check_stake_config_exists(stake_config_info: &AccountInfo) -> ProgramResult {
@@ -285,8 +280,11 @@ fn process_vote(program_id: &Pubkey, accounts: &[AccountInfo], vote: bool) -> Pr
         return Err(ProgramError::MissingRequiredSignature);
     }
 
-    let (stake, total_stake) =
-        get_stake_checked(stake_authority_info.key, stake_info, stake_config_info)?;
+    check_stake_exists(stake_info)?;
+    let stake = get_stake_checked(stake_authority_info.key, stake_config_info.key, stake_info)?;
+
+    check_stake_config_exists(stake_config_info)?;
+    let total_stake = get_total_stake_checked(governance_info.key, stake_config_info)?;
 
     // Ensure the provided governance address is the correct address derived from
     // the program.
@@ -405,8 +403,11 @@ fn process_switch_vote(
         return Err(ProgramError::MissingRequiredSignature);
     }
 
-    let (stake, total_stake) =
-        get_stake_checked(stake_authority_info.key, stake_info, stake_config_info)?;
+    check_stake_exists(stake_info)?;
+    let stake = get_stake_checked(stake_authority_info.key, stake_config_info.key, stake_info)?;
+
+    check_stake_config_exists(stake_config_info)?;
+    let total_stake = get_total_stake_checked(governance_info.key, stake_config_info)?;
 
     // Ensure the provided governance address is the correct address derived from
     // the program.
