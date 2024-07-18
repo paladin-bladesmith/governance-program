@@ -65,7 +65,7 @@ async fn fail_governance_already_initialized() {
     let mut context = setup().start_with_context().await;
 
     // Set up an already initialized governance account.
-    setup_governance(&mut context, &governance, 0, 0, 0, 0).await;
+    setup_governance(&mut context, &governance, 0, 0, 0).await;
 
     let instruction = initialize_governance(
         &governance,
@@ -143,7 +143,6 @@ async fn success() {
             cooldown_period_seconds: 0,
             proposal_acceptance_threshold: 0,
             proposal_rejection_threshold: 0,
-            total_staked: 0,
         }
     );
 }

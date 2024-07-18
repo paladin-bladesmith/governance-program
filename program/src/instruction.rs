@@ -25,28 +25,27 @@ pub enum PaladinGovernanceInstruction {
     ///
     /// Accounts expected by this instruction:
     ///
-    /// 0. `[s]` Validator vote account.
+    /// 0. `[s]` Paladin stake authority account.
     /// 1. `[ ]` Paladin stake account.
     /// 2. `[w]` Proposal account.
     CreateProposal,
     /// Cancel a governance proposal.
     ///
-    /// Stake account provided must be the proposal creator.
+    /// Authority account provided must be the proposal creator.
     ///
     /// Accounts expected by this instruction:
     ///
-    /// 0. `[s]` Validator vote account.
-    /// 1. `[ ]` Paladin stake account.
-    /// 2. `[w]` Proposal account.
+    /// 0. `[s]` Paladin stake authority account.
+    /// 1. `[w]` Proposal account.
     CancelProposal,
     /// Vote on a governance proposal.
     ///
-    /// Expects an uninitialized vote account with enough rent-exempt lamports
-    /// to store vote state.
+    /// Expects an uninitialized proposal vote account with enough rent-exempt
+    /// lamports to store proposal vote state.
     ///
     /// Accounts expected by this instruction:
     ///
-    /// 0. `[s]` Validator vote account.
+    /// 0. `[s]` Paladin stake authority account.
     /// 1. `[ ]` Paladin stake account.
     /// 2. `[ ]` Paladin stake config account.
     /// 3. `[w]` Proposal vote account.
@@ -62,16 +61,17 @@ pub enum PaladinGovernanceInstruction {
     },
     /// Vote on a governance proposal.
     ///
-    /// Expects an existing vote account, representing a previously cast vote.
+    /// Expects an existing proposal vote account, representing a previously
+    /// cast proposal vote.
     ///
-    /// If the cast vote results in >= 50% majority:
+    /// If the cast proposal vote results in >= 50% majority:
     ///
     /// * In favor: Begins the cooldown period.
     /// * Against: Terminates the proposal immediately.
     ///
     /// Accounts expected by this instruction:
     ///
-    /// 0. `[s]` Validator vote account.
+    /// 0. `[s]` Paladin stake authority account.
     /// 1. `[ ]` Paladin stake account.
     /// 2. `[ ]` Paladin stake config account.
     /// 3. `[w]` Proposal vote account.
@@ -82,12 +82,12 @@ pub enum PaladinGovernanceInstruction {
         ///
         /// * `true`: In favor.
         /// * `false`: Against.
-        vote: bool,
+        new_vote: bool,
     },
     /// Process a governance proposal.
     ///
     /// Given an accepted proposal, execute it. An accepted proposal has at
-    /// least 50% majority vote and has passed the cooldown period.
+    /// least 50% majority in favor and has passed the cooldown period.
     ///
     /// Closes the proposal account after execution.
     ///
@@ -115,11 +115,11 @@ pub enum PaladinGovernanceInstruction {
         /// `proposal_acceptance_threshold` and upon its conclusion will execute
         /// the proposal's instruction.
         cooldown_period_seconds: u64,
-        /// The minimum required threshold of acceptance votes to begin the
+        /// The minimum required threshold of proposal acceptance to begin the
         /// cooldown period.
         proposal_acceptance_threshold: u64,
-        /// The minimum required threshold of rejection votes to terminate the
-        /// proposal.
+        /// The minimum required threshold of proposal rejection to terminate
+        /// the proposal.
         proposal_rejection_threshold: u64,
     },
     /// Update the governance config.
@@ -140,11 +140,11 @@ pub enum PaladinGovernanceInstruction {
         /// `proposal_acceptance_threshold` and upon its conclusion will execute
         /// the proposal's instruction.
         cooldown_period_seconds: u64,
-        /// The minimum required threshold of acceptance votes to begin the
+        /// The minimum required threshold of proposal acceptance to begin the
         /// cooldown period.
         proposal_acceptance_threshold: u64,
-        /// The minimum required threshold of rejection votes to terminate the
-        /// proposal.
+        /// The minimum required threshold of proposal rejection to terminate
+        /// the proposal.
         proposal_rejection_threshold: u64,
     },
 }
@@ -162,9 +162,9 @@ impl PaladinGovernanceInstruction {
                 buf.push(if *vote { 1 } else { 0 });
                 buf
             }
-            Self::SwitchVote { vote } => {
+            Self::SwitchVote { new_vote } => {
                 let mut buf = vec![3];
-                buf.push(if *vote { 1 } else { 0 });
+                buf.push(if *new_vote { 1 } else { 0 });
                 buf
             }
             Self::ProcessProposal => vec![4],
@@ -200,7 +200,9 @@ impl PaladinGovernanceInstruction {
             Some((&0, _)) => Ok(Self::CreateProposal),
             Some((&1, _)) => Ok(Self::CancelProposal),
             Some((&2, rest)) if rest.len() == 1 => Ok(Self::Vote { vote: rest[0] == 1 }),
-            Some((&3, rest)) if rest.len() == 1 => Ok(Self::SwitchVote { vote: rest[0] == 1 }),
+            Some((&3, rest)) if rest.len() == 1 => Ok(Self::SwitchVote {
+                new_vote: rest[0] == 1,
+            }),
             Some((&4, _)) => Ok(Self::ProcessProposal),
             Some((&5, rest)) if rest.len() == 24 => {
                 let cooldown_period_seconds = u64::from_le_bytes(rest[..8].try_into().unwrap());
@@ -235,12 +237,12 @@ impl PaladinGovernanceInstruction {
 /// [CreateProposal](enum.PaladinGovernanceInstruction.html)
 /// instruction.
 pub fn create_proposal(
-    validator_address: &Pubkey,
+    stake_authority_address: &Pubkey,
     stake_address: &Pubkey,
     proposal_address: &Pubkey,
 ) -> Instruction {
     let accounts = vec![
-        AccountMeta::new_readonly(*validator_address, true),
+        AccountMeta::new_readonly(*stake_authority_address, true),
         AccountMeta::new_readonly(*stake_address, false),
         AccountMeta::new(*proposal_address, false),
     ];
@@ -251,14 +253,9 @@ pub fn create_proposal(
 /// Creates a
 /// [CancelProposal](enum.PaladinGovernanceInstruction.html)
 /// instruction.
-pub fn cancel_proposal(
-    validator_address: &Pubkey,
-    stake_address: &Pubkey,
-    proposal_address: &Pubkey,
-) -> Instruction {
+pub fn cancel_proposal(stake_authority_address: &Pubkey, proposal_address: &Pubkey) -> Instruction {
     let accounts = vec![
-        AccountMeta::new_readonly(*validator_address, true),
-        AccountMeta::new_readonly(*stake_address, false),
+        AccountMeta::new_readonly(*stake_authority_address, true),
         AccountMeta::new(*proposal_address, false),
     ];
     let data = PaladinGovernanceInstruction::CancelProposal.pack();
@@ -269,7 +266,7 @@ pub fn cancel_proposal(
 /// [Vote](enum.PaladinGovernanceInstruction.html)
 /// instruction.
 pub fn vote(
-    validator_address: &Pubkey,
+    stake_authority_address: &Pubkey,
     stake_address: &Pubkey,
     stake_config_address: &Pubkey,
     proposal_vote_address: &Pubkey,
@@ -278,7 +275,7 @@ pub fn vote(
     vote: bool,
 ) -> Instruction {
     let accounts = vec![
-        AccountMeta::new_readonly(*validator_address, true),
+        AccountMeta::new_readonly(*stake_authority_address, true),
         AccountMeta::new_readonly(*stake_address, false),
         AccountMeta::new_readonly(*stake_config_address, false),
         AccountMeta::new(*proposal_vote_address, false),
@@ -294,23 +291,23 @@ pub fn vote(
 /// [SwitchVote](enum.PaladinGovernanceInstruction.html)
 /// instruction.
 pub fn switch_vote(
-    validator_address: &Pubkey,
+    stake_authority_address: &Pubkey,
     stake_address: &Pubkey,
     stake_config_address: &Pubkey,
     proposal_vote_address: &Pubkey,
     proposal_address: &Pubkey,
     governance_config_address: &Pubkey,
-    vote: bool,
+    new_vote: bool,
 ) -> Instruction {
     let accounts = vec![
-        AccountMeta::new_readonly(*validator_address, true),
+        AccountMeta::new_readonly(*stake_authority_address, true),
         AccountMeta::new_readonly(*stake_address, false),
         AccountMeta::new_readonly(*stake_config_address, false),
         AccountMeta::new(*proposal_vote_address, false),
         AccountMeta::new(*proposal_address, false),
         AccountMeta::new_readonly(*governance_config_address, false),
     ];
-    let data = PaladinGovernanceInstruction::SwitchVote { vote }.pack();
+    let data = PaladinGovernanceInstruction::SwitchVote { new_vote }.pack();
     Instruction::new_with_bytes(crate::id(), &data, accounts)
 }
 
@@ -402,8 +399,8 @@ mod tests {
 
     #[test]
     fn test_pack_unpack_switch_vote() {
-        test_pack_unpack(PaladinGovernanceInstruction::SwitchVote { vote: true });
-        test_pack_unpack(PaladinGovernanceInstruction::SwitchVote { vote: false });
+        test_pack_unpack(PaladinGovernanceInstruction::SwitchVote { new_vote: true });
+        test_pack_unpack(PaladinGovernanceInstruction::SwitchVote { new_vote: false });
     }
 
     #[test]

@@ -2404,7 +2404,7 @@ dependencies = [
 [[package]]
 name = "paladin-stake-program"
 version = "0.0.1"
-source = "git+https://github.com/paladin-bladesmith/stake-program.git?branch=version#9a045c1ec9feeccefd66f4d43d6a4adc243dcdd0"
+source = "git+https://github.com/paladin-bladesmith/stake-program.git#b9d3d1736b03be07707cff45f888800f84e0b431"
 dependencies = [
  "arrayref",
  "bytemuck",
