@@ -111,12 +111,6 @@ fn get_stake_checked(
 }
 
 fn check_governance_exists(program_id: &Pubkey, governance_info: &AccountInfo) -> ProgramResult {
-    // Ensure the provided governance address is the correct address derived from
-    // the program.
-    if !governance_info.key.eq(&get_governance_address(program_id)) {
-        return Err(PaladinGovernanceError::IncorrectGovernanceConfigAddress.into());
-    }
-
     // Ensure the governance account is owned by the Paladin Governance program.
     if governance_info.owner != program_id {
         return Err(ProgramError::InvalidAccountOwner);
@@ -286,6 +280,12 @@ fn process_vote(program_id: &Pubkey, accounts: &[AccountInfo], vote: bool) -> Pr
     let (stake, total_stake) =
         get_stake_checked(stake_authority_info.key, stake_info, stake_config_info)?;
 
+    // Ensure the provided governance address is the correct address derived from
+    // the program.
+    if !governance_info.key.eq(&get_governance_address(program_id)) {
+        return Err(PaladinGovernanceError::IncorrectGovernanceConfigAddress.into());
+    }
+
     check_governance_exists(program_id, governance_info)?;
     check_proposal_exists(program_id, proposal_info)?;
 
@@ -399,6 +399,12 @@ fn process_switch_vote(
 
     let (stake, total_stake) =
         get_stake_checked(stake_authority_info.key, stake_info, stake_config_info)?;
+
+    // Ensure the provided governance address is the correct address derived from
+    // the program.
+    if !governance_info.key.eq(&get_governance_address(program_id)) {
+        return Err(PaladinGovernanceError::IncorrectGovernanceConfigAddress.into());
+    }
 
     check_governance_exists(program_id, governance_info)?;
     check_proposal_exists(program_id, proposal_info)?;
@@ -520,6 +526,12 @@ fn process_process_proposal(program_id: &Pubkey, accounts: &[AccountInfo]) -> Pr
     // then drop this account.
     let governance_info = next_account_info(accounts_iter)?;
 
+    // Ensure the provided governance address is the correct address derived from
+    // the program.
+    if !governance_info.key.eq(&get_governance_address(program_id)) {
+        return Err(PaladinGovernanceError::IncorrectGovernanceConfigAddress.into());
+    }
+
     check_governance_exists(program_id, governance_info)?;
     check_proposal_exists(program_id, proposal_info)?;
 
@@ -622,6 +634,12 @@ fn process_update_governance(
     let proposal_info = next_account_info(accounts_iter)?;
     // Same note as `process_process_proposal` applies here for cutting
     // the stake config account.
+
+    // Ensure the provided governance address is the correct address derived from
+    // the program.
+    if !governance_info.key.eq(&get_governance_address(program_id)) {
+        return Err(PaladinGovernanceError::IncorrectGovernanceConfigAddress.into());
+    }
 
     check_governance_exists(program_id, governance_info)?;
     check_proposal_exists(program_id, proposal_info)?;
