@@ -1,8 +1,11 @@
 //! Program state types.
 
 use {
+    crate::error::PaladinGovernanceError,
     bytemuck::{Pod, Zeroable},
-    solana_program::{entrypoint::ProgramResult, program_error::ProgramError, pubkey::Pubkey},
+    solana_program::{
+        clock::Clock, entrypoint::ProgramResult, program_error::ProgramError, pubkey::Pubkey,
+    },
     spl_discriminator::SplDiscriminate,
     spl_pod::primitives::PodBool,
     std::num::NonZeroU64,
@@ -166,6 +169,18 @@ impl Proposal {
             return Ok(());
         }
         Err(ProgramError::IncorrectAuthority)
+    }
+
+    /// Evaluate the proposal cooldown period against the clock sysvar.
+    pub fn check_cooldown(&self, cooldown_period_seconds: u64, clock: &Clock) -> ProgramResult {
+        if let Some(cooldown_timestamp) = self.cooldown_timestamp {
+            if (clock.unix_timestamp as u64).saturating_sub(cooldown_period_seconds)
+                >= cooldown_timestamp.get()
+            {
+                return Ok(());
+            }
+        }
+        Err(PaladinGovernanceError::ProposalNotAccepted.into())
     }
 }
 
