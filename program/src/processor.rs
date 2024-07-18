@@ -246,15 +246,9 @@ fn process_cancel_proposal(program_id: &Pubkey, accounts: &[AccountInfo]) -> Pro
     check_proposal_exists(program_id, proposal_info)?;
 
     // Ensure the stake authority is the proposal author.
-    {
-        let proposal_data = proposal_info.try_borrow_data()?;
-        let proposal_state = bytemuck::try_from_bytes::<Proposal>(&proposal_data)
-            .map_err(|_| ProgramError::InvalidAccountData)?;
-
-        if proposal_state.author != *stake_authority_info.key {
-            return Err(ProgramError::IncorrectAuthority);
-        }
-    }
+    bytemuck::try_from_bytes::<Proposal>(&proposal_info.try_borrow_data()?)
+        .map_err(|_| ProgramError::InvalidAccountData)
+        .and_then(|state| state.check_author(stake_authority_info.key))?;
 
     close_proposal_account(proposal_info)?;
 

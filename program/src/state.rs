@@ -2,7 +2,7 @@
 
 use {
     bytemuck::{Pod, Zeroable},
-    solana_program::pubkey::Pubkey,
+    solana_program::{entrypoint::ProgramResult, program_error::ProgramError, pubkey::Pubkey},
     spl_discriminator::SplDiscriminate,
     spl_pod::primitives::PodBool,
     std::num::NonZeroU64,
@@ -158,6 +158,14 @@ impl Proposal {
             stake_against: 0,
             stake_for: 0,
         }
+    }
+
+    /// Evaluate a provided address against the proposal author.
+    pub fn check_author(&self, author: &Pubkey) -> ProgramResult {
+        if self.author == *author {
+            return Ok(());
+        }
+        Err(ProgramError::IncorrectAuthority)
     }
 }
 
