@@ -555,20 +555,22 @@ fn process_initialize_governance(
     cooldown_period_seconds: u64,
     proposal_acceptance_threshold: u64,
     proposal_rejection_threshold: u64,
-    stake_config_address: Pubkey,
 ) -> ProgramResult {
     let accounts_iter = &mut accounts.iter();
 
     let governance_info = next_account_info(accounts_iter)?;
+    let stake_config_info = next_account_info(accounts_iter)?;
     let _system_program_info = next_account_info(accounts_iter)?;
+
+    check_stake_config_exists(stake_config_info)?;
 
     // Create the governance config account.
     {
         let (governance_address, bump_seed) =
-            get_governance_address_and_bump_seed(&stake_config_address, program_id);
+            get_governance_address_and_bump_seed(stake_config_info.key, program_id);
         let bump_seed = [bump_seed];
         let governance_signer_seeds =
-            collect_governance_signer_seeds(&stake_config_address, &bump_seed);
+            collect_governance_signer_seeds(stake_config_info.key, &bump_seed);
 
         // Ensure the provided governance address is the correct address
         // derived from the program.
@@ -603,7 +605,7 @@ fn process_initialize_governance(
                 cooldown_period_seconds,
                 proposal_acceptance_threshold,
                 proposal_rejection_threshold,
-                stake_config_address,
+                stake_config_address: *stake_config_info.key,
             };
     }
 
@@ -688,7 +690,6 @@ pub fn process(program_id: &Pubkey, accounts: &[AccountInfo], input: &[u8]) -> P
             cooldown_period_seconds,
             proposal_acceptance_threshold,
             proposal_rejection_threshold,
-            stake_config_address,
         } => {
             msg!("Instruction: InitializeGovernance");
             process_initialize_governance(
@@ -697,7 +698,6 @@ pub fn process(program_id: &Pubkey, accounts: &[AccountInfo], input: &[u8]) -> P
                 cooldown_period_seconds,
                 proposal_acceptance_threshold,
                 proposal_rejection_threshold,
-                stake_config_address,
             )
         }
         PaladinGovernanceInstruction::UpdateGovernance {

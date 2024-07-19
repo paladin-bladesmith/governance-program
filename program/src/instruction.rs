@@ -109,7 +109,8 @@ pub enum PaladinGovernanceInstruction {
     /// Accounts expected by this instruction:
     ///
     /// 0. `[w]` Governance config account.
-    /// 1. `[ ]` System program.
+    /// 1. `[ ]` Paladin stake config account.
+    /// 2. `[ ]` System program.
     InitializeGovernance {
         /// The cooldown period that begins when a proposal reaches the
         /// `proposal_acceptance_threshold` and upon its conclusion will execute
@@ -121,9 +122,6 @@ pub enum PaladinGovernanceInstruction {
         /// The minimum required threshold of proposal rejection to terminate
         /// the proposal.
         proposal_rejection_threshold: u64,
-        /// The Paladin stake config account that this governance config account
-        /// corresponds to.
-        stake_config_address: Pubkey,
     },
     /// Update the governance config.
     ///
@@ -175,13 +173,11 @@ impl PaladinGovernanceInstruction {
                 cooldown_period_seconds,
                 proposal_acceptance_threshold,
                 proposal_rejection_threshold,
-                stake_config_address,
             } => {
                 let mut buf = vec![5];
                 buf.extend_from_slice(&cooldown_period_seconds.to_le_bytes());
                 buf.extend_from_slice(&proposal_acceptance_threshold.to_le_bytes());
                 buf.extend_from_slice(&proposal_rejection_threshold.to_le_bytes());
-                buf.extend_from_slice(stake_config_address.as_ref());
                 buf
             }
             Self::UpdateGovernance {
@@ -209,18 +205,16 @@ impl PaladinGovernanceInstruction {
                 new_vote: rest[0] == 1,
             }),
             Some((&4, _)) => Ok(Self::ProcessProposal),
-            Some((&5, rest)) if rest.len() == 56 => {
+            Some((&5, rest)) if rest.len() == 24 => {
                 let cooldown_period_seconds = u64::from_le_bytes(rest[..8].try_into().unwrap());
                 let proposal_acceptance_threshold =
                     u64::from_le_bytes(rest[8..16].try_into().unwrap());
                 let proposal_rejection_threshold =
                     u64::from_le_bytes(rest[16..24].try_into().unwrap());
-                let stake_config_address = Pubkey::new_from_array(rest[24..56].try_into().unwrap());
                 Ok(Self::InitializeGovernance {
                     cooldown_period_seconds,
                     proposal_acceptance_threshold,
                     proposal_rejection_threshold,
-                    stake_config_address,
                 })
             }
             Some((&6, rest)) if rest.len() == 24 => {
@@ -338,20 +332,20 @@ pub fn process_proposal(
 /// instruction.
 pub fn initialize_governance(
     governance_config_address: &Pubkey,
+    stake_config_address: &Pubkey,
     cooldown_period_seconds: u64,
     proposal_acceptance_threshold: u64,
     proposal_rejection_threshold: u64,
-    stake_config_address: &Pubkey,
 ) -> Instruction {
     let accounts = vec![
         AccountMeta::new(*governance_config_address, false),
+        AccountMeta::new_readonly(*stake_config_address, false),
         AccountMeta::new_readonly(system_program::id(), false),
     ];
     let data = PaladinGovernanceInstruction::InitializeGovernance {
         cooldown_period_seconds,
         proposal_acceptance_threshold,
         proposal_rejection_threshold,
-        stake_config_address: *stake_config_address,
     }
     .pack();
     Instruction::new_with_bytes(crate::id(), &data, accounts)
@@ -423,7 +417,6 @@ mod tests {
             cooldown_period_seconds: 1,
             proposal_acceptance_threshold: 2,
             proposal_rejection_threshold: 3,
-            stake_config_address: Pubkey::new_unique(),
         });
     }
 
