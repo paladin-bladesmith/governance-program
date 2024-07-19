@@ -48,6 +48,8 @@ fn get_stake_checked(
     stake_config_address: &Pubkey,
     stake_info: &AccountInfo,
 ) -> Result<u64, ProgramError> {
+    check_stake_exists(stake_info)?;
+
     let data = stake_info.try_borrow_data()?;
     let state =
         bytemuck::try_from_bytes::<Stake>(&data).map_err(|_| ProgramError::InvalidAccountData)?;
@@ -77,6 +79,8 @@ fn get_total_stake_checked(
     _governance_config_address: &Pubkey,
     stake_config_info: &AccountInfo,
 ) -> Result<u64, ProgramError> {
+    check_stake_config_exists(stake_config_info)?;
+
     let data = stake_config_info.try_borrow_data()?;
     let state = bytemuck::try_from_bytes::<StakeConfig>(&data)
         .map_err(|_| ProgramError::InvalidAccountData)?;
@@ -259,10 +263,8 @@ fn process_vote(program_id: &Pubkey, accounts: &[AccountInfo], vote: bool) -> Pr
         return Err(ProgramError::MissingRequiredSignature);
     }
 
-    check_stake_exists(stake_info)?;
     let stake = get_stake_checked(stake_authority_info.key, stake_config_info.key, stake_info)?;
 
-    check_stake_config_exists(stake_config_info)?;
     let total_stake = get_total_stake_checked(governance_info.key, stake_config_info)?;
 
     // Ensure the provided governance address is the correct address derived from
@@ -382,10 +384,8 @@ fn process_switch_vote(
         return Err(ProgramError::MissingRequiredSignature);
     }
 
-    check_stake_exists(stake_info)?;
     let stake = get_stake_checked(stake_authority_info.key, stake_config_info.key, stake_info)?;
 
-    check_stake_config_exists(stake_config_info)?;
     let total_stake = get_total_stake_checked(governance_info.key, stake_config_info)?;
 
     // Ensure the provided governance address is the correct address derived from
