@@ -417,7 +417,7 @@ fn process_switch_vote(
     check_proposal_exists(program_id, proposal_info)?;
 
     // Update the proposal vote account.
-    let last_election = {
+    let (last_election, last_stake) = {
         // Ensure the provided proposal vote address is the correct address
         // derived from the stake authority and proposal.
         if !proposal_vote_info.key.eq(&get_proposal_vote_address(
@@ -450,7 +450,10 @@ fn process_switch_vote(
             return Ok(());
         }
 
-        std::mem::replace(&mut state.election, new_election)
+        (
+            std::mem::replace(&mut state.election, new_election),
+            std::mem::replace(&mut state.stake, stake),
+        )
     };
 
     // Update the proposal with the updated vote.
@@ -467,14 +470,14 @@ fn process_switch_vote(
             // Previous vote was in favor. Deduct stake for.
             proposal_state.stake_for = proposal_state
                 .stake_for
-                .checked_sub(stake)
+                .checked_sub(last_stake)
                 .ok_or(ProgramError::ArithmeticOverflow)?;
         }
         ProposalVoteElection::Against => {
             // Previous vote was against. Deduct stake against.
             proposal_state.stake_against = proposal_state
                 .stake_against
-                .checked_sub(stake)
+                .checked_sub(last_stake)
                 .ok_or(ProgramError::ArithmeticOverflow)?;
         }
         ProposalVoteElection::DidNotVote => {
