@@ -8,6 +8,9 @@ pub enum PaladinGovernanceError {
     /// Stake config accounts mismatch.
     #[error("Stake config accounts mismatch.")]
     StakeConfigMismatch,
+    /// Incorrect stake config.
+    #[error("Incorrect stake config.")]
+    IncorrectStakeConfig,
     /// Incorrect proposal vote address.
     #[error("Incorrect proposal vote address.")]
     IncorrectProposalVoteAddress,

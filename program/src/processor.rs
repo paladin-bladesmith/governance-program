@@ -75,24 +75,6 @@ fn get_stake_checked(
     Ok(state.amount)
 }
 
-fn get_total_stake_checked(
-    _governance_config_address: &Pubkey,
-    stake_config_info: &AccountInfo,
-) -> Result<u64, ProgramError> {
-    check_stake_config_exists(stake_config_info)?;
-
-    let data = stake_config_info.try_borrow_data()?;
-    let state = bytemuck::try_from_bytes::<StakeConfig>(&data)
-        .map_err(|_| ProgramError::InvalidAccountData)?;
-
-    // TODO: This will probably require the governance config account, once
-    // the program can support multiple governance configs.
-    // Something like storing the stake config address on the governance config
-    // should do it.
-
-    Ok(state.token_amount_delegated)
-}
-
 fn check_stake_config_exists(stake_config_info: &AccountInfo) -> ProgramResult {
     // Ensure the stake config account is owned by the Paladin Stake program.
     if stake_config_info.owner != &paladin_stake_program::id() {
@@ -265,7 +247,11 @@ fn process_vote(program_id: &Pubkey, accounts: &[AccountInfo], vote: bool) -> Pr
 
     let stake = get_stake_checked(stake_authority_info.key, stake_config_info.key, stake_info)?;
 
-    let total_stake = get_total_stake_checked(governance_info.key, stake_config_info)?;
+    check_stake_config_exists(stake_config_info)?;
+    let total_stake =
+        bytemuck::try_from_bytes::<StakeConfig>(&stake_config_info.try_borrow_data()?)
+            .map_err(|_| ProgramError::InvalidAccountData)?
+            .token_amount_delegated;
 
     // Ensure the provided governance address is the correct address derived from
     // the program.
@@ -277,6 +263,15 @@ fn process_vote(program_id: &Pubkey, accounts: &[AccountInfo], vote: bool) -> Pr
     }
 
     check_governance_exists(program_id, governance_info)?;
+
+    let governance_data = governance_info.try_borrow_data()?;
+    let governance_config = bytemuck::try_from_bytes::<Config>(&governance_data)
+        .map_err(|_| ProgramError::InvalidAccountData)?;
+
+    // Ensure the address of the provided stake config account matches the one
+    // stored in the governance config.
+    governance_config.check_stake_config(stake_config_info.key)?;
+
     check_proposal_exists(program_id, proposal_info)?;
 
     // Create the proposal vote account.
@@ -322,10 +317,6 @@ fn process_vote(program_id: &Pubkey, accounts: &[AccountInfo], vote: bool) -> Pr
     // Update the proposal with the newly cast vote.
     let mut proposal_data = proposal_info.try_borrow_mut_data()?;
     let proposal_state = bytemuck::try_from_bytes_mut::<Proposal>(&mut proposal_data)
-        .map_err(|_| ProgramError::InvalidAccountData)?;
-
-    let governance_data = governance_info.try_borrow_data()?;
-    let governance_config = bytemuck::try_from_bytes::<Config>(&governance_data)
         .map_err(|_| ProgramError::InvalidAccountData)?;
 
     let clock = <Clock as Sysvar>::get()?;
@@ -389,7 +380,11 @@ fn process_switch_vote(
 
     let stake = get_stake_checked(stake_authority_info.key, stake_config_info.key, stake_info)?;
 
-    let total_stake = get_total_stake_checked(governance_info.key, stake_config_info)?;
+    check_stake_config_exists(stake_config_info)?;
+    let total_stake =
+        bytemuck::try_from_bytes::<StakeConfig>(&stake_config_info.try_borrow_data()?)
+            .map_err(|_| ProgramError::InvalidAccountData)?
+            .token_amount_delegated;
 
     // Ensure the provided governance address is the correct address derived from
     // the program.
@@ -401,6 +396,15 @@ fn process_switch_vote(
     }
 
     check_governance_exists(program_id, governance_info)?;
+
+    let governance_data = governance_info.try_borrow_data()?;
+    let governance_config = bytemuck::try_from_bytes::<Config>(&governance_data)
+        .map_err(|_| ProgramError::InvalidAccountData)?;
+
+    // Ensure the address of the provided stake config account matches the one
+    // stored in the governance config.
+    governance_config.check_stake_config(stake_config_info.key)?;
+
     check_proposal_exists(program_id, proposal_info)?;
 
     // Update the proposal vote account.
@@ -446,10 +450,6 @@ fn process_switch_vote(
     // Simply update the proposal by inversing the vote stake.
     let mut proposal_data = proposal_info.try_borrow_mut_data()?;
     let proposal_state = bytemuck::try_from_bytes_mut::<Proposal>(&mut proposal_data)
-        .map_err(|_| ProgramError::InvalidAccountData)?;
-
-    let governance_data = governance_info.try_borrow_data()?;
-    let governance_config = bytemuck::try_from_bytes::<Config>(&governance_data)
         .map_err(|_| ProgramError::InvalidAccountData)?;
 
     let clock = <Clock as Sysvar>::get()?;

@@ -140,6 +140,16 @@ pub struct Config {
     pub stake_config_address: Pubkey,
 }
 
+impl Config {
+    /// Evaluate a provided address against the corresponding stake config.
+    pub fn check_stake_config(&self, stake_config: &Pubkey) -> ProgramResult {
+        if self.stake_config_address == *stake_config {
+            return Ok(());
+        }
+        Err(PaladinGovernanceError::IncorrectStakeConfig.into())
+    }
+}
+
 /// Governance proposal account.
 #[derive(Clone, Copy, Debug, PartialEq, Pod, SplDiscriminate, Zeroable)]
 #[discriminator_hash_input("governance::state::proposal")]
