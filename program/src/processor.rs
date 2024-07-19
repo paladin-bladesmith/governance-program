@@ -75,24 +75,6 @@ fn get_stake_checked(
     Ok(state.amount)
 }
 
-fn get_total_stake_checked(
-    _governance_config_address: &Pubkey,
-    stake_config_info: &AccountInfo,
-) -> Result<u64, ProgramError> {
-    check_stake_config_exists(stake_config_info)?;
-
-    let data = stake_config_info.try_borrow_data()?;
-    let state = bytemuck::try_from_bytes::<StakeConfig>(&data)
-        .map_err(|_| ProgramError::InvalidAccountData)?;
-
-    // TODO: This will probably require the governance config account, once
-    // the program can support multiple governance configs.
-    // Something like storing the stake config address on the governance config
-    // should do it.
-
-    Ok(state.token_amount_delegated)
-}
-
 fn check_stake_config_exists(stake_config_info: &AccountInfo) -> ProgramResult {
     // Ensure the stake config account is owned by the Paladin Stake program.
     if stake_config_info.owner != &paladin_stake_program::id() {
@@ -265,15 +247,31 @@ fn process_vote(program_id: &Pubkey, accounts: &[AccountInfo], vote: bool) -> Pr
 
     let stake = get_stake_checked(stake_authority_info.key, stake_config_info.key, stake_info)?;
 
-    let total_stake = get_total_stake_checked(governance_info.key, stake_config_info)?;
+    check_stake_config_exists(stake_config_info)?;
+    let total_stake =
+        bytemuck::try_from_bytes::<StakeConfig>(&stake_config_info.try_borrow_data()?)
+            .map_err(|_| ProgramError::InvalidAccountData)?
+            .token_amount_delegated;
 
     // Ensure the provided governance address is the correct address derived from
     // the program.
-    if !governance_info.key.eq(&get_governance_address(program_id)) {
+    if !governance_info
+        .key
+        .eq(&get_governance_address(stake_config_info.key, program_id))
+    {
         return Err(PaladinGovernanceError::IncorrectGovernanceConfigAddress.into());
     }
 
     check_governance_exists(program_id, governance_info)?;
+
+    let governance_data = governance_info.try_borrow_data()?;
+    let governance_config = bytemuck::try_from_bytes::<Config>(&governance_data)
+        .map_err(|_| ProgramError::InvalidAccountData)?;
+
+    // Ensure the address of the provided stake config account matches the one
+    // stored in the governance config.
+    governance_config.check_stake_config(stake_config_info.key)?;
+
     check_proposal_exists(program_id, proposal_info)?;
 
     // Create the proposal vote account.
@@ -319,10 +317,6 @@ fn process_vote(program_id: &Pubkey, accounts: &[AccountInfo], vote: bool) -> Pr
     // Update the proposal with the newly cast vote.
     let mut proposal_data = proposal_info.try_borrow_mut_data()?;
     let proposal_state = bytemuck::try_from_bytes_mut::<Proposal>(&mut proposal_data)
-        .map_err(|_| ProgramError::InvalidAccountData)?;
-
-    let governance_data = governance_info.try_borrow_data()?;
-    let governance_config = bytemuck::try_from_bytes::<Config>(&governance_data)
         .map_err(|_| ProgramError::InvalidAccountData)?;
 
     let clock = <Clock as Sysvar>::get()?;
@@ -386,15 +380,31 @@ fn process_switch_vote(
 
     let stake = get_stake_checked(stake_authority_info.key, stake_config_info.key, stake_info)?;
 
-    let total_stake = get_total_stake_checked(governance_info.key, stake_config_info)?;
+    check_stake_config_exists(stake_config_info)?;
+    let total_stake =
+        bytemuck::try_from_bytes::<StakeConfig>(&stake_config_info.try_borrow_data()?)
+            .map_err(|_| ProgramError::InvalidAccountData)?
+            .token_amount_delegated;
 
     // Ensure the provided governance address is the correct address derived from
     // the program.
-    if !governance_info.key.eq(&get_governance_address(program_id)) {
+    if !governance_info
+        .key
+        .eq(&get_governance_address(stake_config_info.key, program_id))
+    {
         return Err(PaladinGovernanceError::IncorrectGovernanceConfigAddress.into());
     }
 
     check_governance_exists(program_id, governance_info)?;
+
+    let governance_data = governance_info.try_borrow_data()?;
+    let governance_config = bytemuck::try_from_bytes::<Config>(&governance_data)
+        .map_err(|_| ProgramError::InvalidAccountData)?;
+
+    // Ensure the address of the provided stake config account matches the one
+    // stored in the governance config.
+    governance_config.check_stake_config(stake_config_info.key)?;
+
     check_proposal_exists(program_id, proposal_info)?;
 
     // Update the proposal vote account.
@@ -440,10 +450,6 @@ fn process_switch_vote(
     // Simply update the proposal by inversing the vote stake.
     let mut proposal_data = proposal_info.try_borrow_mut_data()?;
     let proposal_state = bytemuck::try_from_bytes_mut::<Proposal>(&mut proposal_data)
-        .map_err(|_| ProgramError::InvalidAccountData)?;
-
-    let governance_data = governance_info.try_borrow_data()?;
-    let governance_config = bytemuck::try_from_bytes::<Config>(&governance_data)
         .map_err(|_| ProgramError::InvalidAccountData)?;
 
     let clock = <Clock as Sysvar>::get()?;
@@ -514,12 +520,6 @@ fn process_process_proposal(program_id: &Pubkey, accounts: &[AccountInfo]) -> Pr
     // then drop this account.
     let governance_info = next_account_info(accounts_iter)?;
 
-    // Ensure the provided governance address is the correct address derived from
-    // the program.
-    if !governance_info.key.eq(&get_governance_address(program_id)) {
-        return Err(PaladinGovernanceError::IncorrectGovernanceConfigAddress.into());
-    }
-
     check_governance_exists(program_id, governance_info)?;
     check_proposal_exists(program_id, proposal_info)?;
 
@@ -559,13 +559,18 @@ fn process_initialize_governance(
     let accounts_iter = &mut accounts.iter();
 
     let governance_info = next_account_info(accounts_iter)?;
+    let stake_config_info = next_account_info(accounts_iter)?;
     let _system_program_info = next_account_info(accounts_iter)?;
+
+    check_stake_config_exists(stake_config_info)?;
 
     // Create the governance config account.
     {
-        let (governance_address, bump_seed) = get_governance_address_and_bump_seed(program_id);
+        let (governance_address, bump_seed) =
+            get_governance_address_and_bump_seed(stake_config_info.key, program_id);
         let bump_seed = [bump_seed];
-        let governance_signer_seeds = collect_governance_signer_seeds(&bump_seed);
+        let governance_signer_seeds =
+            collect_governance_signer_seeds(stake_config_info.key, &bump_seed);
 
         // Ensure the provided governance address is the correct address
         // derived from the program.
@@ -600,6 +605,7 @@ fn process_initialize_governance(
                 cooldown_period_seconds,
                 proposal_acceptance_threshold,
                 proposal_rejection_threshold,
+                stake_config_address: *stake_config_info.key,
             };
     }
 
@@ -622,12 +628,6 @@ fn process_update_governance(
     let proposal_info = next_account_info(accounts_iter)?;
     // Same note as `process_process_proposal` applies here for cutting
     // the stake config account.
-
-    // Ensure the provided governance address is the correct address derived from
-    // the program.
-    if !governance_info.key.eq(&get_governance_address(program_id)) {
-        return Err(PaladinGovernanceError::IncorrectGovernanceConfigAddress.into());
-    }
 
     check_governance_exists(program_id, governance_info)?;
     check_proposal_exists(program_id, proposal_info)?;
@@ -652,12 +652,11 @@ fn process_update_governance(
 
     // Update the governance config.
     let mut data = governance_info.try_borrow_mut_data()?;
-    *bytemuck::try_from_bytes_mut(&mut data).map_err(|_| ProgramError::InvalidAccountData)? =
-        Config {
-            cooldown_period_seconds,
-            proposal_acceptance_threshold,
-            proposal_rejection_threshold,
-        };
+    let state = bytemuck::try_from_bytes_mut::<Config>(&mut data)
+        .map_err(|_| ProgramError::InvalidAccountData)?;
+    state.cooldown_period_seconds = cooldown_period_seconds;
+    state.proposal_acceptance_threshold = proposal_acceptance_threshold;
+    state.proposal_rejection_threshold = proposal_rejection_threshold;
 
     Ok(())
 }

@@ -109,7 +109,8 @@ pub enum PaladinGovernanceInstruction {
     /// Accounts expected by this instruction:
     ///
     /// 0. `[w]` Governance config account.
-    /// 1. `[ ]` System program.
+    /// 1. `[ ]` Paladin stake config account.
+    /// 2. `[ ]` System program.
     InitializeGovernance {
         /// The cooldown period that begins when a proposal reaches the
         /// `proposal_acceptance_threshold` and upon its conclusion will execute
@@ -331,12 +332,14 @@ pub fn process_proposal(
 /// instruction.
 pub fn initialize_governance(
     governance_config_address: &Pubkey,
+    stake_config_address: &Pubkey,
     cooldown_period_seconds: u64,
     proposal_acceptance_threshold: u64,
     proposal_rejection_threshold: u64,
 ) -> Instruction {
     let accounts = vec![
         AccountMeta::new(*governance_config_address, false),
+        AccountMeta::new_readonly(*stake_config_address, false),
         AccountMeta::new_readonly(system_program::id(), false),
     ];
     let data = PaladinGovernanceInstruction::InitializeGovernance {

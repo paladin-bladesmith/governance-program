@@ -6,7 +6,7 @@ use {
     paladin_governance_program::{
         error::PaladinGovernanceError,
         instruction::process_proposal,
-        state::{get_governance_address, Config, Proposal},
+        state::{Config, Proposal},
     },
     setup::{setup, setup_governance, setup_proposal_with_stake_and_cooldown},
     solana_program_test::*,
@@ -22,43 +22,9 @@ use {
 };
 
 #[tokio::test]
-async fn fail_governance_incorrect_address() {
-    let proposal = Pubkey::new_unique();
-    let governance = Pubkey::new_unique(); // Incorrect governance address.
-
-    let mut context = setup().start_with_context().await;
-
-    let instruction = process_proposal(&proposal, &governance);
-
-    let transaction = Transaction::new_signed_with_payer(
-        &[instruction],
-        Some(&context.payer.pubkey()),
-        &[&context.payer],
-        context.last_blockhash,
-    );
-
-    let err = context
-        .banks_client
-        .process_transaction(transaction)
-        .await
-        .unwrap_err()
-        .unwrap();
-
-    assert_eq!(
-        err,
-        TransactionError::InstructionError(
-            0,
-            InstructionError::Custom(
-                PaladinGovernanceError::IncorrectGovernanceConfigAddress as u32
-            )
-        )
-    );
-}
-
-#[tokio::test]
 async fn fail_governance_incorrect_owner() {
     let proposal = Pubkey::new_unique();
-    let governance = get_governance_address(&paladin_governance_program::id());
+    let governance = Pubkey::new_unique(); // PDA doesn't matter here.
 
     let mut context = setup().start_with_context().await;
 
@@ -98,7 +64,7 @@ async fn fail_governance_incorrect_owner() {
 #[tokio::test]
 async fn fail_governance_not_initialized() {
     let proposal = Pubkey::new_unique();
-    let governance = get_governance_address(&paladin_governance_program::id());
+    let governance = Pubkey::new_unique(); // PDA doesn't matter here.
 
     let mut context = setup().start_with_context().await;
 
@@ -137,10 +103,18 @@ async fn fail_governance_not_initialized() {
 #[tokio::test]
 async fn fail_proposal_incorrect_owner() {
     let proposal = Pubkey::new_unique();
-    let governance = get_governance_address(&paladin_governance_program::id());
+    let governance = Pubkey::new_unique(); // PDA doesn't matter here.
 
     let mut context = setup().start_with_context().await;
-    setup_governance(&mut context, &governance, 0, 0, 0).await;
+    setup_governance(
+        &mut context,
+        &governance,
+        0,
+        0,
+        0,
+        /* stake_config_address */ &Pubkey::new_unique(), // Doesn't matter here.
+    )
+    .await;
 
     // Set up the proposal account with the incorrect owner.
     {
@@ -178,10 +152,18 @@ async fn fail_proposal_incorrect_owner() {
 #[tokio::test]
 async fn fail_proposal_not_initialized() {
     let proposal = Pubkey::new_unique();
-    let governance = get_governance_address(&paladin_governance_program::id());
+    let governance = Pubkey::new_unique(); // PDA doesn't matter here.
 
     let mut context = setup().start_with_context().await;
-    setup_governance(&mut context, &governance, 0, 0, 0).await;
+    setup_governance(
+        &mut context,
+        &governance,
+        0,
+        0,
+        0,
+        /* stake_config_address */ &Pubkey::new_unique(), // Doesn't matter here.
+    )
+    .await;
 
     // Set up the proposal account uninitialized.
     {
@@ -219,14 +201,22 @@ async fn fail_proposal_not_initialized() {
 #[tokio::test]
 async fn fail_proposal_not_accepted() {
     let proposal = Pubkey::new_unique();
-    let governance = get_governance_address(&paladin_governance_program::id());
+    let governance = Pubkey::new_unique(); // PDA doesn't matter here.
 
     let mut context = setup().start_with_context().await;
 
     // Set up an unaccepted proposal.
     // Simply set the cooldown timestamp to the current clock timestamp,
     // and require more than 0 seconds for cooldown.
-    setup_governance(&mut context, &governance, 1_000_000, 0, 0).await;
+    setup_governance(
+        &mut context,
+        &governance,
+        1_000_000,
+        0,
+        0,
+        /* stake_config_address */ &Pubkey::new_unique(), // Doesn't matter here.
+    )
+    .await;
     let clock = context.banks_client.get_sysvar::<Clock>().await.unwrap();
     setup_proposal_with_stake_and_cooldown(
         &mut context,
@@ -268,10 +258,18 @@ async fn fail_proposal_not_accepted() {
 #[tokio::test]
 async fn success() {
     let proposal = Pubkey::new_unique();
-    let governance = get_governance_address(&paladin_governance_program::id());
+    let governance = Pubkey::new_unique(); // PDA doesn't matter here.
 
     let mut context = setup().start_with_context().await;
-    setup_governance(&mut context, &governance, 0, 0, 0).await;
+    setup_governance(
+        &mut context,
+        &governance,
+        0,
+        0,
+        0,
+        /* stake_config_address */ &Pubkey::new_unique(), // Doesn't matter here.
+    )
+    .await;
     setup_proposal_with_stake_and_cooldown(
         &mut context,
         &proposal,
