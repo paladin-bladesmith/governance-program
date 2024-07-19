@@ -619,7 +619,6 @@ fn process_update_governance(
     cooldown_period_seconds: u64,
     proposal_acceptance_threshold: u64,
     proposal_rejection_threshold: u64,
-    stake_config_address: Pubkey,
 ) -> ProgramResult {
     let accounts_iter = &mut accounts.iter();
 
@@ -651,13 +650,11 @@ fn process_update_governance(
 
     // Update the governance config.
     let mut data = governance_info.try_borrow_mut_data()?;
-    *bytemuck::try_from_bytes_mut(&mut data).map_err(|_| ProgramError::InvalidAccountData)? =
-        Config {
-            cooldown_period_seconds,
-            proposal_acceptance_threshold,
-            proposal_rejection_threshold,
-            stake_config_address,
-        };
+    let state = bytemuck::try_from_bytes_mut::<Config>(&mut data)
+        .map_err(|_| ProgramError::InvalidAccountData)?;
+    state.cooldown_period_seconds = cooldown_period_seconds;
+    state.proposal_acceptance_threshold = proposal_acceptance_threshold;
+    state.proposal_rejection_threshold = proposal_rejection_threshold;
 
     Ok(())
 }
@@ -707,7 +704,6 @@ pub fn process(program_id: &Pubkey, accounts: &[AccountInfo], input: &[u8]) -> P
             cooldown_period_seconds,
             proposal_acceptance_threshold,
             proposal_rejection_threshold,
-            stake_config_address,
         } => {
             msg!("Instruction: UpdateGovernance");
             process_update_governance(
@@ -716,7 +712,6 @@ pub fn process(program_id: &Pubkey, accounts: &[AccountInfo], input: &[u8]) -> P
                 cooldown_period_seconds,
                 proposal_acceptance_threshold,
                 proposal_rejection_threshold,
-                stake_config_address,
             )
         }
     }
