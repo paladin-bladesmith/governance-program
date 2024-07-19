@@ -7,6 +7,7 @@ use {
         error::PaladinGovernanceError,
         state::{
             get_governance_address, get_proposal_vote_address, Config, Proposal, ProposalVote,
+            ProposalVoteElection,
         },
     },
     paladin_stake_program::state::{find_stake_pda, Config as StakeConfig, Stake},
@@ -48,7 +49,7 @@ async fn fail_stake_authority_not_signer() {
         &proposal_vote,
         &proposal,
         &governance,
-        /* vote */ true,
+        ProposalVoteElection::For,
     );
     instruction.accounts[0].is_signer = false; // Stake authority not signer.
 
@@ -104,7 +105,7 @@ async fn fail_stake_incorrect_owner() {
         &proposal_vote,
         &proposal,
         &governance,
-        /* vote */ true,
+        ProposalVoteElection::For,
     );
 
     let transaction = Transaction::new_signed_with_payer(
@@ -159,7 +160,7 @@ async fn fail_stake_not_initialized() {
         &proposal_vote,
         &proposal,
         &governance,
-        /* vote */ true,
+        ProposalVoteElection::For,
     );
 
     let transaction = Transaction::new_signed_with_payer(
@@ -213,7 +214,7 @@ async fn fail_stake_incorrect_stake_authority() {
         &proposal_vote,
         &proposal,
         &governance,
-        /* vote */ true,
+        ProposalVoteElection::For,
     );
 
     let transaction = Transaction::new_signed_with_payer(
@@ -277,7 +278,7 @@ async fn fail_stake_config_incorrect_owner() {
         &proposal_vote,
         &proposal,
         &governance,
-        /* vote */ true,
+        ProposalVoteElection::For,
     );
 
     let transaction = Transaction::new_signed_with_payer(
@@ -341,7 +342,7 @@ async fn fail_stake_config_not_initialized() {
         &proposal_vote,
         &proposal,
         &governance,
-        /* vote */ true,
+        ProposalVoteElection::For,
     );
 
     let transaction = Transaction::new_signed_with_payer(
@@ -395,7 +396,7 @@ async fn fail_governance_incorrect_address() {
         &proposal_vote,
         &proposal,
         &governance,
-        /* vote */ true,
+        ProposalVoteElection::For,
     );
 
     let transaction = Transaction::new_signed_with_payer(
@@ -464,7 +465,7 @@ async fn fail_governance_incorrect_owner() {
         &proposal_vote,
         &proposal,
         &governance,
-        /* vote */ true,
+        ProposalVoteElection::For,
     );
 
     let transaction = Transaction::new_signed_with_payer(
@@ -527,7 +528,7 @@ async fn fail_governance_not_initialized() {
         &proposal_vote,
         &proposal,
         &governance,
-        /* vote */ true,
+        ProposalVoteElection::For,
     );
 
     let transaction = Transaction::new_signed_with_payer(
@@ -592,7 +593,7 @@ async fn fail_proposal_incorrect_owner() {
         &proposal_vote,
         &proposal,
         &governance,
-        /* vote */ true,
+        ProposalVoteElection::For,
     );
 
     let transaction = Transaction::new_signed_with_payer(
@@ -657,7 +658,7 @@ async fn fail_proposal_not_initialized() {
         &proposal_vote,
         &proposal,
         &governance,
-        /* vote */ true,
+        ProposalVoteElection::For,
     );
 
     let transaction = Transaction::new_signed_with_payer(
@@ -711,7 +712,7 @@ async fn fail_proposal_vote_incorrect_address() {
         &proposal_vote,
         &proposal,
         &governance,
-        /* vote */ true,
+        ProposalVoteElection::For,
     );
 
     let transaction = Transaction::new_signed_with_payer(
@@ -769,7 +770,7 @@ async fn fail_proposal_vote_already_initialized() {
         &proposal,
         0,
         &stake_authority.pubkey(),
-        true,
+        ProposalVoteElection::For,
     )
     .await;
 
@@ -780,7 +781,7 @@ async fn fail_proposal_vote_already_initialized() {
         &proposal_vote,
         &proposal,
         &governance,
-        /* vote */ true,
+        ProposalVoteElection::For,
     );
 
     let transaction = Transaction::new_signed_with_payer(
@@ -810,7 +811,7 @@ struct ProposalSetup {
 }
 struct VoteTest {
     vote_stake: u64,
-    vote: bool,
+    election: ProposalVoteElection,
     should_have_cooldown: bool,
     should_terminate: bool,
 }
@@ -823,7 +824,7 @@ struct VoteTest {
     },
     VoteTest {
         vote_stake: 10_000_000, // 10% of total stake.
-        vote: true, // For
+        election: ProposalVoteElection::For,
         should_have_cooldown: true, // Cooldown should be set by this vote.
         should_terminate: false,
     };
@@ -837,7 +838,7 @@ struct VoteTest {
     },
     VoteTest {
         vote_stake: 5_000_000, // 5% of total stake.
-        vote: true, // For
+        election: ProposalVoteElection::For,
         should_have_cooldown: false, // Cooldown should not be set by this vote.
         should_terminate: false,
     };
@@ -851,7 +852,7 @@ struct VoteTest {
     },
     VoteTest {
         vote_stake: 10_000_000, // 10% of total stake.
-        vote: false, // Against
+        election: ProposalVoteElection::Against,
         should_have_cooldown: false,
         should_terminate: true, // Proposal should be terminated.
     };
@@ -865,7 +866,7 @@ struct VoteTest {
     },
     VoteTest {
         vote_stake: 5_000_000, // 5% of total stake.
-        vote: false, // Against
+        election: ProposalVoteElection::Against,
         should_have_cooldown: false,
         should_terminate: false, // Proposal should not be terminated.
     };
@@ -879,7 +880,7 @@ struct VoteTest {
     },
     VoteTest {
         vote_stake: 10_000, // .00010% of total stake.
-        vote: true, // For
+        election: ProposalVoteElection::For,
         should_have_cooldown: true, // Cooldown should be set by this vote.
         should_terminate: false,
     };
@@ -893,7 +894,7 @@ struct VoteTest {
     },
     VoteTest {
         vote_stake: 5_000, // .0005% of total stake.
-        vote: true, // For
+        election: ProposalVoteElection::For,
         should_have_cooldown: false, // Cooldown should not be set by this vote.
         should_terminate: false,
     };
@@ -907,7 +908,7 @@ struct VoteTest {
     },
     VoteTest {
         vote_stake: 10_000, // .00010% of total stake.
-        vote: false, // Against
+        election: ProposalVoteElection::Against,
         should_have_cooldown: false,
         should_terminate: true, // Proposal should be terminated.
     };
@@ -921,7 +922,7 @@ struct VoteTest {
     },
     VoteTest {
         vote_stake: 5_000, // .0005% of total stake.
-        vote: false, // Against
+        election: ProposalVoteElection::Against,
         should_have_cooldown: false,
         should_terminate: false, // Proposal should not be terminated.
     };
@@ -936,7 +937,7 @@ async fn success(proposal_setup: ProposalSetup, vote_test: VoteTest) {
     } = proposal_setup;
     let VoteTest {
         vote_stake,
-        vote,
+        election,
         should_have_cooldown,
         should_terminate,
     } = vote_test;
@@ -989,7 +990,7 @@ async fn success(proposal_setup: ProposalSetup, vote_test: VoteTest) {
         &proposal_vote,
         &proposal,
         &governance,
-        vote,
+        election,
     );
 
     let transaction = Transaction::new_signed_with_payer(
@@ -1014,7 +1015,7 @@ async fn success(proposal_setup: ProposalSetup, vote_test: VoteTest) {
         .unwrap();
     assert_eq!(
         bytemuck::from_bytes::<ProposalVote>(&proposal_vote_account.data),
-        &ProposalVote::new(&proposal, vote_stake, &stake_authority.pubkey(), vote)
+        &ProposalVote::new(&proposal, vote_stake, &stake_authority.pubkey(), election)
     );
 
     let proposal_account = context
@@ -1033,10 +1034,14 @@ async fn success(proposal_setup: ProposalSetup, vote_test: VoteTest) {
         let proposal_state = bytemuck::from_bytes::<Proposal>(&proposal_account.data);
 
         // Assert the vote count was updated in the proposal.
-        if vote {
-            assert_eq!(proposal_state.stake_for, vote_stake);
-        } else {
-            assert_eq!(proposal_state.stake_against, vote_stake);
+        match election {
+            ProposalVoteElection::For => {
+                assert_eq!(proposal_state.stake_for, vote_stake);
+            }
+            ProposalVoteElection::Against => {
+                assert_eq!(proposal_state.stake_against, vote_stake);
+            }
+            ProposalVoteElection::DidNotVote => todo!(),
         }
 
         if should_have_cooldown {

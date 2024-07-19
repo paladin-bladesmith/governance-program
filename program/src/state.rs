@@ -3,11 +3,11 @@
 use {
     crate::error::PaladinGovernanceError,
     bytemuck::{Pod, Zeroable},
+    num_enum::{IntoPrimitive, TryFromPrimitive},
     solana_program::{
         clock::Clock, entrypoint::ProgramResult, program_error::ProgramError, pubkey::Pubkey,
     },
     spl_discriminator::SplDiscriminate,
-    spl_pod::primitives::PodBool,
     std::num::NonZeroU64,
 };
 
@@ -207,6 +207,21 @@ impl Proposal {
     }
 }
 
+/// Proposal vote election.
+#[derive(Clone, Copy, Debug, IntoPrimitive, PartialEq, TryFromPrimitive)]
+#[repr(u8)]
+pub enum ProposalVoteElection {
+    /// Validator did not vote.
+    DidNotVote,
+    /// Validator voted in favor of the proposal.
+    For,
+    /// Validator voted against the proposal.
+    Against,
+}
+
+unsafe impl Pod for ProposalVoteElection {}
+unsafe impl Zeroable for ProposalVoteElection {}
+
 /// Proposal vote account.
 #[derive(Clone, Copy, Debug, PartialEq, Pod, Zeroable)]
 #[repr(C)]
@@ -217,22 +232,24 @@ pub struct ProposalVote {
     pub stake: u64,
     /// Authority address.
     pub stake_address: Pubkey,
-    /// Vote.
-    ///
-    /// * `true`: In favor.
-    /// * `false`: Against.
-    pub vote: PodBool,
+    /// Vote election.
+    pub election: ProposalVoteElection,
     _padding: [u8; 7],
 }
 
 impl ProposalVote {
     /// Create a new [ProposalVote](struct.ProposalVote.html).
-    pub fn new(proposal_address: &Pubkey, stake: u64, stake_address: &Pubkey, vote: bool) -> Self {
+    pub fn new(
+        proposal_address: &Pubkey,
+        stake: u64,
+        stake_address: &Pubkey,
+        election: ProposalVoteElection,
+    ) -> Self {
         Self {
             proposal_address: *proposal_address,
             stake,
             stake_address: *stake_address,
-            vote: vote.into(),
+            election,
             _padding: [0; 7],
         }
     }

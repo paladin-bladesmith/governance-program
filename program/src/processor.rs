@@ -8,7 +8,7 @@ use {
             collect_governance_signer_seeds, collect_proposal_vote_signer_seeds,
             get_governance_address, get_governance_address_and_bump_seed,
             get_proposal_vote_address, get_proposal_vote_address_and_bump_seed, Config, Proposal,
-            ProposalVote,
+            ProposalVote, ProposalVoteElection,
         },
     },
     paladin_stake_program::state::{find_stake_pda, Config as StakeConfig, Stake},
@@ -24,7 +24,6 @@ use {
         sysvar::Sysvar,
     },
     spl_discriminator::{ArrayDiscriminator, SplDiscriminate},
-    spl_pod::primitives::PodBool,
     std::num::NonZeroU64,
 };
 
@@ -229,7 +228,11 @@ fn process_cancel_proposal(program_id: &Pubkey, accounts: &[AccountInfo]) -> Pro
 /// Processes a
 /// [Vote](enum.PaladinGovernanceInstruction.html)
 /// instruction.
-fn process_vote(program_id: &Pubkey, accounts: &[AccountInfo], vote: bool) -> ProgramResult {
+fn process_vote(
+    program_id: &Pubkey,
+    accounts: &[AccountInfo],
+    election: ProposalVoteElection,
+) -> ProgramResult {
     let accounts_iter = &mut accounts.iter();
 
     let stake_authority_info = next_account_info(accounts_iter)?;
@@ -311,7 +314,7 @@ fn process_vote(program_id: &Pubkey, accounts: &[AccountInfo], vote: bool) -> Pr
         // Write the data.
         let mut data = proposal_vote_info.try_borrow_mut_data()?;
         *bytemuck::try_from_bytes_mut(&mut data).map_err(|_| ProgramError::InvalidAccountData)? =
-            ProposalVote::new(proposal_info.key, stake, stake_authority_info.key, vote);
+            ProposalVote::new(proposal_info.key, stake, stake_authority_info.key, election);
     }
 
     // Update the proposal with the newly cast vote.
@@ -321,35 +324,41 @@ fn process_vote(program_id: &Pubkey, accounts: &[AccountInfo], vote: bool) -> Pr
 
     let clock = <Clock as Sysvar>::get()?;
 
-    if vote {
-        // The vote was in favor. Increase the stake for the proposal.
-        proposal_state.stake_for = proposal_state
-            .stake_for
-            .checked_add(stake)
-            .ok_or(ProgramError::ArithmeticOverflow)?;
+    match election {
+        ProposalVoteElection::For => {
+            // The vote was in favor. Increase the stake for the proposal.
+            proposal_state.stake_for = proposal_state
+                .stake_for
+                .checked_add(stake)
+                .ok_or(ProgramError::ArithmeticOverflow)?;
 
-        if calculate_proposal_vote_threshold(proposal_state.stake_for, total_stake)?
-            >= governance_config.proposal_acceptance_threshold
-            && proposal_state.cooldown_timestamp.is_none()
-        {
-            // If the proposal has met the acceptance threshold, and it's
-            // currently not in a cooldown period, begin a new cooldown period.
-            proposal_state.cooldown_timestamp = NonZeroU64::new(clock.unix_timestamp as u64);
+            if calculate_proposal_vote_threshold(proposal_state.stake_for, total_stake)?
+                >= governance_config.proposal_acceptance_threshold
+                && proposal_state.cooldown_timestamp.is_none()
+            {
+                // If the proposal has met the acceptance threshold, and it's
+                // currently not in a cooldown period, begin a new cooldown period.
+                proposal_state.cooldown_timestamp = NonZeroU64::new(clock.unix_timestamp as u64);
+            }
         }
-    } else {
-        // The vote was against. Increase the stake against the proposal.
-        proposal_state.stake_against = proposal_state
-            .stake_against
-            .checked_add(stake)
-            .ok_or(ProgramError::ArithmeticOverflow)?;
+        ProposalVoteElection::Against => {
+            // The vote was against. Increase the stake against the proposal.
+            proposal_state.stake_against = proposal_state
+                .stake_against
+                .checked_add(stake)
+                .ok_or(ProgramError::ArithmeticOverflow)?;
 
-        if calculate_proposal_vote_threshold(proposal_state.stake_against, total_stake)?
-            >= governance_config.proposal_rejection_threshold
-        {
-            // If the proposal has met the rejection threshold, cancel the proposal.
-            // This is done regardless of any cooldown period.
-            drop(proposal_data);
-            return close_proposal_account(proposal_info);
+            if calculate_proposal_vote_threshold(proposal_state.stake_against, total_stake)?
+                >= governance_config.proposal_rejection_threshold
+            {
+                // If the proposal has met the rejection threshold, cancel the proposal.
+                // This is done regardless of any cooldown period.
+                drop(proposal_data);
+                return close_proposal_account(proposal_info);
+            }
+        }
+        ProposalVoteElection::DidNotVote => {
+            // Do nothing to the proposal. Non-vote has been recorded.
         }
     }
 
@@ -362,7 +371,7 @@ fn process_vote(program_id: &Pubkey, accounts: &[AccountInfo], vote: bool) -> Pr
 fn process_switch_vote(
     program_id: &Pubkey,
     accounts: &[AccountInfo],
-    new_vote: bool,
+    new_election: ProposalVoteElection,
 ) -> ProgramResult {
     let accounts_iter = &mut accounts.iter();
 
@@ -435,13 +444,12 @@ fn process_switch_vote(
         let state = bytemuck::try_from_bytes_mut::<ProposalVote>(&mut data)
             .map_err(|_| ProgramError::InvalidAccountData)?;
 
-        let pod_new_vote = PodBool::from(new_vote);
-        if state.vote == pod_new_vote {
+        if state.election == new_election {
             // End early if the vote wasn't changed.
             // Skip updating the proposal.
             return Ok(());
         } else {
-            state.vote = pod_new_vote;
+            state.election = new_election;
         }
     }
 
@@ -454,55 +462,65 @@ fn process_switch_vote(
 
     let clock = <Clock as Sysvar>::get()?;
 
-    if new_vote {
-        // Previous vote against was now switched to a vote for.
-        // Move stake from against to for.
-        proposal_state.stake_against = proposal_state
-            .stake_against
-            .checked_sub(stake)
-            .ok_or(ProgramError::ArithmeticOverflow)?;
-        proposal_state.stake_for = proposal_state
-            .stake_for
-            .checked_add(stake)
-            .ok_or(ProgramError::ArithmeticOverflow)?;
+    match new_election {
+        ProposalVoteElection::For => {
+            // TODO: Implement checks for previous vote being "did not vote".
 
-        if calculate_proposal_vote_threshold(proposal_state.stake_for, total_stake)?
-            >= governance_config.proposal_acceptance_threshold
-            && proposal_state.cooldown_timestamp.is_none()
-        {
-            // If the proposal has met the acceptance threshold, and it's
-            // currently not in a cooldown period, begin a new cooldown period.
-            proposal_state.cooldown_timestamp = NonZeroU64::new(clock.unix_timestamp as u64);
+            // Previous vote against was now switched to a vote for.
+            // Move stake from against to for.
+            proposal_state.stake_against = proposal_state
+                .stake_against
+                .checked_sub(stake)
+                .ok_or(ProgramError::ArithmeticOverflow)?;
+            proposal_state.stake_for = proposal_state
+                .stake_for
+                .checked_add(stake)
+                .ok_or(ProgramError::ArithmeticOverflow)?;
+
+            if calculate_proposal_vote_threshold(proposal_state.stake_for, total_stake)?
+                >= governance_config.proposal_acceptance_threshold
+                && proposal_state.cooldown_timestamp.is_none()
+            {
+                // If the proposal has met the acceptance threshold, and it's
+                // currently not in a cooldown period, begin a new cooldown period.
+                proposal_state.cooldown_timestamp = NonZeroU64::new(clock.unix_timestamp as u64);
+            }
         }
-    } else {
-        // Previous vote for was now switched to a vote against.
-        // Move stake from for to against.
-        proposal_state.stake_for = proposal_state
-            .stake_for
-            .checked_sub(stake)
-            .ok_or(ProgramError::ArithmeticOverflow)?;
-        proposal_state.stake_against = proposal_state
-            .stake_against
-            .checked_add(stake)
-            .ok_or(ProgramError::ArithmeticOverflow)?;
+        ProposalVoteElection::Against => {
+            // TODO: Implement checks for previous vote being "did not vote".
 
-        if calculate_proposal_vote_threshold(proposal_state.stake_against, total_stake)?
-            >= governance_config.proposal_rejection_threshold
-        {
-            // If the proposal has met the rejection threshold, cancel the proposal.
-            // This is done regardless of any cooldown period.
-            drop(proposal_data);
-            return close_proposal_account(proposal_info);
+            // Previous vote for was now switched to a vote against.
+            // Move stake from for to against.
+            proposal_state.stake_for = proposal_state
+                .stake_for
+                .checked_sub(stake)
+                .ok_or(ProgramError::ArithmeticOverflow)?;
+            proposal_state.stake_against = proposal_state
+                .stake_against
+                .checked_add(stake)
+                .ok_or(ProgramError::ArithmeticOverflow)?;
+
+            if calculate_proposal_vote_threshold(proposal_state.stake_against, total_stake)?
+                >= governance_config.proposal_rejection_threshold
+            {
+                // If the proposal has met the rejection threshold, cancel the proposal.
+                // This is done regardless of any cooldown period.
+                drop(proposal_data);
+                return close_proposal_account(proposal_info);
+            }
+
+            if calculate_proposal_vote_threshold(proposal_state.stake_for, total_stake)?
+                < governance_config.proposal_acceptance_threshold
+                && proposal_state.cooldown_timestamp.is_some()
+            {
+                // If the proposal has fallen below the acceptance threshold, and
+                // it's currently in a cooldown period, terminate the cooldown
+                // period.
+                proposal_state.cooldown_timestamp = None;
+            }
         }
-
-        if calculate_proposal_vote_threshold(proposal_state.stake_for, total_stake)?
-            < governance_config.proposal_acceptance_threshold
-            && proposal_state.cooldown_timestamp.is_some()
-        {
-            // If the proposal has fallen below the acceptance threshold, and
-            // it's currently in a cooldown period, terminate the cooldown
-            // period.
-            proposal_state.cooldown_timestamp = None;
+        ProposalVoteElection::DidNotVote => {
+            // TODO: Implement this block so a validator can "un-vote".
         }
     }
 
@@ -674,13 +692,13 @@ pub fn process(program_id: &Pubkey, accounts: &[AccountInfo], input: &[u8]) -> P
             msg!("Instruction: CancelProposal");
             process_cancel_proposal(program_id, accounts)
         }
-        PaladinGovernanceInstruction::Vote { vote } => {
+        PaladinGovernanceInstruction::Vote { election } => {
             msg!("Instruction: Vote");
-            process_vote(program_id, accounts, vote)
+            process_vote(program_id, accounts, election)
         }
-        PaladinGovernanceInstruction::SwitchVote { new_vote } => {
+        PaladinGovernanceInstruction::SwitchVote { new_election } => {
             msg!("Instruction: SwitchVote");
-            process_switch_vote(program_id, accounts, new_vote)
+            process_switch_vote(program_id, accounts, new_election)
         }
         PaladinGovernanceInstruction::ProcessProposal => {
             msg!("Instruction: ProcessProposal");

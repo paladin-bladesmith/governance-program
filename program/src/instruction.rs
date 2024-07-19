@@ -1,10 +1,13 @@
 //! Program instruction types.
 
-use solana_program::{
-    instruction::{AccountMeta, Instruction},
-    program_error::ProgramError,
-    pubkey::Pubkey,
-    system_program,
+use {
+    crate::state::ProposalVoteElection,
+    solana_program::{
+        instruction::{AccountMeta, Instruction},
+        program_error::ProgramError,
+        pubkey::Pubkey,
+        system_program,
+    },
 };
 
 /// Instructions supported by the Paladin Governance program.
@@ -53,11 +56,8 @@ pub enum PaladinGovernanceInstruction {
     /// 5. `[ ]` Governance config account.
     /// 6. `[ ]` System program.
     Vote {
-        /// Proposal vote.
-        ///
-        /// * `true`: In favor.
-        /// * `false`: Against.
-        vote: bool,
+        /// Proposal vote election.
+        election: ProposalVoteElection,
     },
     /// Vote on a governance proposal.
     ///
@@ -78,11 +78,8 @@ pub enum PaladinGovernanceInstruction {
     /// 4. `[w]` Proposal account.
     /// 5. `[ ]` Governance config account.
     SwitchVote {
-        /// Proposal vote.
-        ///
-        /// * `true`: In favor.
-        /// * `false`: Against.
-        new_vote: bool,
+        /// New proposal vote election.
+        new_election: ProposalVoteElection,
     },
     /// Process a governance proposal.
     ///
@@ -158,16 +155,8 @@ impl PaladinGovernanceInstruction {
         match self {
             Self::CreateProposal => vec![0],
             Self::CancelProposal => vec![1],
-            Self::Vote { vote } => {
-                let mut buf = vec![2];
-                buf.push(if *vote { 1 } else { 0 });
-                buf
-            }
-            Self::SwitchVote { new_vote } => {
-                let mut buf = vec![3];
-                buf.push(if *new_vote { 1 } else { 0 });
-                buf
-            }
+            Self::Vote { election } => vec![2, (*election).into()],
+            Self::SwitchVote { new_election } => vec![3, (*new_election).into()],
             Self::ProcessProposal => vec![4],
             Self::InitializeGovernance {
                 cooldown_period_seconds,
@@ -200,10 +189,18 @@ impl PaladinGovernanceInstruction {
         match input.split_first() {
             Some((&0, _)) => Ok(Self::CreateProposal),
             Some((&1, _)) => Ok(Self::CancelProposal),
-            Some((&2, rest)) if rest.len() == 1 => Ok(Self::Vote { vote: rest[0] == 1 }),
-            Some((&3, rest)) if rest.len() == 1 => Ok(Self::SwitchVote {
-                new_vote: rest[0] == 1,
-            }),
+            Some((&2, rest)) if rest.len() == 1 => {
+                let election = rest[0]
+                    .try_into()
+                    .map_err(|_| ProgramError::InvalidInstructionData)?;
+                Ok(Self::Vote { election })
+            }
+            Some((&3, rest)) if rest.len() == 1 => {
+                let new_election = rest[0]
+                    .try_into()
+                    .map_err(|_| ProgramError::InvalidInstructionData)?;
+                Ok(Self::SwitchVote { new_election })
+            }
             Some((&4, _)) => Ok(Self::ProcessProposal),
             Some((&5, rest)) if rest.len() == 24 => {
                 let cooldown_period_seconds = u64::from_le_bytes(rest[..8].try_into().unwrap());
@@ -273,7 +270,7 @@ pub fn vote(
     proposal_vote_address: &Pubkey,
     proposal_address: &Pubkey,
     governance_config_address: &Pubkey,
-    vote: bool,
+    election: ProposalVoteElection,
 ) -> Instruction {
     let accounts = vec![
         AccountMeta::new_readonly(*stake_authority_address, true),
@@ -284,7 +281,7 @@ pub fn vote(
         AccountMeta::new_readonly(*governance_config_address, false),
         AccountMeta::new_readonly(system_program::id(), false),
     ];
-    let data = PaladinGovernanceInstruction::Vote { vote }.pack();
+    let data = PaladinGovernanceInstruction::Vote { election }.pack();
     Instruction::new_with_bytes(crate::id(), &data, accounts)
 }
 
@@ -298,7 +295,7 @@ pub fn switch_vote(
     proposal_vote_address: &Pubkey,
     proposal_address: &Pubkey,
     governance_config_address: &Pubkey,
-    new_vote: bool,
+    new_election: ProposalVoteElection,
 ) -> Instruction {
     let accounts = vec![
         AccountMeta::new_readonly(*stake_authority_address, true),
@@ -308,7 +305,7 @@ pub fn switch_vote(
         AccountMeta::new(*proposal_address, false),
         AccountMeta::new_readonly(*governance_config_address, false),
     ];
-    let data = PaladinGovernanceInstruction::SwitchVote { new_vote }.pack();
+    let data = PaladinGovernanceInstruction::SwitchVote { new_election }.pack();
     Instruction::new_with_bytes(crate::id(), &data, accounts)
 }
 
@@ -396,14 +393,28 @@ mod tests {
 
     #[test]
     fn test_pack_unpack_vote() {
-        test_pack_unpack(PaladinGovernanceInstruction::Vote { vote: true });
-        test_pack_unpack(PaladinGovernanceInstruction::Vote { vote: false });
+        test_pack_unpack(PaladinGovernanceInstruction::Vote {
+            election: ProposalVoteElection::DidNotVote,
+        });
+        test_pack_unpack(PaladinGovernanceInstruction::Vote {
+            election: ProposalVoteElection::For,
+        });
+        test_pack_unpack(PaladinGovernanceInstruction::Vote {
+            election: ProposalVoteElection::Against,
+        });
     }
 
     #[test]
     fn test_pack_unpack_switch_vote() {
-        test_pack_unpack(PaladinGovernanceInstruction::SwitchVote { new_vote: true });
-        test_pack_unpack(PaladinGovernanceInstruction::SwitchVote { new_vote: false });
+        test_pack_unpack(PaladinGovernanceInstruction::SwitchVote {
+            new_election: ProposalVoteElection::DidNotVote,
+        });
+        test_pack_unpack(PaladinGovernanceInstruction::SwitchVote {
+            new_election: ProposalVoteElection::For,
+        });
+        test_pack_unpack(PaladinGovernanceInstruction::SwitchVote {
+            new_election: ProposalVoteElection::Against,
+        });
     }
 
     #[test]

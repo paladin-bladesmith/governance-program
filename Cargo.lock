@@ -2391,12 +2391,12 @@ name = "paladin-governance-program"
 version = "0.1.0"
 dependencies = [
  "bytemuck",
+ "num_enum",
  "paladin-stake-program",
  "solana-program",
  "solana-program-test",
  "solana-sdk",
  "spl-discriminator",
- "spl-pod",
  "spl-program-error",
  "test-case",
 ]
