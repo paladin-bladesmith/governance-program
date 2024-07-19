@@ -803,167 +803,295 @@ async fn fail_proposal_vote_not_initialized() {
     );
 }
 
-struct ProposalSetup {
-    acceptance_threshold: u64,
-    rejection_threshold: u64,
-    proposal_stake_for: u64,
-    proposal_stake_against: u64,
-    proposal_has_cooldown: bool,
-    total_stake: u64,
+const ACCEPTANCE_THRESHOLD: u64 = 500_000_000; // 50%
+const REJECTION_THRESHOLD: u64 = 500_000_000; // 50%
+const TOTAL_STAKE: u64 = 100_000_000;
+
+struct ProposalStarting {
+    cooldown_active: bool,
+    stake_for: u64,
+    stake_against: u64,
 }
-struct SwitchVoteTest {
-    vote_stake: u64,
+struct VoteSwitch {
+    previous_vote_stake: u64,
+    new_vote_stake: u64,
+    previous_election: ProposalVoteElection,
     new_election: ProposalVoteElection,
-    should_have_cooldown: bool,
-    should_terminate: bool,
+}
+enum Expect {
+    Cast {
+        cooldown: bool,
+        stake_for: u64,
+        stake_against: u64,
+    },
+    Terminated,
 }
 
-// TODO: Temporary.
-fn inverse_vote_election(election: ProposalVoteElection) -> ProposalVoteElection {
-    match election {
-        ProposalVoteElection::For => ProposalVoteElection::Against,
-        ProposalVoteElection::Against => ProposalVoteElection::For,
-        _ => election,
-    }
-}
+// TODO: Until we decide whether or not to keep the cooldown running, or to
+// reset it when acceptance dips below the threshold, the test case is missing
+// for determining, not just that a cooldown exists post-vost-switch, but that
+// it was in fact reset with a new timestamp.
 
-#[allow(clippy::arithmetic_side_effects)]
 #[test_case(
-    ProposalSetup {
-        acceptance_threshold: 200_000_000, // 20%
-        rejection_threshold: 200_000_000,  // 20%
-        proposal_stake_for: 15_000_000, // 15% of total stake.
-        proposal_stake_against: 15_000_000, // 15% of total stake.
-        proposal_has_cooldown: false,
-        total_stake: 100_000_000,
+    ProposalStarting {
+        cooldown_active: false,
+        stake_for: TOTAL_STAKE / 4, // 25% of total stake.
+        stake_against: TOTAL_STAKE / 4, // 25% of total stake.
     },
-    SwitchVoteTest {
-        vote_stake: 10_000_000, // 10% of total stake.
-        new_election: ProposalVoteElection::For, // Switched from against to for.
-        should_have_cooldown: true, // Cooldown should be set by this switched vote.
-        should_terminate: false,
+    VoteSwitch {
+        previous_vote_stake: TOTAL_STAKE / 10, // 10% of total stake.
+        new_vote_stake: TOTAL_STAKE / 10, // 10% of total stake.
+        previous_election: ProposalVoteElection::DidNotVote,
+        new_election: ProposalVoteElection::DidNotVote,
+    },
+    Expect::Cast {
+        cooldown: false,
+        stake_for: TOTAL_STAKE / 4,
+        stake_against: TOTAL_STAKE / 4,
     };
-    "no_cooldown_acceptance_threshold_met_should_begin_cooldown"
+    "dnv_to_dnv_does_nothing"
 )]
 #[test_case(
-    ProposalSetup {
-        acceptance_threshold: 200_000_000, // 20%
-        rejection_threshold: 200_000_000,  // 20%
-        proposal_stake_for: 10_000_000, // 10% of total stake.
-        proposal_stake_against: 10_000_000, // 10% of total stake.
-        proposal_has_cooldown: false,
-        total_stake: 100_000_000,
+    ProposalStarting {
+        cooldown_active: false,
+        stake_for: TOTAL_STAKE / 4, // 25% of total stake.
+        stake_against: TOTAL_STAKE / 4, // 25% of total stake.
     },
-    SwitchVoteTest {
-        vote_stake: 5_000_000, // 5% of total stake.
-        new_election: ProposalVoteElection::For, // Switched from against to for.
-        should_have_cooldown: false, // Cooldown should not be set by this switched vote.
-        should_terminate: false,
+    VoteSwitch {
+        previous_vote_stake: TOTAL_STAKE / 10, // 10% of total stake.
+        new_vote_stake: TOTAL_STAKE / 10, // 10% of total stake.
+        previous_election: ProposalVoteElection::DidNotVote,
+        new_election: ProposalVoteElection::For,
+    },
+    Expect::Cast {
+        cooldown: false,
+        stake_for: TOTAL_STAKE / 4 + TOTAL_STAKE / 10, // 35% of total stake.
+        stake_against: TOTAL_STAKE / 4, // Unchanged.
     };
-    "no_cooldown_acceptance_threshold_not_met_should_not_begin_cooldown"
+    "dnv_to_for_increments_stake_for"
 )]
 #[test_case(
-    ProposalSetup {
-        acceptance_threshold: 200_000_000, // 20%
-        rejection_threshold: 200_000_000,  // 20%
-        proposal_stake_for: 20_000_000, // 20% of total stake.
-        proposal_stake_against: 10_000_000, // 10% of total stake.
-        proposal_has_cooldown: true,
-        total_stake: 100_000_000,
+    ProposalStarting {
+        cooldown_active: false,
+        stake_for: TOTAL_STAKE / 5 * 2, // 40% of total stake.
+        stake_against: TOTAL_STAKE / 4, // 25% of total stake.
     },
-    SwitchVoteTest {
-        vote_stake: 5_000_000, // 5% of total stake.
-        new_election: ProposalVoteElection::Against, // Switched from for to against.
-        should_have_cooldown: false, // Cooldown should have been disabled by this switched vote.
-        should_terminate: false,
+    VoteSwitch {
+        previous_vote_stake: TOTAL_STAKE / 10, // 10% of total stake.
+        new_vote_stake: TOTAL_STAKE / 10, // 10% of total stake.
+        previous_election: ProposalVoteElection::DidNotVote,
+        new_election: ProposalVoteElection::For,
+    },
+    Expect::Cast {
+        cooldown: true, // Cooldown activated.
+        stake_for: TOTAL_STAKE / 5 * 2 + TOTAL_STAKE / 10, // 50% of total stake.
+        stake_against: TOTAL_STAKE / 4, // Unchanged.
     };
-    "with_cooldown_fell_below_acceptance_threshold_should_disable_cooldown"
+    "dnv_to_for_beyond_treshold_increments_stake_for_and_activates_cooldown"
 )]
 #[test_case(
-    ProposalSetup {
-        acceptance_threshold: 200_000_000, // 20%
-        rejection_threshold: 200_000_000,  // 20%
-        proposal_stake_for: 15_000_000, // 15% of total stake.
-        proposal_stake_against: 15_000_000, // 15% of total stake.
-        proposal_has_cooldown: false,
-        total_stake: 100_000_000,
+    ProposalStarting {
+        cooldown_active: false,
+        stake_for: TOTAL_STAKE / 4, // 25% of total stake.
+        stake_against: TOTAL_STAKE / 4, // 25% of total stake.
     },
-    SwitchVoteTest {
-        vote_stake: 10_000_000, // 10% of total stake.
-        new_election: ProposalVoteElection::Against, // Switched from for to against.
-        should_have_cooldown: false,
-        should_terminate: true, // Proposal should be terminated.
+    VoteSwitch {
+        previous_vote_stake: TOTAL_STAKE / 10, // 10% of total stake.
+        new_vote_stake: TOTAL_STAKE / 10, // 10% of total stake.
+        previous_election: ProposalVoteElection::DidNotVote,
+        new_election: ProposalVoteElection::Against,
+    },
+    Expect::Cast {
+        cooldown: false,
+        stake_for: TOTAL_STAKE / 4, // Unchanged.
+        stake_against: TOTAL_STAKE / 4 + TOTAL_STAKE / 10, // 35% of total stake.
     };
-    "no_cooldown_rejection_threshold_met_should_terminate"
+    "dnv_to_against_increments_stake_against"
 )]
 #[test_case(
-    ProposalSetup {
-        acceptance_threshold: 200_000_000, // 20%
-        rejection_threshold: 200_000_000,  // 20%
-        proposal_stake_for: 15_000_000, // 15% of total stake.
-        proposal_stake_against: 15_000_000, // 15% of total stake.
-        proposal_has_cooldown: true,
-        total_stake: 100_000_000,
+    ProposalStarting {
+        cooldown_active: false,
+        stake_for: TOTAL_STAKE / 4, // 25% of total stake.
+        stake_against: TOTAL_STAKE / 5 * 2, // 40% of total stake.
     },
-    SwitchVoteTest {
-        vote_stake: 10_000_000, // 10% of total stake.
-        new_election: ProposalVoteElection::Against, // Switched from for to against.
-        should_have_cooldown: false,
-        should_terminate: true, // Proposal should be terminated.
-    };
-    "with_cooldown_rejection_threshold_met_should_terminate"
+    VoteSwitch {
+        previous_vote_stake: TOTAL_STAKE / 10, // 10% of total stake.
+        new_vote_stake: TOTAL_STAKE / 10, // 10% of total stake.
+        previous_election: ProposalVoteElection::DidNotVote,
+        new_election: ProposalVoteElection::Against,
+    },
+    Expect::Terminated;
+    "dnv_to_against_beyond_threshold_terminates"
 )]
 #[test_case(
-    ProposalSetup {
-        acceptance_threshold: 400_000_000, // 40%
-        rejection_threshold: 400_000_000,  // 40%
-        proposal_stake_for: 15_000_000, // 15% of total stake.
-        proposal_stake_against: 15_000_000, // 15% of total stake.
-        proposal_has_cooldown: false,
-        total_stake: 100_000_000,
+    ProposalStarting {
+        cooldown_active: false,
+        stake_for: TOTAL_STAKE / 4, // 25% of total stake.
+        stake_against: TOTAL_STAKE / 4, // 25% of total stake.
     },
-    SwitchVoteTest {
-        vote_stake: 10_000_000, // 10% of total stake.
-        new_election: ProposalVoteElection::Against, // Switched from for to against.
-        should_have_cooldown: false,
-        should_terminate: false, // Proposal should not be terminated.
+    VoteSwitch {
+        previous_vote_stake: TOTAL_STAKE / 10, // 10% of total stake.
+        new_vote_stake: TOTAL_STAKE / 10, // 10% of total stake.
+        previous_election: ProposalVoteElection::For,
+        new_election: ProposalVoteElection::For,
+    },
+    Expect::Cast {
+        cooldown: false,
+        stake_for: TOTAL_STAKE / 4,
+        stake_against: TOTAL_STAKE / 4,
     };
-    "no_cooldown_rejection_threshold_not_met_should_not_terminate"
+    "for_to_for_does_nothing"
 )]
 #[test_case(
-    ProposalSetup {
-        acceptance_threshold: 400_000_000, // 40%
-        rejection_threshold: 400_000_000,  // 40%
-        proposal_stake_for: 15_000_000, // 15% of total stake.
-        proposal_stake_against: 15_000_000, // 15% of total stake.
-        proposal_has_cooldown: true,
-        total_stake: 100_000_000,
+    ProposalStarting {
+        cooldown_active: false,
+        stake_for: TOTAL_STAKE / 4, // 25% of total stake.
+        stake_against: TOTAL_STAKE / 4, // 25% of total stake.
     },
-    SwitchVoteTest {
-        vote_stake: 10_000_000, // 10% of total stake.
-        new_election: ProposalVoteElection::Against, // Switched from for to against.
-        should_have_cooldown: false,
-        should_terminate: false, // Proposal should not be terminated.
+    VoteSwitch {
+        previous_vote_stake: TOTAL_STAKE / 10, // 10% of total stake.
+        new_vote_stake: TOTAL_STAKE / 10, // 10% of total stake.
+        previous_election: ProposalVoteElection::For,
+        new_election: ProposalVoteElection::Against,
+    },
+    Expect::Cast {
+        cooldown: false,
+        stake_for: TOTAL_STAKE / 4 - TOTAL_STAKE / 10, // 15% of total stake.
+        stake_against: TOTAL_STAKE / 4 + TOTAL_STAKE / 10, // 35% of total stake.
     };
-    "with_cooldown_rejection_threshold_not_met_should_not_terminate"
+    "for_to_against_deducts_stake_for_increments_stake_against"
+)]
+#[test_case(
+    ProposalStarting {
+        cooldown_active: true, // Cooldown active.
+        stake_for: TOTAL_STAKE / 2, // 50% of total stake.
+        stake_against: TOTAL_STAKE / 4, // 25% of total stake.
+    },
+    VoteSwitch {
+        previous_vote_stake: TOTAL_STAKE / 10, // 10% of total stake.
+        new_vote_stake: TOTAL_STAKE / 10, // 10% of total stake.
+        previous_election: ProposalVoteElection::For,
+        new_election: ProposalVoteElection::Against,
+    },
+    Expect::Cast {
+        cooldown: false, // Cooldown reset.
+        stake_for: TOTAL_STAKE / 2 - TOTAL_STAKE / 10, // 40% of total stake.
+        stake_against: TOTAL_STAKE / 4 + TOTAL_STAKE / 10, // 35% of total stake.
+    };
+    "for_to_against_below_for_threshold_deducts_stake_for_increments_stake_against_rests_cooldown"
+)]
+#[test_case(
+    ProposalStarting {
+        cooldown_active: false,
+        stake_for: TOTAL_STAKE / 4, // 25% of total stake.
+        stake_against: TOTAL_STAKE / 5 * 2, // 40% of total stake.
+    },
+    VoteSwitch {
+        previous_vote_stake: TOTAL_STAKE / 10, // 10% of total stake.
+        new_vote_stake: TOTAL_STAKE / 10, // 10% of total stake.
+        previous_election: ProposalVoteElection::For,
+        new_election: ProposalVoteElection::Against,
+    },
+    Expect::Terminated;
+    "for_to_against_beyond_threshold_terminates"
+)]
+#[test_case(
+    ProposalStarting {
+        cooldown_active: false,
+        stake_for: TOTAL_STAKE / 4, // 25% of total stake.
+        stake_against: TOTAL_STAKE / 4, // 25% of total stake.
+    },
+    VoteSwitch {
+        previous_vote_stake: TOTAL_STAKE / 10, // 10% of total stake.
+        new_vote_stake: TOTAL_STAKE / 10, // 10% of total stake.
+        previous_election: ProposalVoteElection::For,
+        new_election: ProposalVoteElection::DidNotVote,
+    },
+    Expect::Cast {
+        cooldown: false,
+        stake_for: TOTAL_STAKE / 4 - TOTAL_STAKE / 10, // 15% of total stake.
+        stake_against: TOTAL_STAKE / 4, // Unchanged.
+    };
+    "for_to_dnv_deducts_stake_for"
+)]
+#[test_case(
+    ProposalStarting {
+        cooldown_active: false,
+        stake_for: TOTAL_STAKE / 4, // 25% of total stake.
+        stake_against: TOTAL_STAKE / 4, // 25% of total stake.
+    },
+    VoteSwitch {
+        previous_vote_stake: TOTAL_STAKE / 10, // 10% of total stake.
+        new_vote_stake: TOTAL_STAKE / 10, // 10% of total stake.
+        previous_election: ProposalVoteElection::Against,
+        new_election: ProposalVoteElection::Against,
+    },
+    Expect::Cast {
+        cooldown: false,
+        stake_for: TOTAL_STAKE / 4,
+        stake_against: TOTAL_STAKE / 4,
+    };
+    "against_to_against_does_nothing"
+)]
+#[test_case(
+    ProposalStarting {
+        cooldown_active: false,
+        stake_for: TOTAL_STAKE / 4, // 25% of total stake.
+        stake_against: TOTAL_STAKE / 4, // 25% of total stake.
+    },
+    VoteSwitch {
+        previous_vote_stake: TOTAL_STAKE / 10, // 10% of total stake.
+        new_vote_stake: TOTAL_STAKE / 10, // 10% of total stake.
+        previous_election: ProposalVoteElection::Against,
+        new_election: ProposalVoteElection::For,
+    },
+    Expect::Cast {
+        cooldown: false,
+        stake_for: TOTAL_STAKE / 4 + TOTAL_STAKE / 10, // 35% of total stake.
+        stake_against: TOTAL_STAKE / 4 - TOTAL_STAKE / 10, // 15% of total stake.
+    };
+    "against_to_for_deducts_stake_against_increments_stake_for"
+)]
+#[test_case(
+    ProposalStarting {
+        cooldown_active: false,
+        stake_for: TOTAL_STAKE / 5 * 2, // 40% of total stake.
+        stake_against: TOTAL_STAKE / 4, // 25% of total stake.
+    },
+    VoteSwitch {
+        previous_vote_stake: TOTAL_STAKE / 10, // 10% of total stake.
+        new_vote_stake: TOTAL_STAKE / 10, // 10% of total stake.
+        previous_election: ProposalVoteElection::Against,
+        new_election: ProposalVoteElection::For,
+    },
+    Expect::Cast {
+        cooldown: true, // Cooldown activated.
+        stake_for: TOTAL_STAKE / 5 * 2 + TOTAL_STAKE / 10, // 50% of total stake.
+        stake_against: TOTAL_STAKE / 4 - TOTAL_STAKE / 10, // 15% of total stake.
+    };
+    "against_to_for_beyond_threshold_deducts_stake_against_increments_stake_for_activates_cooldown"
+)]
+#[test_case(
+    ProposalStarting {
+        cooldown_active: false,
+        stake_for: TOTAL_STAKE / 4, // 25% of total stake.
+        stake_against: TOTAL_STAKE / 4, // 25% of total stake.
+    },
+    VoteSwitch {
+        previous_vote_stake: TOTAL_STAKE / 10, // 10% of total stake.
+        new_vote_stake: TOTAL_STAKE / 10, // 10% of total stake.
+        previous_election: ProposalVoteElection::Against,
+        new_election: ProposalVoteElection::DidNotVote,
+    },
+    Expect::Cast {
+        cooldown: false,
+        stake_for: TOTAL_STAKE / 4, // Unchanged.
+        stake_against: TOTAL_STAKE / 4 - TOTAL_STAKE / 10, // 15% of total stake.
+    };
+    "against_to_dnv_deducts_stake_against"
 )]
 #[tokio::test]
-async fn success(proposal_setup: ProposalSetup, vote_test: SwitchVoteTest) {
-    let ProposalSetup {
-        acceptance_threshold,
-        rejection_threshold,
-        proposal_stake_for,
-        proposal_stake_against,
-        proposal_has_cooldown,
-        total_stake,
-    } = proposal_setup;
-    let SwitchVoteTest {
-        vote_stake,
-        new_election,
-        should_have_cooldown,
-        should_terminate,
-    } = vote_test;
-
+async fn success(proposal_starting: ProposalStarting, switch: VoteSwitch, expect: Expect) {
     let stake_authority = Keypair::new();
     let validator_vote = Pubkey::new_unique();
     let stake_config = Pubkey::new_unique();
@@ -975,21 +1103,21 @@ async fn success(proposal_setup: ProposalSetup, vote_test: SwitchVoteTest) {
     let governance = get_governance_address(&stake_config, &paladin_governance_program::id());
 
     let mut context = setup().start_with_context().await;
-    setup_stake_config(&mut context, &stake_config, total_stake).await;
+    setup_stake_config(&mut context, &stake_config, TOTAL_STAKE).await;
     setup_stake(
         &mut context,
         &stake,
         &stake_authority.pubkey(),
         &validator_vote,
-        vote_stake,
+        switch.new_vote_stake,
     )
     .await;
     setup_governance(
         &mut context,
         &governance,
         /* cooldown_period_seconds */ 10, // Unused here.
-        acceptance_threshold,
-        rejection_threshold,
+        ACCEPTANCE_THRESHOLD,
+        REJECTION_THRESHOLD,
         &stake_config,
     )
     .await;
@@ -999,22 +1127,22 @@ async fn success(proposal_setup: ProposalSetup, vote_test: SwitchVoteTest) {
         &mut context,
         &proposal_vote,
         &proposal,
-        vote_stake,
+        switch.previous_vote_stake,
         &stake_authority.pubkey(),
-        inverse_vote_election(new_election),
+        switch.previous_election,
     )
     .await;
 
     // Set up the proposal with the previous vote counted.
-    if proposal_has_cooldown {
+    if proposal_starting.cooldown_active {
         setup_proposal_with_stake_and_cooldown(
             &mut context,
             &proposal,
             &stake_authority.pubkey(),
             0,
             0,
-            proposal_stake_for,
-            proposal_stake_against,
+            proposal_starting.stake_for,
+            proposal_starting.stake_against,
             NonZeroU64::new(1), // Doesn't matter, just has to be `Some`.
         )
         .await;
@@ -1025,8 +1153,8 @@ async fn success(proposal_setup: ProposalSetup, vote_test: SwitchVoteTest) {
             &stake_authority.pubkey(),
             0,
             0,
-            proposal_stake_for,
-            proposal_stake_against,
+            proposal_starting.stake_for,
+            proposal_starting.stake_against,
         )
         .await;
     }
@@ -1038,7 +1166,7 @@ async fn success(proposal_setup: ProposalSetup, vote_test: SwitchVoteTest) {
         &proposal_vote,
         &proposal,
         &governance,
-        new_election,
+        switch.new_election,
     );
 
     let transaction = Transaction::new_signed_with_payer(
@@ -1065,9 +1193,9 @@ async fn success(proposal_setup: ProposalSetup, vote_test: SwitchVoteTest) {
         bytemuck::from_bytes::<ProposalVote>(&vote_account.data),
         &ProposalVote::new(
             &proposal,
-            vote_stake,
+            switch.new_vote_stake,
             &stake_authority.pubkey(),
-            new_election
+            switch.new_election
         )
     );
 
@@ -1078,43 +1206,30 @@ async fn success(proposal_setup: ProposalSetup, vote_test: SwitchVoteTest) {
         .unwrap()
         .unwrap();
 
-    if should_terminate {
-        // Assert the proposal was terminated.
-        // The proposal should be cleared and reassigned to the system program.
-        assert_eq!(proposal_account.owner, solana_program::system_program::id());
-        assert_eq!(proposal_account.data.len(), 0);
-    } else {
-        let proposal_state = bytemuck::from_bytes::<Proposal>(&proposal_account.data);
+    match expect {
+        Expect::Cast {
+            cooldown,
+            stake_for,
+            stake_against,
+        } => {
+            // Assert the proposal stake matches the expected values.
+            let proposal_state = bytemuck::from_bytes::<Proposal>(&proposal_account.data);
+            assert_eq!(proposal_state.stake_for, stake_for);
+            assert_eq!(proposal_state.stake_against, stake_against);
 
-        // Assert the vote count was updated in the proposal.
-        match new_election {
-            ProposalVoteElection::For => {
-                // Vote switched from against to for, so stake should have moved
-                // from against to for.
-                assert_eq!(
-                    proposal_state.stake_against,
-                    proposal_stake_against - vote_stake
-                );
-                assert_eq!(proposal_state.stake_for, proposal_stake_for + vote_stake);
+            if cooldown {
+                // Assert the cooldown time is set.
+                assert!(proposal_state.cooldown_timestamp.is_some());
+            } else {
+                // Assert the cooldown time is not set.
+                assert!(proposal_state.cooldown_timestamp.is_none());
             }
-            ProposalVoteElection::Against => {
-                // Vote switched from for to against, so stake should have moved
-                // from for to against.
-                assert_eq!(proposal_state.stake_for, proposal_stake_for - vote_stake);
-                assert_eq!(
-                    proposal_state.stake_against,
-                    proposal_stake_against + vote_stake
-                );
-            }
-            ProposalVoteElection::DidNotVote => todo!(),
         }
-
-        if should_have_cooldown {
-            // Assert the cooldown time is set.
-            assert!(proposal_state.cooldown_timestamp.is_some());
-        } else {
-            // Assert the cooldown time is not set.
-            assert!(proposal_state.cooldown_timestamp.is_none());
+        Expect::Terminated => {
+            // Assert the proposal was terminated.
+            // The proposal should be cleared and reassigned to the system program.
+            assert_eq!(proposal_account.owner, solana_program::system_program::id());
+            assert_eq!(proposal_account.data.len(), 0);
         }
     }
 }
