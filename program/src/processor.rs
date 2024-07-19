@@ -269,7 +269,10 @@ fn process_vote(program_id: &Pubkey, accounts: &[AccountInfo], vote: bool) -> Pr
 
     // Ensure the provided governance address is the correct address derived from
     // the program.
-    if !governance_info.key.eq(&get_governance_address(program_id)) {
+    if !governance_info
+        .key
+        .eq(&get_governance_address(stake_config_info.key, program_id))
+    {
         return Err(PaladinGovernanceError::IncorrectGovernanceConfigAddress.into());
     }
 
@@ -390,7 +393,10 @@ fn process_switch_vote(
 
     // Ensure the provided governance address is the correct address derived from
     // the program.
-    if !governance_info.key.eq(&get_governance_address(program_id)) {
+    if !governance_info
+        .key
+        .eq(&get_governance_address(stake_config_info.key, program_id))
+    {
         return Err(PaladinGovernanceError::IncorrectGovernanceConfigAddress.into());
     }
 
@@ -514,12 +520,6 @@ fn process_process_proposal(program_id: &Pubkey, accounts: &[AccountInfo]) -> Pr
     // then drop this account.
     let governance_info = next_account_info(accounts_iter)?;
 
-    // Ensure the provided governance address is the correct address derived from
-    // the program.
-    if !governance_info.key.eq(&get_governance_address(program_id)) {
-        return Err(PaladinGovernanceError::IncorrectGovernanceConfigAddress.into());
-    }
-
     check_governance_exists(program_id, governance_info)?;
     check_proposal_exists(program_id, proposal_info)?;
 
@@ -564,9 +564,11 @@ fn process_initialize_governance(
 
     // Create the governance config account.
     {
-        let (governance_address, bump_seed) = get_governance_address_and_bump_seed(program_id);
+        let (governance_address, bump_seed) =
+            get_governance_address_and_bump_seed(&stake_config_address, program_id);
         let bump_seed = [bump_seed];
-        let governance_signer_seeds = collect_governance_signer_seeds(&bump_seed);
+        let governance_signer_seeds =
+            collect_governance_signer_seeds(&stake_config_address, &bump_seed);
 
         // Ensure the provided governance address is the correct address
         // derived from the program.
@@ -625,12 +627,6 @@ fn process_update_governance(
     let proposal_info = next_account_info(accounts_iter)?;
     // Same note as `process_process_proposal` applies here for cutting
     // the stake config account.
-
-    // Ensure the provided governance address is the correct address derived from
-    // the program.
-    if !governance_info.key.eq(&get_governance_address(program_id)) {
-        return Err(PaladinGovernanceError::IncorrectGovernanceConfigAddress.into());
-    }
 
     check_governance_exists(program_id, governance_info)?;
     check_proposal_exists(program_id, proposal_info)?;

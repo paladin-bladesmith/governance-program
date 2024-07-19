@@ -61,9 +61,9 @@ async fn fail_governance_incorrect_address() {
 
 #[tokio::test]
 async fn fail_governance_already_initialized() {
-    let governance = get_governance_address(&paladin_governance_program::id());
-
     let stake_config_address = Pubkey::new_unique();
+    let governance =
+        get_governance_address(&stake_config_address, &paladin_governance_program::id());
 
     let mut context = setup().start_with_context().await;
 
@@ -100,9 +100,9 @@ async fn fail_governance_already_initialized() {
 
 #[tokio::test]
 async fn success() {
-    let governance = get_governance_address(&paladin_governance_program::id());
-
     let stake_config_address = Pubkey::new_unique();
+    let governance =
+        get_governance_address(&stake_config_address, &paladin_governance_program::id());
 
     let mut context = setup().start_with_context().await;
 
