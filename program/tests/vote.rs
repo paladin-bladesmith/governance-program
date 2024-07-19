@@ -824,6 +824,20 @@ struct VoteTest {
     },
     VoteTest {
         vote_stake: 10_000_000, // 10% of total stake.
+        election: ProposalVoteElection::DidNotVote,
+        should_have_cooldown: false,
+        should_terminate: false,
+    };
+    "did_not_vote_should_do_nothing"
+)]
+#[test_case(
+    ProposalSetup {
+        acceptance_threshold: 100_000_000, // 10%
+        rejection_threshold: 100_000_000,  // 10%
+        total_stake: 100_000_000,
+    },
+    VoteTest {
+        vote_stake: 10_000_000, // 10% of total stake.
         election: ProposalVoteElection::For,
         should_have_cooldown: true, // Cooldown should be set by this vote.
         should_terminate: false,
@@ -1041,7 +1055,10 @@ async fn success(proposal_setup: ProposalSetup, vote_test: VoteTest) {
             ProposalVoteElection::Against => {
                 assert_eq!(proposal_state.stake_against, vote_stake);
             }
-            ProposalVoteElection::DidNotVote => todo!(),
+            ProposalVoteElection::DidNotVote => {
+                assert_eq!(proposal_state.stake_for, 0);
+                assert_eq!(proposal_state.stake_against, 0);
+            }
         }
 
         if should_have_cooldown {

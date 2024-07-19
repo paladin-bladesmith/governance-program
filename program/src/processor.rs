@@ -417,7 +417,7 @@ fn process_switch_vote(
     check_proposal_exists(program_id, proposal_info)?;
 
     // Update the proposal vote account.
-    {
+    let last_election = {
         // Ensure the provided proposal vote address is the correct address
         // derived from the stake authority and proposal.
         if !proposal_vote_info.key.eq(&get_proposal_vote_address(
@@ -448,30 +448,43 @@ fn process_switch_vote(
             // End early if the vote wasn't changed.
             // Skip updating the proposal.
             return Ok(());
-        } else {
-            state.election = new_election;
         }
-    }
+
+        std::mem::replace(&mut state.election, new_election)
+    };
 
     // Update the proposal with the updated vote.
-    // If the program hasn't terminated by this point, the vote has changed.
-    // Simply update the proposal by inversing the vote stake.
     let mut proposal_data = proposal_info.try_borrow_mut_data()?;
     let proposal_state = bytemuck::try_from_bytes_mut::<Proposal>(&mut proposal_data)
         .map_err(|_| ProgramError::InvalidAccountData)?;
 
     let clock = <Clock as Sysvar>::get()?;
 
-    match new_election {
+    // If the program hasn't terminated by this point, the vote has changed.
+    // Simply update the proposal by inversing the vote stake.
+    match last_election {
         ProposalVoteElection::For => {
-            // TODO: Implement checks for previous vote being "did not vote".
-
-            // Previous vote against was now switched to a vote for.
-            // Move stake from against to for.
+            // Previous vote was in favor. Deduct stake for.
+            proposal_state.stake_for = proposal_state
+                .stake_for
+                .checked_sub(stake)
+                .ok_or(ProgramError::ArithmeticOverflow)?;
+        }
+        ProposalVoteElection::Against => {
+            // Previous vote was against. Deduct stake against.
             proposal_state.stake_against = proposal_state
                 .stake_against
                 .checked_sub(stake)
                 .ok_or(ProgramError::ArithmeticOverflow)?;
+        }
+        ProposalVoteElection::DidNotVote => {
+            // Last vote was a "did not vote". Do nothing to the proposal.
+        }
+    }
+
+    match new_election {
+        ProposalVoteElection::For => {
+            // New vote is in favor. Increment stake for.
             proposal_state.stake_for = proposal_state
                 .stake_for
                 .checked_add(stake)
@@ -487,14 +500,7 @@ fn process_switch_vote(
             }
         }
         ProposalVoteElection::Against => {
-            // TODO: Implement checks for previous vote being "did not vote".
-
-            // Previous vote for was now switched to a vote against.
-            // Move stake from for to against.
-            proposal_state.stake_for = proposal_state
-                .stake_for
-                .checked_sub(stake)
-                .ok_or(ProgramError::ArithmeticOverflow)?;
+            // New vote is against. Increment stake against.
             proposal_state.stake_against = proposal_state
                 .stake_against
                 .checked_add(stake)
@@ -520,7 +526,8 @@ fn process_switch_vote(
             }
         }
         ProposalVoteElection::DidNotVote => {
-            // TODO: Implement this block so a validator can "un-vote".
+            // New vote is "did not vote". Do nothing to the proposal.
+            // The previous step deducted the stake from the previous vote.
         }
     }
 
