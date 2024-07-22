@@ -811,6 +811,7 @@ struct ProposalStarting {
     cooldown_active: bool,
     stake_for: u64,
     stake_against: u64,
+    stake_abstained: u64,
 }
 struct VoteSwitch {
     previous_vote_stake: u64,
@@ -823,6 +824,7 @@ enum Expect {
         cooldown: bool,
         stake_for: u64,
         stake_against: u64,
+        stake_abstained: u64,
     },
     Terminated,
 }
@@ -837,6 +839,7 @@ enum Expect {
         cooldown_active: false,
         stake_for: TOTAL_STAKE / 4, // 25% of total stake.
         stake_against: TOTAL_STAKE / 4, // 25% of total stake.
+        stake_abstained: TOTAL_STAKE / 4, // 25% of total stake.
     },
     VoteSwitch {
         previous_vote_stake: TOTAL_STAKE / 10, // 10% of total stake.
@@ -848,14 +851,58 @@ enum Expect {
         cooldown: false,
         stake_for: TOTAL_STAKE / 4,
         stake_against: TOTAL_STAKE / 4,
+        stake_abstained: TOTAL_STAKE / 4,
     };
-    "dnv_to_dnv_does_nothing"
+    "dnv_to_dnv_same_stake_does_nothing"
 )]
 #[test_case(
     ProposalStarting {
         cooldown_active: false,
         stake_for: TOTAL_STAKE / 4, // 25% of total stake.
         stake_against: TOTAL_STAKE / 4, // 25% of total stake.
+        stake_abstained: TOTAL_STAKE / 4, // 25% of total stake.
+    },
+    VoteSwitch {
+        previous_vote_stake: TOTAL_STAKE / 10, // 10% of total stake.
+        new_vote_stake: TOTAL_STAKE / 20, // 5% of total stake.
+        previous_election: ProposalVoteElection::DidNotVote,
+        new_election: ProposalVoteElection::DidNotVote,
+    },
+    Expect::Cast {
+        cooldown: false,
+        stake_for: TOTAL_STAKE / 4,
+        stake_against: TOTAL_STAKE / 4,
+        stake_abstained: TOTAL_STAKE / 4 - TOTAL_STAKE / 20, // 20% of total stake.
+    };
+    "dnv_to_dnv_less_stake_decrements_stake_abstained"
+)]
+#[test_case(
+    ProposalStarting {
+        cooldown_active: false,
+        stake_for: TOTAL_STAKE / 4, // 25% of total stake.
+        stake_against: TOTAL_STAKE / 4, // 25% of total stake.
+        stake_abstained: TOTAL_STAKE / 4, // 25% of total stake.
+    },
+    VoteSwitch {
+        previous_vote_stake: TOTAL_STAKE / 20, // 5% of total stake.
+        new_vote_stake: TOTAL_STAKE / 10, // 10% of total stake.
+        previous_election: ProposalVoteElection::DidNotVote,
+        new_election: ProposalVoteElection::DidNotVote,
+    },
+    Expect::Cast {
+        cooldown: false,
+        stake_for: TOTAL_STAKE / 4,
+        stake_against: TOTAL_STAKE / 4,
+        stake_abstained: TOTAL_STAKE / 4 + TOTAL_STAKE / 20, // 30% of total stake.
+    };
+    "dnv_to_dnv_more_stake_increments_stake_abstained"
+)]
+#[test_case(
+    ProposalStarting {
+        cooldown_active: false,
+        stake_for: TOTAL_STAKE / 4, // 25% of total stake.
+        stake_against: TOTAL_STAKE / 4, // 25% of total stake.
+        stake_abstained: TOTAL_STAKE / 4, // 25% of total stake.
     },
     VoteSwitch {
         previous_vote_stake: TOTAL_STAKE / 10, // 10% of total stake.
@@ -867,14 +914,16 @@ enum Expect {
         cooldown: false,
         stake_for: TOTAL_STAKE / 4 + TOTAL_STAKE / 10, // 35% of total stake.
         stake_against: TOTAL_STAKE / 4, // Unchanged.
+        stake_abstained: TOTAL_STAKE / 4 - TOTAL_STAKE / 10, // 15% of total stake.
     };
-    "dnv_to_for_increments_stake_for"
+    "dnv_to_for_decrements_stake_abstained_increments_stake_for"
 )]
 #[test_case(
     ProposalStarting {
         cooldown_active: false,
         stake_for: TOTAL_STAKE / 5 * 2, // 40% of total stake.
         stake_against: TOTAL_STAKE / 4, // 25% of total stake.
+        stake_abstained: TOTAL_STAKE / 4, // 25% of total stake.
     },
     VoteSwitch {
         previous_vote_stake: TOTAL_STAKE / 10, // 10% of total stake.
@@ -886,14 +935,16 @@ enum Expect {
         cooldown: true, // Cooldown activated.
         stake_for: TOTAL_STAKE / 5 * 2 + TOTAL_STAKE / 10, // 50% of total stake.
         stake_against: TOTAL_STAKE / 4, // Unchanged.
+        stake_abstained: TOTAL_STAKE / 4 - TOTAL_STAKE / 10, // 15% of total stake.
     };
-    "dnv_to_for_beyond_treshold_increments_stake_for_and_activates_cooldown"
+    "dnv_to_for_beyond_treshold_decrements_stake_abstained_increments_stake_for_and_activates_cooldown"
 )]
 #[test_case(
     ProposalStarting {
         cooldown_active: false,
         stake_for: TOTAL_STAKE / 4, // 25% of total stake.
         stake_against: TOTAL_STAKE / 4, // 25% of total stake.
+        stake_abstained: TOTAL_STAKE / 4, // 25% of total stake.
     },
     VoteSwitch {
         previous_vote_stake: TOTAL_STAKE / 10, // 10% of total stake.
@@ -905,14 +956,16 @@ enum Expect {
         cooldown: false,
         stake_for: TOTAL_STAKE / 4, // Unchanged.
         stake_against: TOTAL_STAKE / 4 + TOTAL_STAKE / 10, // 35% of total stake.
+        stake_abstained: TOTAL_STAKE / 4 - TOTAL_STAKE / 10, // 15% of total stake.
     };
-    "dnv_to_against_increments_stake_against"
+    "dnv_to_against_decrements_stake_abstained_increments_stake_against"
 )]
 #[test_case(
     ProposalStarting {
         cooldown_active: false,
         stake_for: TOTAL_STAKE / 4, // 25% of total stake.
         stake_against: TOTAL_STAKE / 5 * 2, // 40% of total stake.
+        stake_abstained: TOTAL_STAKE / 4, // 25% of total stake.
     },
     VoteSwitch {
         previous_vote_stake: TOTAL_STAKE / 10, // 10% of total stake.
@@ -928,6 +981,7 @@ enum Expect {
         cooldown_active: false,
         stake_for: TOTAL_STAKE / 4, // 25% of total stake.
         stake_against: TOTAL_STAKE / 4, // 25% of total stake.
+        stake_abstained: TOTAL_STAKE / 4, // 25% of total stake.
     },
     VoteSwitch {
         previous_vote_stake: TOTAL_STAKE / 10, // 10% of total stake.
@@ -939,6 +993,7 @@ enum Expect {
         cooldown: false,
         stake_for: TOTAL_STAKE / 4,
         stake_against: TOTAL_STAKE / 4,
+        stake_abstained: TOTAL_STAKE / 4, // Unchanged.
     };
     "for_to_for_same_stake_does_nothing"
 )]
@@ -947,6 +1002,7 @@ enum Expect {
         cooldown_active: false,
         stake_for: TOTAL_STAKE / 4, // 25% of total stake.
         stake_against: TOTAL_STAKE / 4, // 25% of total stake.
+        stake_abstained: TOTAL_STAKE / 4, // 25% of total stake.
     },
     VoteSwitch {
         previous_vote_stake: TOTAL_STAKE / 10, // 10% of total stake.
@@ -958,6 +1014,7 @@ enum Expect {
         cooldown: false,
         stake_for: TOTAL_STAKE / 4 - TOTAL_STAKE / 10 + TOTAL_STAKE / 20, // 20% of total stake.
         stake_against: TOTAL_STAKE / 4,
+        stake_abstained: TOTAL_STAKE / 4, // Unchanged.
     };
     "for_to_for_less_stake_decrements_stake_for"
 )]
@@ -966,6 +1023,7 @@ enum Expect {
         cooldown_active: false,
         stake_for: TOTAL_STAKE / 4, // 25% of total stake.
         stake_against: TOTAL_STAKE / 4, // 25% of total stake.
+        stake_abstained: TOTAL_STAKE / 4, // 25% of total stake.
     },
     VoteSwitch {
         previous_vote_stake: TOTAL_STAKE / 20, // 5% of total stake.
@@ -977,6 +1035,7 @@ enum Expect {
         cooldown: false,
         stake_for: TOTAL_STAKE / 4 - TOTAL_STAKE / 20 + TOTAL_STAKE / 10, // 30% of total stake.
         stake_against: TOTAL_STAKE / 4,
+        stake_abstained: TOTAL_STAKE / 4, // Unchanged.
     };
     "for_to_for_more_stake_increments_stake_for"
 )]
@@ -985,6 +1044,7 @@ enum Expect {
         cooldown_active: false,
         stake_for: TOTAL_STAKE / 4, // 25% of total stake.
         stake_against: TOTAL_STAKE / 4, // 25% of total stake.
+        stake_abstained: TOTAL_STAKE / 4, // 25% of total stake.
     },
     VoteSwitch {
         previous_vote_stake: TOTAL_STAKE / 10, // 10% of total stake.
@@ -996,6 +1056,7 @@ enum Expect {
         cooldown: false,
         stake_for: TOTAL_STAKE / 4 - TOTAL_STAKE / 10, // 15% of total stake.
         stake_against: TOTAL_STAKE / 4 + TOTAL_STAKE / 10, // 35% of total stake.
+        stake_abstained: TOTAL_STAKE / 4, // Unchanged.
     };
     "for_to_against_deducts_stake_for_increments_stake_against"
 )]
@@ -1004,6 +1065,7 @@ enum Expect {
         cooldown_active: true, // Cooldown active.
         stake_for: TOTAL_STAKE / 2, // 50% of total stake.
         stake_against: TOTAL_STAKE / 4, // 25% of total stake.
+        stake_abstained: TOTAL_STAKE / 4, // 25% of total stake.
     },
     VoteSwitch {
         previous_vote_stake: TOTAL_STAKE / 10, // 10% of total stake.
@@ -1015,6 +1077,7 @@ enum Expect {
         cooldown: false, // Cooldown reset.
         stake_for: TOTAL_STAKE / 2 - TOTAL_STAKE / 10, // 40% of total stake.
         stake_against: TOTAL_STAKE / 4 + TOTAL_STAKE / 10, // 35% of total stake.
+        stake_abstained: TOTAL_STAKE / 4, // Unchanged.
     };
     "for_to_against_below_for_threshold_deducts_stake_for_increments_stake_against_rests_cooldown"
 )]
@@ -1023,6 +1086,7 @@ enum Expect {
         cooldown_active: false,
         stake_for: TOTAL_STAKE / 4, // 25% of total stake.
         stake_against: TOTAL_STAKE / 5 * 2, // 40% of total stake.
+        stake_abstained: TOTAL_STAKE / 4, // 25% of total stake.
     },
     VoteSwitch {
         previous_vote_stake: TOTAL_STAKE / 10, // 10% of total stake.
@@ -1038,6 +1102,7 @@ enum Expect {
         cooldown_active: false,
         stake_for: TOTAL_STAKE / 4, // 25% of total stake.
         stake_against: TOTAL_STAKE / 4, // 25% of total stake.
+        stake_abstained: TOTAL_STAKE / 4, // 25% of total stake.
     },
     VoteSwitch {
         previous_vote_stake: TOTAL_STAKE / 10, // 10% of total stake.
@@ -1049,14 +1114,16 @@ enum Expect {
         cooldown: false,
         stake_for: TOTAL_STAKE / 4 - TOTAL_STAKE / 10, // 15% of total stake.
         stake_against: TOTAL_STAKE / 4, // Unchanged.
+        stake_abstained: TOTAL_STAKE / 4 + TOTAL_STAKE / 10, // 35% of total stake.
     };
-    "for_to_dnv_deducts_stake_for"
+    "for_to_dnv_deducts_stake_for_increments_stake_abstained"
 )]
 #[test_case(
     ProposalStarting {
         cooldown_active: false,
         stake_for: TOTAL_STAKE / 4, // 25% of total stake.
         stake_against: TOTAL_STAKE / 4, // 25% of total stake.
+        stake_abstained: TOTAL_STAKE / 4, // 25% of total stake.
     },
     VoteSwitch {
         previous_vote_stake: TOTAL_STAKE / 10, // 10% of total stake.
@@ -1068,6 +1135,7 @@ enum Expect {
         cooldown: false,
         stake_for: TOTAL_STAKE / 4,
         stake_against: TOTAL_STAKE / 4,
+        stake_abstained: TOTAL_STAKE / 4,
     };
     "against_to_against_same_stake_does_nothing"
 )]
@@ -1076,6 +1144,7 @@ enum Expect {
         cooldown_active: false,
         stake_for: TOTAL_STAKE / 4, // 25% of total stake.
         stake_against: TOTAL_STAKE / 4, // 25% of total stake.
+        stake_abstained: TOTAL_STAKE / 4, // 25% of total stake.
     },
     VoteSwitch {
         previous_vote_stake: TOTAL_STAKE / 10, // 10% of total stake.
@@ -1087,6 +1156,7 @@ enum Expect {
         cooldown: false,
         stake_for: TOTAL_STAKE / 4,
         stake_against: TOTAL_STAKE / 4 - TOTAL_STAKE / 10 + TOTAL_STAKE / 20, // 20% of total stake.
+        stake_abstained: TOTAL_STAKE / 4, // Unchanged.
     };
     "against_to_against_less_stake_decrements_stake_against"
 )]
@@ -1095,6 +1165,7 @@ enum Expect {
         cooldown_active: false,
         stake_for: TOTAL_STAKE / 4, // 25% of total stake.
         stake_against: TOTAL_STAKE / 4, // 25% of total stake.
+        stake_abstained: TOTAL_STAKE / 4, // 25% of total stake.
     },
     VoteSwitch {
         previous_vote_stake: TOTAL_STAKE / 20, // 5% of total stake.
@@ -1106,6 +1177,7 @@ enum Expect {
         cooldown: false,
         stake_for: TOTAL_STAKE / 4,
         stake_against: TOTAL_STAKE / 4 - TOTAL_STAKE / 20 + TOTAL_STAKE / 10, // 30% of total stake.
+        stake_abstained: TOTAL_STAKE / 4, // Unchanged.
     };
     "against_to_against_more_stake_increments_stake_against"
 )]
@@ -1114,6 +1186,7 @@ enum Expect {
         cooldown_active: false,
         stake_for: TOTAL_STAKE / 4, // 25% of total stake.
         stake_against: TOTAL_STAKE / 4, // 25% of total stake.
+        stake_abstained: TOTAL_STAKE / 4, // 25% of total stake.
     },
     VoteSwitch {
         previous_vote_stake: TOTAL_STAKE / 10, // 10% of total stake.
@@ -1125,6 +1198,7 @@ enum Expect {
         cooldown: false,
         stake_for: TOTAL_STAKE / 4 + TOTAL_STAKE / 10, // 35% of total stake.
         stake_against: TOTAL_STAKE / 4 - TOTAL_STAKE / 10, // 15% of total stake.
+        stake_abstained: TOTAL_STAKE / 4, // Unchanged.
     };
     "against_to_for_deducts_stake_against_increments_stake_for"
 )]
@@ -1133,6 +1207,7 @@ enum Expect {
         cooldown_active: false,
         stake_for: TOTAL_STAKE / 5 * 2, // 40% of total stake.
         stake_against: TOTAL_STAKE / 4, // 25% of total stake.
+        stake_abstained: TOTAL_STAKE / 4, // 25% of total stake.
     },
     VoteSwitch {
         previous_vote_stake: TOTAL_STAKE / 10, // 10% of total stake.
@@ -1144,6 +1219,7 @@ enum Expect {
         cooldown: true, // Cooldown activated.
         stake_for: TOTAL_STAKE / 5 * 2 + TOTAL_STAKE / 10, // 50% of total stake.
         stake_against: TOTAL_STAKE / 4 - TOTAL_STAKE / 10, // 15% of total stake.
+        stake_abstained: TOTAL_STAKE / 4, // Unchanged.
     };
     "against_to_for_beyond_threshold_deducts_stake_against_increments_stake_for_activates_cooldown"
 )]
@@ -1152,6 +1228,7 @@ enum Expect {
         cooldown_active: false,
         stake_for: TOTAL_STAKE / 4, // 25% of total stake.
         stake_against: TOTAL_STAKE / 4, // 25% of total stake.
+        stake_abstained: TOTAL_STAKE / 4, // 25% of total stake.
     },
     VoteSwitch {
         previous_vote_stake: TOTAL_STAKE / 10, // 10% of total stake.
@@ -1163,8 +1240,9 @@ enum Expect {
         cooldown: false,
         stake_for: TOTAL_STAKE / 4, // Unchanged.
         stake_against: TOTAL_STAKE / 4 - TOTAL_STAKE / 10, // 15% of total stake.
+        stake_abstained: TOTAL_STAKE / 4 + TOTAL_STAKE / 10, // 35% of total stake.
     };
-    "against_to_dnv_deducts_stake_against"
+    "against_to_dnv_deducts_stake_against_increments_stake_abstained"
 )]
 #[tokio::test]
 async fn success(proposal_starting: ProposalStarting, switch: VoteSwitch, expect: Expect) {
@@ -1219,6 +1297,7 @@ async fn success(proposal_starting: ProposalStarting, switch: VoteSwitch, expect
             0,
             proposal_starting.stake_for,
             proposal_starting.stake_against,
+            proposal_starting.stake_abstained,
             NonZeroU64::new(1), // Doesn't matter, just has to be `Some`.
         )
         .await;
@@ -1231,6 +1310,7 @@ async fn success(proposal_starting: ProposalStarting, switch: VoteSwitch, expect
             0,
             proposal_starting.stake_for,
             proposal_starting.stake_against,
+            proposal_starting.stake_abstained,
         )
         .await;
     }
@@ -1287,11 +1367,13 @@ async fn success(proposal_starting: ProposalStarting, switch: VoteSwitch, expect
             cooldown,
             stake_for,
             stake_against,
+            stake_abstained,
         } => {
             // Assert the proposal stake matches the expected values.
             let proposal_state = bytemuck::from_bytes::<Proposal>(&proposal_account.data);
             assert_eq!(proposal_state.stake_for, stake_for);
             assert_eq!(proposal_state.stake_against, stake_against);
+            assert_eq!(proposal_state.stake_abstained, stake_abstained);
 
             if cooldown {
                 // Assert the cooldown time is set.

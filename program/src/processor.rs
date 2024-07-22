@@ -358,7 +358,11 @@ fn process_vote(
             }
         }
         ProposalVoteElection::DidNotVote => {
-            // Do nothing to the proposal. Non-vote has been recorded.
+            // None-vote. Increase the abstained stake.
+            proposal_state.stake_abstained = proposal_state
+                .stake_abstained
+                .checked_add(stake)
+                .ok_or(ProgramError::ArithmeticOverflow)?;
         }
     }
 
@@ -475,7 +479,11 @@ fn process_switch_vote(
                 .ok_or(ProgramError::ArithmeticOverflow)?;
         }
         ProposalVoteElection::DidNotVote => {
-            // Last vote was a "did not vote". Do nothing to the proposal.
+            // Last vote was a "did not vote". Deduct stake abstained.
+            proposal_state.stake_abstained = proposal_state
+                .stake_abstained
+                .checked_sub(last_stake)
+                .ok_or(ProgramError::ArithmeticOverflow)?;
         }
     }
 
@@ -523,8 +531,11 @@ fn process_switch_vote(
             }
         }
         ProposalVoteElection::DidNotVote => {
-            // New vote is "did not vote". Do nothing to the proposal.
-            // The previous step deducted the stake from the previous vote.
+            // New vote is "did not vote". Increment stake abstained.
+            proposal_state.stake_abstained = proposal_state
+                .stake_abstained
+                .checked_add(stake)
+                .ok_or(ProgramError::ArithmeticOverflow)?;
         }
     }
 

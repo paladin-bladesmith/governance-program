@@ -166,6 +166,8 @@ pub struct Proposal {
     pub creation_timestamp: u64,
     /// The instruction to execute, pending proposal acceptance.
     pub instruction: u64, // TODO: Replace with an actual serialized instruction?
+    /// Amount of stake that did not vote.
+    pub stake_abstained: u64,
     /// Amount of stake against the proposal.
     pub stake_against: u64,
     /// Amount of stake in favor of the proposal.
@@ -181,6 +183,7 @@ impl Proposal {
             cooldown_timestamp: None,
             creation_timestamp,
             instruction,
+            stake_abstained: 0,
             stake_against: 0,
             stake_for: 0,
         }

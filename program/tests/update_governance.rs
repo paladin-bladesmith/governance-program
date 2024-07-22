@@ -250,6 +250,7 @@ async fn fail_proposal_not_accepted() {
         0,
         0,
         0,
+        0,
         NonZeroU64::new(clock.unix_timestamp as u64),
     )
     .await;
@@ -298,6 +299,7 @@ async fn success() {
         &mut context,
         &proposal,
         &Pubkey::new_unique(),
+        0,
         0,
         0,
         0,

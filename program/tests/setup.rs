@@ -108,11 +108,13 @@ async fn _setup_proposal_inner(
     instruction: u64,
     stake_for: u64,
     stake_against: u64,
+    stake_abstained: u64,
     cooldown: Option<NonZeroU64>,
 ) {
     let mut state = Proposal::new(author, creation_timestamp, instruction);
     state.stake_for = stake_for;
     state.stake_against = stake_against;
+    state.stake_abstained = stake_abstained;
 
     if cooldown.is_some() {
         state.cooldown_timestamp = cooldown;
@@ -142,6 +144,7 @@ pub async fn setup_proposal_with_stake_and_cooldown(
     instruction: u64,
     stake_for: u64,
     stake_against: u64,
+    stake_abstained: u64,
     cooldown: Option<NonZeroU64>,
 ) {
     _setup_proposal_inner(
@@ -152,6 +155,7 @@ pub async fn setup_proposal_with_stake_and_cooldown(
         instruction,
         stake_for,
         stake_against,
+        stake_abstained,
         cooldown,
     )
     .await;
@@ -165,6 +169,7 @@ pub async fn setup_proposal_with_stake(
     instruction: u64,
     stake_for: u64,
     stake_against: u64,
+    stake_abstained: u64,
 ) {
     _setup_proposal_inner(
         context,
@@ -174,6 +179,7 @@ pub async fn setup_proposal_with_stake(
         instruction,
         stake_for,
         stake_against,
+        stake_abstained,
         None,
     )
     .await;
@@ -192,6 +198,7 @@ pub async fn setup_proposal(
         author,
         creation_timestamp,
         instruction,
+        0,
         0,
         0,
     )
