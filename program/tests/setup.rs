@@ -75,8 +75,8 @@ pub async fn setup_governance(
     context: &mut ProgramTestContext,
     governance_address: &Pubkey,
     cooldown_period_seconds: u64,
-    proposal_acceptance_threshold: u64,
-    proposal_rejection_threshold: u64,
+    proposal_acceptance_threshold: u32,
+    proposal_rejection_threshold: u32,
     stake_config_address: &Pubkey,
 ) {
     let state = Config {

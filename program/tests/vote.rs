@@ -804,8 +804,8 @@ async fn fail_proposal_vote_already_initialized() {
     );
 }
 
-const ACCEPTANCE_THRESHOLD: u64 = 500_000_000; // 50%
-const REJECTION_THRESHOLD: u64 = 500_000_000; // 50%
+const ACCEPTANCE_THRESHOLD: u32 = 500_000_000; // 50%
+const REJECTION_THRESHOLD: u32 = 500_000_000; // 50%
 const TOTAL_STAKE: u64 = 100_000_000;
 
 const PROPOSAL_STARTING_STAKE_FOR: u64 = 0;

@@ -803,8 +803,8 @@ async fn fail_proposal_vote_not_initialized() {
     );
 }
 
-const ACCEPTANCE_THRESHOLD: u64 = 500_000_000; // 50%
-const REJECTION_THRESHOLD: u64 = 500_000_000; // 50%
+const ACCEPTANCE_THRESHOLD: u32 = 500_000_000; // 50%
+const REJECTION_THRESHOLD: u32 = 500_000_000; // 50%
 const TOTAL_STAKE: u64 = 100_000_000;
 
 struct ProposalStarting {

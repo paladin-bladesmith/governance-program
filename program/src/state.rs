@@ -129,15 +129,15 @@ pub struct Config {
     /// The minimum required threshold (percentage) of proposal acceptance to
     /// begin the cooldown period.
     ///
-    /// Stored as a `u64`, which includes a scaling factor of `1e9` to
+    /// Stored as a `u32`, which includes a scaling factor of `1e9` to
     /// represent the threshold with 9 decimal places of precision.
-    pub proposal_acceptance_threshold: u64,
+    pub proposal_acceptance_threshold: u32,
     /// The minimum required threshold (percentage) of proposal rejection to
     /// terminate the proposal.
     ///
-    /// Stored as a `u64`, which includes a scaling factor of `1e9` to
+    /// Stored as a `u32`, which includes a scaling factor of `1e9` to
     /// represent the threshold with 9 decimal places of precision.
-    pub proposal_rejection_threshold: u64,
+    pub proposal_rejection_threshold: u32,
     /// The Paladin stake config account that this governance config account
     /// corresponds to.
     pub stake_config_address: Pubkey,

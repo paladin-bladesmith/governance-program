@@ -29,7 +29,7 @@ use {
 
 const THRESHOLD_SCALING_FACTOR: u64 = 1_000_000_000; // 1e9
 
-fn calculate_proposal_vote_threshold(stake: u64, total_stake: u64) -> Result<u64, ProgramError> {
+fn calculate_proposal_vote_threshold(stake: u64, total_stake: u64) -> Result<u32, ProgramError> {
     if total_stake == 0 {
         return Ok(0);
     }
@@ -39,6 +39,7 @@ fn calculate_proposal_vote_threshold(stake: u64, total_stake: u64) -> Result<u64
     stake
         .checked_mul(THRESHOLD_SCALING_FACTOR)
         .and_then(|product| product.checked_div(total_stake))
+        .and_then(|result| u32::try_from(result).ok())
         .ok_or(ProgramError::ArithmeticOverflow)
 }
 
@@ -586,8 +587,8 @@ fn process_initialize_governance(
     program_id: &Pubkey,
     accounts: &[AccountInfo],
     cooldown_period_seconds: u64,
-    proposal_acceptance_threshold: u64,
-    proposal_rejection_threshold: u64,
+    proposal_acceptance_threshold: u32,
+    proposal_rejection_threshold: u32,
 ) -> ProgramResult {
     let accounts_iter = &mut accounts.iter();
 
@@ -652,8 +653,8 @@ fn process_update_governance(
     program_id: &Pubkey,
     accounts: &[AccountInfo],
     cooldown_period_seconds: u64,
-    proposal_acceptance_threshold: u64,
-    proposal_rejection_threshold: u64,
+    proposal_acceptance_threshold: u32,
+    proposal_rejection_threshold: u32,
 ) -> ProgramResult {
     let accounts_iter = &mut accounts.iter();
 
