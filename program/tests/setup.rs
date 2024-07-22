@@ -2,7 +2,7 @@
 #![allow(dead_code)]
 
 use {
-    paladin_governance_program::state::{Config, Proposal, ProposalVote},
+    paladin_governance_program::state::{Config, Proposal, ProposalVote, ProposalVoteElection},
     paladin_stake_program::state::{Config as StakeConfig, Stake},
     solana_program_test::*,
     solana_sdk::{
@@ -204,9 +204,9 @@ pub async fn setup_proposal_vote(
     proposal_address: &Pubkey,
     stake: u64,
     stake_authority_address: &Pubkey,
-    vote: bool,
+    election: ProposalVoteElection,
 ) {
-    let state = ProposalVote::new(proposal_address, stake, stake_authority_address, vote);
+    let state = ProposalVote::new(proposal_address, stake, stake_authority_address, election);
     let data = bytemuck::bytes_of(&state).to_vec();
 
     let rent = context.banks_client.get_rent().await.unwrap();

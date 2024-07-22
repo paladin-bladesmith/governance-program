@@ -7,12 +7,13 @@ use {
         error::PaladinGovernanceError,
         state::{
             get_governance_address, get_proposal_vote_address, Config, Proposal, ProposalVote,
+            ProposalVoteElection,
         },
     },
     paladin_stake_program::state::{find_stake_pda, Config as StakeConfig, Stake},
     setup::{
-        setup, setup_governance, setup_proposal, setup_proposal_vote, setup_stake,
-        setup_stake_config,
+        setup, setup_governance, setup_proposal, setup_proposal_vote, setup_proposal_with_stake,
+        setup_stake, setup_stake_config,
     },
     solana_program_test::*,
     solana_sdk::{
@@ -48,7 +49,7 @@ async fn fail_stake_authority_not_signer() {
         &proposal_vote,
         &proposal,
         &governance,
-        /* vote */ true,
+        ProposalVoteElection::For,
     );
     instruction.accounts[0].is_signer = false; // Stake authority not signer.
 
@@ -104,7 +105,7 @@ async fn fail_stake_incorrect_owner() {
         &proposal_vote,
         &proposal,
         &governance,
-        /* vote */ true,
+        ProposalVoteElection::For,
     );
 
     let transaction = Transaction::new_signed_with_payer(
@@ -159,7 +160,7 @@ async fn fail_stake_not_initialized() {
         &proposal_vote,
         &proposal,
         &governance,
-        /* vote */ true,
+        ProposalVoteElection::For,
     );
 
     let transaction = Transaction::new_signed_with_payer(
@@ -213,7 +214,7 @@ async fn fail_stake_incorrect_stake_authority() {
         &proposal_vote,
         &proposal,
         &governance,
-        /* vote */ true,
+        ProposalVoteElection::For,
     );
 
     let transaction = Transaction::new_signed_with_payer(
@@ -277,7 +278,7 @@ async fn fail_stake_config_incorrect_owner() {
         &proposal_vote,
         &proposal,
         &governance,
-        /* vote */ true,
+        ProposalVoteElection::For,
     );
 
     let transaction = Transaction::new_signed_with_payer(
@@ -341,7 +342,7 @@ async fn fail_stake_config_not_initialized() {
         &proposal_vote,
         &proposal,
         &governance,
-        /* vote */ true,
+        ProposalVoteElection::For,
     );
 
     let transaction = Transaction::new_signed_with_payer(
@@ -395,7 +396,7 @@ async fn fail_governance_incorrect_address() {
         &proposal_vote,
         &proposal,
         &governance,
-        /* vote */ true,
+        ProposalVoteElection::For,
     );
 
     let transaction = Transaction::new_signed_with_payer(
@@ -464,7 +465,7 @@ async fn fail_governance_incorrect_owner() {
         &proposal_vote,
         &proposal,
         &governance,
-        /* vote */ true,
+        ProposalVoteElection::For,
     );
 
     let transaction = Transaction::new_signed_with_payer(
@@ -527,7 +528,7 @@ async fn fail_governance_not_initialized() {
         &proposal_vote,
         &proposal,
         &governance,
-        /* vote */ true,
+        ProposalVoteElection::For,
     );
 
     let transaction = Transaction::new_signed_with_payer(
@@ -592,7 +593,7 @@ async fn fail_proposal_incorrect_owner() {
         &proposal_vote,
         &proposal,
         &governance,
-        /* vote */ true,
+        ProposalVoteElection::For,
     );
 
     let transaction = Transaction::new_signed_with_payer(
@@ -657,7 +658,7 @@ async fn fail_proposal_not_initialized() {
         &proposal_vote,
         &proposal,
         &governance,
-        /* vote */ true,
+        ProposalVoteElection::For,
     );
 
     let transaction = Transaction::new_signed_with_payer(
@@ -711,7 +712,7 @@ async fn fail_proposal_vote_incorrect_address() {
         &proposal_vote,
         &proposal,
         &governance,
-        /* vote */ true,
+        ProposalVoteElection::For,
     );
 
     let transaction = Transaction::new_signed_with_payer(
@@ -769,7 +770,7 @@ async fn fail_proposal_vote_already_initialized() {
         &proposal,
         0,
         &stake_authority.pubkey(),
-        true,
+        ProposalVoteElection::For,
     )
     .await;
 
@@ -780,7 +781,7 @@ async fn fail_proposal_vote_already_initialized() {
         &proposal_vote,
         &proposal,
         &governance,
-        /* vote */ true,
+        ProposalVoteElection::For,
     );
 
     let transaction = Transaction::new_signed_with_payer(
@@ -803,143 +804,88 @@ async fn fail_proposal_vote_already_initialized() {
     );
 }
 
-struct ProposalSetup {
-    acceptance_threshold: u64,
-    rejection_threshold: u64,
-    total_stake: u64,
-}
-struct VoteTest {
+const ACCEPTANCE_THRESHOLD: u64 = 500_000_000; // 50%
+const REJECTION_THRESHOLD: u64 = 500_000_000; // 50%
+const TOTAL_STAKE: u64 = 100_000_000;
+
+const PROPOSAL_STARTING_STAKE_FOR: u64 = 0;
+const PROPOSAL_STARTING_STAKE_AGAINST: u64 = 0;
+
+struct Vote {
     vote_stake: u64,
-    vote: bool,
-    should_have_cooldown: bool,
-    should_terminate: bool,
+    election: ProposalVoteElection,
+}
+enum Expect {
+    Cast {
+        cooldown: bool,
+        stake_for: u64,
+        stake_against: u64,
+    },
+    Terminated,
 }
 
 #[test_case(
-    ProposalSetup {
-        acceptance_threshold: 100_000_000, // 10%
-        rejection_threshold: 100_000_000,  // 10%
-        total_stake: 100_000_000,
+    Vote {
+        vote_stake: TOTAL_STAKE / 10, // 10% of total stake.
+        election: ProposalVoteElection::DidNotVote,
     },
-    VoteTest {
-        vote_stake: 10_000_000, // 10% of total stake.
-        vote: true, // For
-        should_have_cooldown: true, // Cooldown should be set by this vote.
-        should_terminate: false,
+    Expect::Cast {
+        cooldown: false,
+        stake_for: 0,
+        stake_against: 0,
     };
-    "10p_acceptance_threshold_met_should_begin_cooldown"
+    "did_not_vote_does_nothing"
 )]
 #[test_case(
-    ProposalSetup {
-        acceptance_threshold: 100_000_000, // 10%
-        rejection_threshold: 100_000_000,  // 10%
-        total_stake: 100_000_000,
+    Vote {
+        vote_stake: TOTAL_STAKE / 10, // 10% of total stake.
+        election: ProposalVoteElection::For,
     },
-    VoteTest {
-        vote_stake: 5_000_000, // 5% of total stake.
-        vote: true, // For
-        should_have_cooldown: false, // Cooldown should not be set by this vote.
-        should_terminate: false,
+    Expect::Cast {
+        cooldown: false,
+        stake_for: TOTAL_STAKE / 10,
+        stake_against: 0,
     };
-    "10p_acceptance_threshold_not_met_should_not_begin_cooldown"
+    "vote_for_increments_stake_for"
 )]
 #[test_case(
-    ProposalSetup {
-        acceptance_threshold: 100_000_000, // 10%
-        rejection_threshold: 100_000_000,  // 10%
-        total_stake: 100_000_000,
+    Vote {
+        vote_stake: TOTAL_STAKE / 10, // 10% of total stake.
+        election: ProposalVoteElection::Against,
     },
-    VoteTest {
-        vote_stake: 10_000_000, // 10% of total stake.
-        vote: false, // Against
-        should_have_cooldown: false,
-        should_terminate: true, // Proposal should be terminated.
+    Expect::Cast {
+        cooldown: false,
+        stake_for: 0,
+        stake_against: TOTAL_STAKE / 10,
     };
-    "10p_rejection_threshold_met_should_terminate"
+    "vote_against_increments_stake_against"
 )]
 #[test_case(
-    ProposalSetup {
-        acceptance_threshold: 100_000_000, // 10%
-        rejection_threshold: 100_000_000,  // 10%
-        total_stake: 100_000_000,
+    Vote {
+        vote_stake: TOTAL_STAKE / 2, // 50% of total stake.
+        election: ProposalVoteElection::For,
     },
-    VoteTest {
-        vote_stake: 5_000_000, // 5% of total stake.
-        vote: false, // Against
-        should_have_cooldown: false,
-        should_terminate: false, // Proposal should not be terminated.
+    Expect::Cast {
+        cooldown: true, // Cooldown should be set.
+        stake_for: TOTAL_STAKE / 2,
+        stake_against: 0,
     };
-    "10p_rejection_threshold_not_met_should_not_terminate"
+    "vote_for_beyond_threshold_increments_stake_for_and_activates_cooldown"
 )]
 #[test_case(
-    ProposalSetup {
-        acceptance_threshold: 100_000, // .0001%
-        rejection_threshold: 100_000,  // .0001%
-        total_stake: 100_000_000,
+    Vote {
+        vote_stake: TOTAL_STAKE / 2, // 50% of total stake.
+        election: ProposalVoteElection::Against,
     },
-    VoteTest {
-        vote_stake: 10_000, // .00010% of total stake.
-        vote: true, // For
-        should_have_cooldown: true, // Cooldown should be set by this vote.
-        should_terminate: false,
-    };
-    "dot_0001p_acceptance_threshold_met_should_begin_cooldown"
-)]
-#[test_case(
-    ProposalSetup {
-        acceptance_threshold: 100_000, // .0001%
-        rejection_threshold: 100_000,  // .0001%
-        total_stake: 100_000_000,
-    },
-    VoteTest {
-        vote_stake: 5_000, // .0005% of total stake.
-        vote: true, // For
-        should_have_cooldown: false, // Cooldown should not be set by this vote.
-        should_terminate: false,
-    };
-    "dot_0001p_acceptance_threshold_not_met_should_not_begin_cooldown"
-)]
-#[test_case(
-    ProposalSetup {
-        acceptance_threshold: 100_000, // .0001%
-        rejection_threshold: 100_000,  // .0001%
-        total_stake: 100_000_000,
-    },
-    VoteTest {
-        vote_stake: 10_000, // .00010% of total stake.
-        vote: false, // Against
-        should_have_cooldown: false,
-        should_terminate: true, // Proposal should be terminated.
-    };
-    "dot_0001p_rejection_threshold_met_should_terminate"
-)]
-#[test_case(
-    ProposalSetup {
-    acceptance_threshold: 100_000, // .0001%
-        rejection_threshold: 100_000,  // .0001%
-        total_stake: 100_000_000,
-    },
-    VoteTest {
-        vote_stake: 5_000, // .0005% of total stake.
-        vote: false, // Against
-        should_have_cooldown: false,
-        should_terminate: false, // Proposal should not be terminated.
-    };
-    "dot_0001p_rejection_threshold_not_met_should_not_terminate"
+    Expect::Terminated;
+    "vote_against_beyond_threshold_terminates"
 )]
 #[tokio::test]
-async fn success(proposal_setup: ProposalSetup, vote_test: VoteTest) {
-    let ProposalSetup {
-        acceptance_threshold,
-        rejection_threshold,
-        total_stake,
-    } = proposal_setup;
-    let VoteTest {
+async fn success(vote: Vote, expect: Expect) {
+    let Vote {
         vote_stake,
-        vote,
-        should_have_cooldown,
-        should_terminate,
-    } = vote_test;
+        election,
+    } = vote;
 
     let stake_authority = Keypair::new();
     let validator_vote = Pubkey::new_unique();
@@ -952,7 +898,7 @@ async fn success(proposal_setup: ProposalSetup, vote_test: VoteTest) {
     let governance = get_governance_address(&stake_config, &paladin_governance_program::id());
 
     let mut context = setup().start_with_context().await;
-    setup_stake_config(&mut context, &stake_config, total_stake).await;
+    setup_stake_config(&mut context, &stake_config, TOTAL_STAKE).await;
     setup_stake(
         &mut context,
         &stake,
@@ -965,12 +911,21 @@ async fn success(proposal_setup: ProposalSetup, vote_test: VoteTest) {
         &mut context,
         &governance,
         /* cooldown_period_seconds */ 10, // Unused here.
-        acceptance_threshold,
-        rejection_threshold,
+        ACCEPTANCE_THRESHOLD,
+        REJECTION_THRESHOLD,
         &stake_config,
     )
     .await;
-    setup_proposal(&mut context, &proposal, &stake_authority.pubkey(), 0, 0).await;
+    setup_proposal_with_stake(
+        &mut context,
+        &proposal,
+        &stake_authority.pubkey(),
+        0,
+        0,
+        PROPOSAL_STARTING_STAKE_FOR,
+        PROPOSAL_STARTING_STAKE_AGAINST,
+    )
+    .await;
 
     // Fund the proposal vote account.
     {
@@ -989,7 +944,7 @@ async fn success(proposal_setup: ProposalSetup, vote_test: VoteTest) {
         &proposal_vote,
         &proposal,
         &governance,
-        vote,
+        election,
     );
 
     let transaction = Transaction::new_signed_with_payer(
@@ -1014,7 +969,7 @@ async fn success(proposal_setup: ProposalSetup, vote_test: VoteTest) {
         .unwrap();
     assert_eq!(
         bytemuck::from_bytes::<ProposalVote>(&proposal_vote_account.data),
-        &ProposalVote::new(&proposal, vote_stake, &stake_authority.pubkey(), vote)
+        &ProposalVote::new(&proposal, vote_stake, &stake_authority.pubkey(), election)
     );
 
     let proposal_account = context
@@ -1024,27 +979,30 @@ async fn success(proposal_setup: ProposalSetup, vote_test: VoteTest) {
         .unwrap()
         .unwrap();
 
-    if should_terminate {
-        // Assert the proposal was terminated.
-        // The proposal should be cleared and reassigned to the system program.
-        assert_eq!(proposal_account.owner, solana_program::system_program::id());
-        assert_eq!(proposal_account.data.len(), 0);
-    } else {
-        let proposal_state = bytemuck::from_bytes::<Proposal>(&proposal_account.data);
+    match expect {
+        Expect::Cast {
+            cooldown,
+            stake_for,
+            stake_against,
+        } => {
+            // Assert the proposal stake matches the expected values.
+            let proposal_state = bytemuck::from_bytes::<Proposal>(&proposal_account.data);
+            assert_eq!(proposal_state.stake_for, stake_for);
+            assert_eq!(proposal_state.stake_against, stake_against);
 
-        // Assert the vote count was updated in the proposal.
-        if vote {
-            assert_eq!(proposal_state.stake_for, vote_stake);
-        } else {
-            assert_eq!(proposal_state.stake_against, vote_stake);
+            if cooldown {
+                // Assert the cooldown time is set.
+                assert!(proposal_state.cooldown_timestamp.is_some());
+            } else {
+                // Assert the cooldown time is not set.
+                assert!(proposal_state.cooldown_timestamp.is_none());
+            }
         }
-
-        if should_have_cooldown {
-            // Assert the cooldown time is set.
-            assert!(proposal_state.cooldown_timestamp.is_some());
-        } else {
-            // Assert the cooldown time is not set.
-            assert!(proposal_state.cooldown_timestamp.is_none());
+        Expect::Terminated => {
+            // Assert the proposal was terminated.
+            // The proposal should be cleared and reassigned to the system program.
+            assert_eq!(proposal_account.owner, solana_program::system_program::id());
+            assert_eq!(proposal_account.data.len(), 0);
         }
     }
 }
