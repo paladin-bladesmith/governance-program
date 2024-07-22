@@ -52,9 +52,11 @@ pub async fn setup_stake_config(
     stake_config_address: &Pubkey,
     total_stake: u64,
 ) {
-    let mut state = StakeConfig::default();
-    state.discriminator = StakeConfig::SPL_DISCRIMINATOR.into();
-    state.token_amount_delegated = total_stake;
+    let state = StakeConfig {
+        discriminator: StakeConfig::SPL_DISCRIMINATOR.into(),
+        token_amount_delegated: total_stake,
+        ..Default::default()
+    };
     let data = bytemuck::bytes_of(&state).to_vec();
 
     let rent = context.banks_client.get_rent().await.unwrap();
@@ -102,6 +104,7 @@ pub async fn setup_governance(
     );
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn _setup_proposal_inner(
     context: &mut ProgramTestContext,
     proposal_address: &Pubkey,
@@ -138,6 +141,7 @@ async fn _setup_proposal_inner(
     );
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn setup_proposal_with_stake_and_cooldown(
     context: &mut ProgramTestContext,
     proposal_address: &Pubkey,
@@ -163,6 +167,7 @@ pub async fn setup_proposal_with_stake_and_cooldown(
     .await;
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn setup_proposal_with_stake(
     context: &mut ProgramTestContext,
     proposal_address: &Pubkey,
