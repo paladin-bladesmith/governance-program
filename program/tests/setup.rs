@@ -79,12 +79,13 @@ pub async fn setup_governance(
     proposal_rejection_threshold: u32,
     stake_config_address: &Pubkey,
 ) {
-    let state = Config {
+    let state = Config::new(
         cooldown_period_seconds,
         proposal_acceptance_threshold,
         proposal_rejection_threshold,
-        stake_config_address: *stake_config_address,
-    };
+        /* signer_bump_seed */ 0, // TODO: Unused right now.
+        stake_config_address,
+    );
     let data = bytemuck::bytes_of(&state).to_vec();
 
     let rent = context.banks_client.get_rent().await.unwrap();

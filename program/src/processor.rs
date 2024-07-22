@@ -600,9 +600,9 @@ fn process_initialize_governance(
 
     // Create the governance config account.
     {
-        let (governance_address, bump_seed) =
+        let (governance_address, signer_bump_seed) =
             get_governance_address_and_bump_seed(stake_config_info.key, program_id);
-        let bump_seed = [bump_seed];
+        let bump_seed = [signer_bump_seed];
         let governance_signer_seeds =
             collect_governance_signer_seeds(stake_config_info.key, &bump_seed);
 
@@ -635,12 +635,13 @@ fn process_initialize_governance(
         // Write the data.
         let mut data = governance_info.try_borrow_mut_data()?;
         *bytemuck::try_from_bytes_mut(&mut data).map_err(|_| ProgramError::InvalidAccountData)? =
-            Config {
+            Config::new(
                 cooldown_period_seconds,
                 proposal_acceptance_threshold,
                 proposal_rejection_threshold,
-                stake_config_address: *stake_config_info.key,
-            };
+                signer_bump_seed,
+                stake_config_info.key,
+            );
     }
 
     Ok(())
