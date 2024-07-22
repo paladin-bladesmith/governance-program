@@ -301,15 +301,15 @@ async fn success() {
         .await
         .unwrap();
 
-    // Assert the proposal was cleared and reassigned to the system program.
+    // Assert the proposal was marked with processed status.
     let proposal_account = context
         .banks_client
         .get_account(proposal)
         .await
         .unwrap()
         .unwrap();
-    assert_eq!(proposal_account.owner, solana_program::system_program::id());
-    assert_eq!(proposal_account.data.len(), 0);
+    let proposal_state = bytemuck::from_bytes::<Proposal>(&proposal_account.data);
+    assert_eq!(proposal_state.status, ProposalStatus::Processed);
 
     // TODO: Assert the instruction was processed.
 }

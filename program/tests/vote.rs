@@ -1092,6 +1092,7 @@ async fn success(vote: Vote, expect: Expect) {
         .await
         .unwrap()
         .unwrap();
+    let proposal_state = bytemuck::from_bytes::<Proposal>(&proposal_account.data);
 
     match expect {
         Expect::Cast {
@@ -1101,7 +1102,6 @@ async fn success(vote: Vote, expect: Expect) {
             stake_abstained,
         } => {
             // Assert the proposal stake matches the expected values.
-            let proposal_state = bytemuck::from_bytes::<Proposal>(&proposal_account.data);
             assert_eq!(proposal_state.stake_for, stake_for);
             assert_eq!(proposal_state.stake_against, stake_against);
             assert_eq!(proposal_state.stake_abstained, stake_abstained);
@@ -1115,10 +1115,8 @@ async fn success(vote: Vote, expect: Expect) {
             }
         }
         Expect::Terminated => {
-            // Assert the proposal was terminated.
-            // The proposal should be cleared and reassigned to the system program.
-            assert_eq!(proposal_account.owner, solana_program::system_program::id());
-            assert_eq!(proposal_account.data.len(), 0);
+            // Assert the proposal was rejected.
+            assert_eq!(proposal_state.status, ProposalStatus::Rejected);
         }
     }
 }

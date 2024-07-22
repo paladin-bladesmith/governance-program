@@ -20,7 +20,7 @@ use {
         program::invoke_signed,
         program_error::ProgramError,
         pubkey::Pubkey,
-        system_instruction, system_program,
+        system_instruction,
         sysvar::Sysvar,
     },
     spl_discriminator::{ArrayDiscriminator, SplDiscriminate},
@@ -137,12 +137,6 @@ fn check_proposal_exists(program_id: &Pubkey, proposal_info: &AccountInfo) -> Pr
     Ok(())
 }
 
-fn close_proposal_account(proposal_info: &AccountInfo) -> ProgramResult {
-    proposal_info.realloc(0, true)?;
-    proposal_info.assign(&system_program::id());
-    Ok(())
-}
-
 /// Processes a
 /// [CreateProposal](enum.PaladinGovernanceInstruction.html)
 /// instruction.
@@ -216,23 +210,22 @@ fn process_cancel_proposal(program_id: &Pubkey, accounts: &[AccountInfo]) -> Pro
 
     check_proposal_exists(program_id, proposal_info)?;
 
+    let mut proposal_data = proposal_info.try_borrow_mut_data()?;
+    let proposal_state = bytemuck::try_from_bytes_mut::<Proposal>(&mut proposal_data)
+        .map_err(|_| ProgramError::InvalidAccountData)?;
+
+    // Ensure the stake authority is the proposal author.
+    proposal_state.check_author(stake_authority_info.key)?;
+
+    // Ensure the proposal is in draft or voting stage.
+    if proposal_state.status != ProposalStatus::Draft
+        && proposal_state.status != ProposalStatus::Voting
     {
-        let proposal_data = proposal_info.try_borrow_data()?;
-        let proposal_state = bytemuck::try_from_bytes::<Proposal>(&proposal_data)
-            .map_err(|_| ProgramError::InvalidAccountData)?;
-
-        // Ensure the stake authority is the proposal author.
-        proposal_state.check_author(stake_authority_info.key)?;
-
-        // Ensure the proposal is in draft or voting stage.
-        if proposal_state.status != ProposalStatus::Draft
-            && proposal_state.status != ProposalStatus::Voting
-        {
-            return Err(PaladinGovernanceError::ProposalIsImmutable.into());
-        }
+        return Err(PaladinGovernanceError::ProposalIsImmutable.into());
     }
 
-    close_proposal_account(proposal_info)?;
+    // Set the proposal's status to cancelled.
+    proposal_state.status = ProposalStatus::Cancelled;
 
     Ok(())
 }
@@ -367,10 +360,9 @@ fn process_vote(
             if calculate_proposal_vote_threshold(proposal_state.stake_against, total_stake)?
                 >= governance_config.proposal_rejection_threshold
             {
-                // If the proposal has met the rejection threshold, cancel the proposal.
+                // If the proposal has met the rejection threshold, reject the proposal.
                 // This is done regardless of any cooldown period.
-                drop(proposal_data);
-                return close_proposal_account(proposal_info);
+                proposal_state.status = ProposalStatus::Rejected;
             }
         }
         ProposalVoteElection::DidNotVote => {
@@ -534,10 +526,9 @@ fn process_switch_vote(
             if calculate_proposal_vote_threshold(proposal_state.stake_against, total_stake)?
                 >= governance_config.proposal_rejection_threshold
             {
-                // If the proposal has met the rejection threshold, cancel the proposal.
+                // If the proposal has met the rejection threshold, reject the proposal.
                 // This is done regardless of any cooldown period.
-                drop(proposal_data);
-                return close_proposal_account(proposal_info);
+                proposal_state.status = ProposalStatus::Rejected;
             }
 
             if calculate_proposal_vote_threshold(proposal_state.stake_for, total_stake)?
@@ -574,27 +565,26 @@ fn process_process_proposal(program_id: &Pubkey, accounts: &[AccountInfo]) -> Pr
     let governance_info = next_account_info(accounts_iter)?;
 
     check_governance_exists(program_id, governance_info)?;
+
+    let governance_data = governance_info.try_borrow_data()?;
+    let governance_config = bytemuck::try_from_bytes::<Config>(&governance_data)
+        .map_err(|_| ProgramError::InvalidAccountData)?;
+
     check_proposal_exists(program_id, proposal_info)?;
 
-    {
-        // Ensure the proposal meets the acceptance threshold.
-        let proposal_data = proposal_info.try_borrow_data()?;
-        let proposal_state = bytemuck::try_from_bytes::<Proposal>(&proposal_data)
-            .map_err(|_| ProgramError::InvalidAccountData)?;
+    let mut proposal_data = proposal_info.try_borrow_mut_data()?;
+    let proposal_state = bytemuck::try_from_bytes_mut::<Proposal>(&mut proposal_data)
+        .map_err(|_| ProgramError::InvalidAccountData)?;
 
-        let governance_data = governance_info.try_borrow_data()?;
-        let governance_config = bytemuck::try_from_bytes::<Config>(&governance_data)
-            .map_err(|_| ProgramError::InvalidAccountData)?;
+    let clock = <Clock as Sysvar>::get()?;
 
-        let clock = <Clock as Sysvar>::get()?;
+    proposal_state.check_cooldown(governance_config.cooldown_period_seconds, &clock)?;
 
-        proposal_state.check_cooldown(governance_config.cooldown_period_seconds, &clock)?;
+    // Process the proposal instruction.
+    // TODO!
 
-        // Process the proposal instruction.
-        // TODO!
-    }
-
-    close_proposal_account(proposal_info)?;
+    // Set the proposal's status to processed.
+    proposal_state.status = ProposalStatus::Processed;
 
     Ok(())
 }
