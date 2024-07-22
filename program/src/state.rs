@@ -175,6 +175,27 @@ impl Config {
     }
 }
 
+/// The status of a governance proposal.
+#[derive(Clone, Copy, Debug, PartialEq, IntoPrimitive, TryFromPrimitive)]
+#[repr(u8)]
+pub enum ProposalStatus {
+    /// The proposal is in the draft stage.
+    Draft,
+    /// The proposal is in the voting stage.
+    Voting,
+    /// The proposal was cancelled.
+    Cancelled,
+    /// The proposal was accepted.
+    Accepted,
+    /// The proposal was rejected.
+    Rejected,
+    /// The proposal was accepted and processed.
+    Processed,
+}
+
+unsafe impl Pod for ProposalStatus {}
+unsafe impl Zeroable for ProposalStatus {}
+
 /// Governance proposal account.
 #[derive(Clone, Copy, Debug, PartialEq, Pod, SplDiscriminate, Zeroable)]
 #[discriminator_hash_input("governance::state::proposal")]
@@ -197,6 +218,9 @@ pub struct Proposal {
     pub stake_against: u64,
     /// Amount of stake in favor of the proposal.
     pub stake_for: u64,
+    /// Proposal status
+    pub status: ProposalStatus,
+    _padding: [u8; 7],
 }
 
 impl Proposal {
@@ -211,6 +235,8 @@ impl Proposal {
             stake_abstained: 0,
             stake_against: 0,
             stake_for: 0,
+            status: ProposalStatus::Draft,
+            _padding: [0; 7],
         }
     }
 
