@@ -5,7 +5,10 @@ use {
     bytemuck::{Pod, Zeroable},
     num_enum::{IntoPrimitive, TryFromPrimitive},
     solana_program::{
-        clock::Clock, entrypoint::ProgramResult, program_error::ProgramError, pubkey::Pubkey,
+        clock::{Clock, UnixTimestamp},
+        entrypoint::ProgramResult,
+        program_error::ProgramError,
+        pubkey::Pubkey,
     },
     spl_discriminator::SplDiscriminate,
     std::num::NonZeroU64,
@@ -163,7 +166,7 @@ pub struct Proposal {
     /// A `None` value means cooldown has not begun.
     pub cooldown_timestamp: Option<NonZeroU64>,
     /// Timestamp for when proposal was created.
-    pub creation_timestamp: u64,
+    pub creation_timestamp: UnixTimestamp,
     /// The instruction to execute, pending proposal acceptance.
     pub instruction: u64, // TODO: Replace with an actual serialized instruction?
     /// Amount of stake that did not vote.
@@ -176,7 +179,7 @@ pub struct Proposal {
 
 impl Proposal {
     /// Create a new [Proposal](struct.Proposal.html).
-    pub fn new(author: &Pubkey, creation_timestamp: u64, instruction: u64) -> Self {
+    pub fn new(author: &Pubkey, creation_timestamp: UnixTimestamp, instruction: u64) -> Self {
         Self {
             discriminator: Self::SPL_DISCRIMINATOR.into(),
             author: *author,

@@ -187,7 +187,7 @@ fn process_create_proposal(program_id: &Pubkey, accounts: &[AccountInfo]) -> Pro
     }
 
     let clock = <Clock as Sysvar>::get()?;
-    let creation_timestamp = clock.unix_timestamp as u64;
+    let creation_timestamp = clock.unix_timestamp;
     let instruction = 0; // TODO!
 
     // Write the data.

@@ -7,6 +7,7 @@ use {
     solana_program_test::*,
     solana_sdk::{
         account::{Account, AccountSharedData},
+        clock::UnixTimestamp,
         pubkey::Pubkey,
     },
     spl_discriminator::SplDiscriminate,
@@ -104,7 +105,7 @@ async fn _setup_proposal_inner(
     context: &mut ProgramTestContext,
     proposal_address: &Pubkey,
     author: &Pubkey,
-    creation_timestamp: u64,
+    creation_timestamp: UnixTimestamp,
     instruction: u64,
     stake_for: u64,
     stake_against: u64,
@@ -140,7 +141,7 @@ pub async fn setup_proposal_with_stake_and_cooldown(
     context: &mut ProgramTestContext,
     proposal_address: &Pubkey,
     author: &Pubkey,
-    creation_timestamp: u64,
+    creation_timestamp: UnixTimestamp,
     instruction: u64,
     stake_for: u64,
     stake_against: u64,
@@ -165,7 +166,7 @@ pub async fn setup_proposal_with_stake(
     context: &mut ProgramTestContext,
     proposal_address: &Pubkey,
     author: &Pubkey,
-    creation_timestamp: u64,
+    creation_timestamp: UnixTimestamp,
     instruction: u64,
     stake_for: u64,
     stake_against: u64,
@@ -189,7 +190,7 @@ pub async fn setup_proposal(
     context: &mut ProgramTestContext,
     proposal_address: &Pubkey,
     author: &Pubkey,
-    creation_timestamp: u64,
+    creation_timestamp: UnixTimestamp,
     instruction: u64,
 ) {
     setup_proposal_with_stake(
