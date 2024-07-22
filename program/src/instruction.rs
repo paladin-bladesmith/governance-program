@@ -41,6 +41,15 @@ pub enum PaladinGovernanceInstruction {
     /// 0. `[s]` Paladin stake authority account.
     /// 1. `[w]` Proposal account.
     CancelProposal,
+    /// Finalize a draft governance proposal.
+    ///
+    /// Authority account provided must be the proposal creator.
+    ///
+    /// Accounts expected by this instruction:
+    ///
+    /// 0. `[s]` Paladin stake authority account.
+    /// 1. `[w]` Proposal account.
+    FinalizeProposal,
     /// Vote on a governance proposal.
     ///
     /// Expects an uninitialized proposal vote account with enough rent-exempt
@@ -155,15 +164,16 @@ impl PaladinGovernanceInstruction {
         match self {
             Self::CreateProposal => vec![0],
             Self::CancelProposal => vec![1],
-            Self::Vote { election } => vec![2, (*election).into()],
-            Self::SwitchVote { new_election } => vec![3, (*new_election).into()],
-            Self::ProcessProposal => vec![4],
+            Self::FinalizeProposal => vec![2],
+            Self::Vote { election } => vec![3, (*election).into()],
+            Self::SwitchVote { new_election } => vec![4, (*new_election).into()],
+            Self::ProcessProposal => vec![5],
             Self::InitializeGovernance {
                 cooldown_period_seconds,
                 proposal_acceptance_threshold,
                 proposal_rejection_threshold,
             } => {
-                let mut buf = vec![5];
+                let mut buf = vec![6];
                 buf.extend_from_slice(&cooldown_period_seconds.to_le_bytes());
                 buf.extend_from_slice(&proposal_acceptance_threshold.to_le_bytes());
                 buf.extend_from_slice(&proposal_rejection_threshold.to_le_bytes());
@@ -174,7 +184,7 @@ impl PaladinGovernanceInstruction {
                 proposal_acceptance_threshold,
                 proposal_rejection_threshold,
             } => {
-                let mut buf = vec![6];
+                let mut buf = vec![7];
                 buf.extend_from_slice(&cooldown_period_seconds.to_le_bytes());
                 buf.extend_from_slice(&proposal_acceptance_threshold.to_le_bytes());
                 buf.extend_from_slice(&proposal_rejection_threshold.to_le_bytes());
@@ -189,20 +199,21 @@ impl PaladinGovernanceInstruction {
         match input.split_first() {
             Some((&0, _)) => Ok(Self::CreateProposal),
             Some((&1, _)) => Ok(Self::CancelProposal),
-            Some((&2, rest)) if rest.len() == 1 => {
+            Some((&2, _)) => Ok(Self::FinalizeProposal),
+            Some((&3, rest)) if rest.len() == 1 => {
                 let election = rest[0]
                     .try_into()
                     .map_err(|_| ProgramError::InvalidInstructionData)?;
                 Ok(Self::Vote { election })
             }
-            Some((&3, rest)) if rest.len() == 1 => {
+            Some((&4, rest)) if rest.len() == 1 => {
                 let new_election = rest[0]
                     .try_into()
                     .map_err(|_| ProgramError::InvalidInstructionData)?;
                 Ok(Self::SwitchVote { new_election })
             }
-            Some((&4, _)) => Ok(Self::ProcessProposal),
-            Some((&5, rest)) if rest.len() == 16 => {
+            Some((&5, _)) => Ok(Self::ProcessProposal),
+            Some((&6, rest)) if rest.len() == 16 => {
                 let cooldown_period_seconds = u64::from_le_bytes(rest[..8].try_into().unwrap());
                 let proposal_acceptance_threshold =
                     u32::from_le_bytes(rest[8..12].try_into().unwrap());
@@ -214,7 +225,7 @@ impl PaladinGovernanceInstruction {
                     proposal_rejection_threshold,
                 })
             }
-            Some((&6, rest)) if rest.len() == 16 => {
+            Some((&7, rest)) if rest.len() == 16 => {
                 let cooldown_period_seconds = u64::from_le_bytes(rest[..8].try_into().unwrap());
                 let proposal_acceptance_threshold =
                     u32::from_le_bytes(rest[8..12].try_into().unwrap());
@@ -257,6 +268,21 @@ pub fn cancel_proposal(stake_authority_address: &Pubkey, proposal_address: &Pubk
         AccountMeta::new(*proposal_address, false),
     ];
     let data = PaladinGovernanceInstruction::CancelProposal.pack();
+    Instruction::new_with_bytes(crate::id(), &data, accounts)
+}
+
+/// Creates a
+/// [FinalizeProposal](enum.PaladinGovernanceInstruction.html)
+/// instruction.
+pub fn finalize_proposal(
+    stake_authority_address: &Pubkey,
+    proposal_address: &Pubkey,
+) -> Instruction {
+    let accounts = vec![
+        AccountMeta::new_readonly(*stake_authority_address, true),
+        AccountMeta::new(*proposal_address, false),
+    ];
+    let data = PaladinGovernanceInstruction::FinalizeProposal.pack();
     Instruction::new_with_bytes(crate::id(), &data, accounts)
 }
 
@@ -389,6 +415,11 @@ mod tests {
     #[test]
     fn test_pack_unpack_cancel_proposal() {
         test_pack_unpack(PaladinGovernanceInstruction::CancelProposal);
+    }
+
+    #[test]
+    fn test_pack_unpack_finalize_proposal() {
+        test_pack_unpack(PaladinGovernanceInstruction::FinalizeProposal);
     }
 
     #[test]

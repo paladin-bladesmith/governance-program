@@ -231,6 +231,35 @@ fn process_cancel_proposal(program_id: &Pubkey, accounts: &[AccountInfo]) -> Pro
 }
 
 /// Processes a
+/// [FinalizeProposal](enum.PaladinGovernanceInstruction.html)
+/// instruction.
+fn process_finalize_proposal(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
+    let accounts_iter = &mut accounts.iter();
+
+    let stake_authority_info = next_account_info(accounts_iter)?;
+    let proposal_info = next_account_info(accounts_iter)?;
+
+    // Ensure the stake authority is a signer.
+    if !stake_authority_info.is_signer {
+        return Err(ProgramError::MissingRequiredSignature);
+    }
+
+    check_proposal_exists(program_id, proposal_info)?;
+
+    let mut proposal_data = proposal_info.try_borrow_mut_data()?;
+    let proposal_state = bytemuck::try_from_bytes_mut::<Proposal>(&mut proposal_data)
+        .map_err(|_| ProgramError::InvalidAccountData)?;
+
+    // Ensure the stake authority is the proposal author.
+    proposal_state.check_author(stake_authority_info.key)?;
+
+    // Set the proposal's status to voting.
+    proposal_state.status = ProposalStatus::Voting;
+
+    Ok(())
+}
+
+/// Processes a
 /// [Vote](enum.PaladinGovernanceInstruction.html)
 /// instruction.
 fn process_vote(
@@ -717,6 +746,10 @@ pub fn process(program_id: &Pubkey, accounts: &[AccountInfo], input: &[u8]) -> P
         PaladinGovernanceInstruction::CancelProposal => {
             msg!("Instruction: CancelProposal");
             process_cancel_proposal(program_id, accounts)
+        }
+        PaladinGovernanceInstruction::FinalizeProposal => {
+            msg!("Instruction: FinalizeProposal");
+            process_finalize_proposal(program_id, accounts)
         }
         PaladinGovernanceInstruction::Vote { election } => {
             msg!("Instruction: Vote");
