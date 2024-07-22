@@ -3,7 +3,11 @@
 mod setup;
 
 use {
-    paladin_governance_program::{instruction::cancel_proposal, state::Proposal},
+    paladin_governance_program::{
+        error::PaladinGovernanceError,
+        instruction::cancel_proposal,
+        state::{Proposal, ProposalStatus},
+    },
     setup::{setup, setup_proposal},
     solana_program_test::*,
     solana_sdk::{
@@ -138,6 +142,7 @@ async fn fail_stake_authority_not_author() {
         &Pubkey::new_unique(), // Stake authority not author.
         0,
         0,
+        ProposalStatus::Draft,
     )
     .await;
 
@@ -164,12 +169,61 @@ async fn fail_stake_authority_not_author() {
 }
 
 #[tokio::test]
+async fn fail_proposal_immutable() {
+    let stake_authority = Keypair::new();
+    let proposal = Pubkey::new_unique();
+
+    let mut context = setup().start_with_context().await;
+    setup_proposal(
+        &mut context,
+        &proposal,
+        &stake_authority.pubkey(),
+        0,
+        0,
+        ProposalStatus::Accepted, // Proposal is immutable.
+    )
+    .await;
+
+    let instruction = cancel_proposal(&stake_authority.pubkey(), &proposal);
+
+    let transaction = Transaction::new_signed_with_payer(
+        &[instruction],
+        Some(&context.payer.pubkey()),
+        &[&context.payer, &stake_authority],
+        context.last_blockhash,
+    );
+
+    let err = context
+        .banks_client
+        .process_transaction(transaction)
+        .await
+        .unwrap_err()
+        .unwrap();
+
+    assert_eq!(
+        err,
+        TransactionError::InstructionError(
+            0,
+            InstructionError::Custom(PaladinGovernanceError::ProposalIsImmutable as u32)
+        )
+    );
+}
+
+#[tokio::test]
 async fn success() {
     let stake_authority = Keypair::new();
     let proposal = Pubkey::new_unique();
 
     let mut context = setup().start_with_context().await;
-    setup_proposal(&mut context, &proposal, &stake_authority.pubkey(), 0, 0).await;
+    setup_proposal(
+        &mut context,
+        &proposal,
+        &stake_authority.pubkey(),
+        0,
+        0,
+        ProposalStatus::Draft,
+    )
+    .await;
 
     let instruction = cancel_proposal(&stake_authority.pubkey(), &proposal);
 

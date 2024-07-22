@@ -8,7 +8,7 @@ use {
             collect_governance_signer_seeds, collect_proposal_vote_signer_seeds,
             get_governance_address, get_governance_address_and_bump_seed,
             get_proposal_vote_address, get_proposal_vote_address_and_bump_seed, Config, Proposal,
-            ProposalVote, ProposalVoteElection,
+            ProposalStatus, ProposalVote, ProposalVoteElection,
         },
     },
     paladin_stake_program::state::{find_stake_pda, Config as StakeConfig, Stake},
@@ -216,10 +216,21 @@ fn process_cancel_proposal(program_id: &Pubkey, accounts: &[AccountInfo]) -> Pro
 
     check_proposal_exists(program_id, proposal_info)?;
 
-    // Ensure the stake authority is the proposal author.
-    bytemuck::try_from_bytes::<Proposal>(&proposal_info.try_borrow_data()?)
-        .map_err(|_| ProgramError::InvalidAccountData)
-        .and_then(|state| state.check_author(stake_authority_info.key))?;
+    {
+        let proposal_data = proposal_info.try_borrow_data()?;
+        let proposal_state = bytemuck::try_from_bytes::<Proposal>(&proposal_data)
+            .map_err(|_| ProgramError::InvalidAccountData)?;
+
+        // Ensure the stake authority is the proposal author.
+        proposal_state.check_author(stake_authority_info.key)?;
+
+        // Ensure the proposal is in draft or voting stage.
+        if proposal_state.status != ProposalStatus::Draft
+            && proposal_state.status != ProposalStatus::Voting
+        {
+            return Err(PaladinGovernanceError::ProposalIsImmutable.into());
+        }
+    }
 
     close_proposal_account(proposal_info)?;
 
@@ -278,6 +289,17 @@ fn process_vote(
 
     check_proposal_exists(program_id, proposal_info)?;
 
+    let mut proposal_data = proposal_info.try_borrow_mut_data()?;
+    let proposal_state = bytemuck::try_from_bytes_mut::<Proposal>(&mut proposal_data)
+        .map_err(|_| ProgramError::InvalidAccountData)?;
+
+    // Ensure the proposal is in the voting stage.
+    if proposal_state.status != ProposalStatus::Voting {
+        return Err(PaladinGovernanceError::ProposalNotInVotingStage.into());
+    }
+
+    let clock = <Clock as Sysvar>::get()?;
+
     // Create the proposal vote account.
     {
         let (proposal_vote_address, bump_seed) =
@@ -317,13 +339,6 @@ fn process_vote(
         *bytemuck::try_from_bytes_mut(&mut data).map_err(|_| ProgramError::InvalidAccountData)? =
             ProposalVote::new(proposal_info.key, stake, stake_authority_info.key, election);
     }
-
-    // Update the proposal with the newly cast vote.
-    let mut proposal_data = proposal_info.try_borrow_mut_data()?;
-    let proposal_state = bytemuck::try_from_bytes_mut::<Proposal>(&mut proposal_data)
-        .map_err(|_| ProgramError::InvalidAccountData)?;
-
-    let clock = <Clock as Sysvar>::get()?;
 
     match election {
         ProposalVoteElection::For => {
@@ -421,6 +436,17 @@ fn process_switch_vote(
 
     check_proposal_exists(program_id, proposal_info)?;
 
+    let mut proposal_data = proposal_info.try_borrow_mut_data()?;
+    let proposal_state = bytemuck::try_from_bytes_mut::<Proposal>(&mut proposal_data)
+        .map_err(|_| ProgramError::InvalidAccountData)?;
+
+    // Ensure the proposal is in the voting stage.
+    if proposal_state.status != ProposalStatus::Voting {
+        return Err(PaladinGovernanceError::ProposalNotInVotingStage.into());
+    }
+
+    let clock = <Clock as Sysvar>::get()?;
+
     // Update the proposal vote account.
     let (last_election, last_stake) = {
         // Ensure the provided proposal vote address is the correct address
@@ -454,13 +480,6 @@ fn process_switch_vote(
             std::mem::replace(&mut state.stake, stake),
         )
     };
-
-    // Update the proposal with the updated vote.
-    let mut proposal_data = proposal_info.try_borrow_mut_data()?;
-    let proposal_state = bytemuck::try_from_bytes_mut::<Proposal>(&mut proposal_data)
-        .map_err(|_| ProgramError::InvalidAccountData)?;
-
-    let clock = <Clock as Sysvar>::get()?;
 
     // If the program hasn't terminated by this point, the vote has changed.
     // Simply update the proposal by inversing the vote stake.

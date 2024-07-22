@@ -3,7 +3,10 @@
 mod setup;
 
 use {
-    paladin_governance_program::{instruction::create_proposal, state::Proposal},
+    paladin_governance_program::{
+        instruction::create_proposal,
+        state::{Proposal, ProposalStatus},
+    },
     paladin_stake_program::state::Stake,
     setup::{setup, setup_proposal, setup_stake},
     solana_program_test::*,
@@ -286,7 +289,15 @@ async fn fail_proposal_already_initialized() {
     .await;
 
     // Set up an initialized proposal account.
-    setup_proposal(&mut context, &proposal, &stake_authority.pubkey(), 0, 0).await;
+    setup_proposal(
+        &mut context,
+        &proposal,
+        &stake_authority.pubkey(),
+        0,
+        0,
+        ProposalStatus::Draft,
+    )
+    .await;
 
     let instruction = create_proposal(&stake_authority.pubkey(), &stake, &proposal);
 

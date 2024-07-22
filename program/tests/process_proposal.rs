@@ -6,7 +6,7 @@ use {
     paladin_governance_program::{
         error::PaladinGovernanceError,
         instruction::process_proposal,
-        state::{Config, Proposal},
+        state::{Config, Proposal, ProposalStatus},
     },
     setup::{setup, setup_governance, setup_proposal_with_stake_and_cooldown},
     solana_program_test::*,
@@ -227,6 +227,7 @@ async fn fail_proposal_not_accepted() {
         0,
         0,
         0,
+        ProposalStatus::Accepted,
         NonZeroU64::new(clock.unix_timestamp as u64),
     )
     .await;
@@ -280,6 +281,7 @@ async fn success() {
         0,
         0,
         0,
+        ProposalStatus::Accepted,
         NonZeroU64::new(1),
     )
     .await;
