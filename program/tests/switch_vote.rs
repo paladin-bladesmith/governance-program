@@ -940,7 +940,45 @@ enum Expect {
         stake_for: TOTAL_STAKE / 4,
         stake_against: TOTAL_STAKE / 4,
     };
-    "for_to_for_does_nothing"
+    "for_to_for_same_stake_does_nothing"
+)]
+#[test_case(
+    ProposalStarting {
+        cooldown_active: false,
+        stake_for: TOTAL_STAKE / 4, // 25% of total stake.
+        stake_against: TOTAL_STAKE / 4, // 25% of total stake.
+    },
+    VoteSwitch {
+        previous_vote_stake: TOTAL_STAKE / 10, // 10% of total stake.
+        new_vote_stake: TOTAL_STAKE / 20, // 5% of total stake.
+        previous_election: ProposalVoteElection::For,
+        new_election: ProposalVoteElection::For,
+    },
+    Expect::Cast {
+        cooldown: false,
+        stake_for: TOTAL_STAKE / 4 - TOTAL_STAKE / 10 + TOTAL_STAKE / 20, // 20% of total stake.
+        stake_against: TOTAL_STAKE / 4,
+    };
+    "for_to_for_less_stake_decrements_stake_for"
+)]
+#[test_case(
+    ProposalStarting {
+        cooldown_active: false,
+        stake_for: TOTAL_STAKE / 4, // 25% of total stake.
+        stake_against: TOTAL_STAKE / 4, // 25% of total stake.
+    },
+    VoteSwitch {
+        previous_vote_stake: TOTAL_STAKE / 20, // 5% of total stake.
+        new_vote_stake: TOTAL_STAKE / 10, // 10% of total stake.
+        previous_election: ProposalVoteElection::For,
+        new_election: ProposalVoteElection::For,
+    },
+    Expect::Cast {
+        cooldown: false,
+        stake_for: TOTAL_STAKE / 4 - TOTAL_STAKE / 20 + TOTAL_STAKE / 10, // 30% of total stake.
+        stake_against: TOTAL_STAKE / 4,
+    };
+    "for_to_for_more_stake_increments_stake_for"
 )]
 #[test_case(
     ProposalStarting {
@@ -1031,7 +1069,45 @@ enum Expect {
         stake_for: TOTAL_STAKE / 4,
         stake_against: TOTAL_STAKE / 4,
     };
-    "against_to_against_does_nothing"
+    "against_to_against_same_stake_does_nothing"
+)]
+#[test_case(
+    ProposalStarting {
+        cooldown_active: false,
+        stake_for: TOTAL_STAKE / 4, // 25% of total stake.
+        stake_against: TOTAL_STAKE / 4, // 25% of total stake.
+    },
+    VoteSwitch {
+        previous_vote_stake: TOTAL_STAKE / 10, // 10% of total stake.
+        new_vote_stake: TOTAL_STAKE / 20, // 5% of total stake.
+        previous_election: ProposalVoteElection::Against,
+        new_election: ProposalVoteElection::Against,
+    },
+    Expect::Cast {
+        cooldown: false,
+        stake_for: TOTAL_STAKE / 4,
+        stake_against: TOTAL_STAKE / 4 - TOTAL_STAKE / 10 + TOTAL_STAKE / 20, // 20% of total stake.
+    };
+    "against_to_against_less_stake_decrements_stake_against"
+)]
+#[test_case(
+    ProposalStarting {
+        cooldown_active: false,
+        stake_for: TOTAL_STAKE / 4, // 25% of total stake.
+        stake_against: TOTAL_STAKE / 4, // 25% of total stake.
+    },
+    VoteSwitch {
+        previous_vote_stake: TOTAL_STAKE / 20, // 5% of total stake.
+        new_vote_stake: TOTAL_STAKE / 10, // 10% of total stake.
+        previous_election: ProposalVoteElection::Against,
+        new_election: ProposalVoteElection::Against,
+    },
+    Expect::Cast {
+        cooldown: false,
+        stake_for: TOTAL_STAKE / 4,
+        stake_against: TOTAL_STAKE / 4 - TOTAL_STAKE / 20 + TOTAL_STAKE / 10, // 30% of total stake.
+    };
+    "against_to_against_more_stake_increments_stake_against"
 )]
 #[test_case(
     ProposalStarting {

@@ -444,12 +444,6 @@ fn process_switch_vote(
         let state = bytemuck::try_from_bytes_mut::<ProposalVote>(&mut data)
             .map_err(|_| ProgramError::InvalidAccountData)?;
 
-        if state.election == new_election {
-            // End early if the vote wasn't changed.
-            // Skip updating the proposal.
-            return Ok(());
-        }
-
         (
             std::mem::replace(&mut state.election, new_election),
             std::mem::replace(&mut state.stake, stake),
