@@ -146,6 +146,7 @@ fn process_create_proposal(program_id: &Pubkey, accounts: &[AccountInfo]) -> Pro
     let stake_authority_info = next_account_info(accounts_iter)?;
     let stake_info = next_account_info(accounts_iter)?;
     let proposal_info = next_account_info(accounts_iter)?;
+    let governance_info = next_account_info(accounts_iter)?;
 
     // Ensure the stake authority is a signer.
     if !stake_authority_info.is_signer {
@@ -165,6 +166,14 @@ fn process_create_proposal(program_id: &Pubkey, accounts: &[AccountInfo]) -> Pro
             return Err(ProgramError::IncorrectAuthority);
         }
     }
+
+    check_governance_exists(program_id, governance_info)?;
+
+    let governance_config = {
+        let governance_data = governance_info.try_borrow_data()?;
+        *bytemuck::try_from_bytes::<Config>(&governance_data)
+            .map_err(|_| ProgramError::InvalidAccountData)?
+    };
 
     // Ensure the proposal account is owned by the Paladin Governance program.
     if proposal_info.owner != program_id {
@@ -188,8 +197,12 @@ fn process_create_proposal(program_id: &Pubkey, accounts: &[AccountInfo]) -> Pro
     // Write the data.
     let mut proposal_data = proposal_info.try_borrow_mut_data()?;
     *bytemuck::try_from_bytes_mut::<Proposal>(&mut proposal_data)
-        .map_err(|_| ProgramError::InvalidAccountData)? =
-        Proposal::new(stake_authority_info.key, creation_timestamp, instruction);
+        .map_err(|_| ProgramError::InvalidAccountData)? = Proposal::new(
+        stake_authority_info.key,
+        creation_timestamp,
+        governance_config,
+        instruction,
+    );
 
     Ok(())
 }

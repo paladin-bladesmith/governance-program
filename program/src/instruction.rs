@@ -31,6 +31,7 @@ pub enum PaladinGovernanceInstruction {
     /// 0. `[s]` Paladin stake authority account.
     /// 1. `[ ]` Paladin stake account.
     /// 2. `[w]` Proposal account.
+    /// 3. `[ ]` Governance config account.
     CreateProposal,
     /// Cancel a governance proposal.
     ///
@@ -261,11 +262,13 @@ pub fn create_proposal(
     stake_authority_address: &Pubkey,
     stake_address: &Pubkey,
     proposal_address: &Pubkey,
+    governance_config_address: &Pubkey,
 ) -> Instruction {
     let accounts = vec![
         AccountMeta::new_readonly(*stake_authority_address, true),
         AccountMeta::new_readonly(*stake_address, false),
         AccountMeta::new(*proposal_address, false),
+        AccountMeta::new_readonly(*governance_config_address, false),
     ];
     let data = PaladinGovernanceInstruction::CreateProposal.pack();
     Instruction::new_with_bytes(crate::id(), &data, accounts)

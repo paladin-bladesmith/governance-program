@@ -119,7 +119,7 @@ pub(crate) fn collect_proposal_vote_signer_seeds<'a>(
 }
 
 /// Governance configuration account.
-#[derive(Clone, Copy, Debug, PartialEq, Pod, Zeroable)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Pod, Zeroable)]
 #[repr(C)]
 pub struct Config {
     /// The cooldown period that begins when a proposal reaches the
@@ -214,6 +214,8 @@ pub struct Proposal {
     pub cooldown_timestamp: Option<NonZeroU64>,
     /// Timestamp for when proposal was created.
     pub creation_timestamp: UnixTimestamp,
+    /// The governance config for this proposal.
+    pub governance_config: Config,
     /// The instruction to execute, pending proposal acceptance.
     pub instruction: u64, // TODO: Replace with an actual serialized instruction?
     /// Amount of stake that did not vote.
@@ -231,12 +233,18 @@ pub struct Proposal {
 
 impl Proposal {
     /// Create a new [Proposal](struct.Proposal.html).
-    pub fn new(author: &Pubkey, creation_timestamp: UnixTimestamp, instruction: u64) -> Self {
+    pub fn new(
+        author: &Pubkey,
+        creation_timestamp: UnixTimestamp,
+        governance_config: Config,
+        instruction: u64,
+    ) -> Self {
         Self {
             discriminator: Self::SPL_DISCRIMINATOR.into(),
             author: *author,
             cooldown_timestamp: None,
             creation_timestamp,
+            governance_config,
             instruction,
             stake_abstained: 0,
             stake_against: 0,

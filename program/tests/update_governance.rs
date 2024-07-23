@@ -254,6 +254,7 @@ async fn fail_proposal_not_accepted() {
         &proposal,
         &Pubkey::new_unique(),
         0,
+        Config::default(),
         0,
         0,
         0,
@@ -303,15 +304,34 @@ async fn success() {
 
     let stake_config_address = Pubkey::new_unique();
 
+    let governance_config = Config::new(
+        /* cooldown_period_seconds */ 0,
+        /* proposal_acceptance_threshold */ 0,
+        /* proposal_rejection_threshold */ 0,
+        /* signer_bump_seed */ 0,
+        /* stake_config_address */ &stake_config_address,
+        /* voting_period_seconds */ 0,
+    );
+
     let mut context = setup().start_with_context().await;
     let clock = context.banks_client.get_sysvar::<Clock>().await.unwrap();
 
-    setup_governance(&mut context, &governance, 0, 0, 0, &stake_config_address, 0).await;
+    setup_governance(
+        &mut context,
+        &governance,
+        governance_config.cooldown_period_seconds,
+        governance_config.proposal_acceptance_threshold,
+        governance_config.proposal_rejection_threshold,
+        &governance_config.stake_config_address,
+        governance_config.voting_period_seconds,
+    )
+    .await;
     setup_proposal_with_stake_and_cooldown(
         &mut context,
         &proposal,
         &Pubkey::new_unique(),
         0,
+        governance_config,
         0,
         0,
         0,

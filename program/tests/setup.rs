@@ -114,6 +114,7 @@ async fn _setup_proposal_inner(
     proposal_address: &Pubkey,
     author: &Pubkey,
     creation_timestamp: UnixTimestamp,
+    governance_config: Config,
     instruction: u64,
     stake_for: u64,
     stake_against: u64,
@@ -122,7 +123,7 @@ async fn _setup_proposal_inner(
     voting_start_timestamp: Option<NonZeroU64>,
     cooldown_timestamp: Option<NonZeroU64>,
 ) {
-    let mut state = Proposal::new(author, creation_timestamp, instruction);
+    let mut state = Proposal::new(author, creation_timestamp, governance_config, instruction);
     state.cooldown_timestamp = cooldown_timestamp;
     state.stake_for = stake_for;
     state.stake_against = stake_against;
@@ -152,6 +153,7 @@ pub async fn setup_proposal_with_stake_and_cooldown(
     proposal_address: &Pubkey,
     author: &Pubkey,
     creation_timestamp: UnixTimestamp,
+    governance_config: Config,
     instruction: u64,
     stake_for: u64,
     stake_against: u64,
@@ -165,6 +167,7 @@ pub async fn setup_proposal_with_stake_and_cooldown(
         proposal_address,
         author,
         creation_timestamp,
+        governance_config,
         instruction,
         stake_for,
         stake_against,
@@ -182,6 +185,7 @@ pub async fn setup_proposal_with_stake(
     proposal_address: &Pubkey,
     author: &Pubkey,
     creation_timestamp: UnixTimestamp,
+    governance_config: Config,
     instruction: u64,
     stake_for: u64,
     stake_against: u64,
@@ -194,6 +198,7 @@ pub async fn setup_proposal_with_stake(
         proposal_address,
         author,
         creation_timestamp,
+        governance_config,
         instruction,
         stake_for,
         stake_against,
@@ -210,6 +215,7 @@ pub async fn setup_proposal(
     proposal_address: &Pubkey,
     author: &Pubkey,
     creation_timestamp: UnixTimestamp,
+    governance_config: Config,
     instruction: u64,
     status: ProposalStatus,
 ) {
@@ -218,6 +224,7 @@ pub async fn setup_proposal(
         proposal_address,
         author,
         creation_timestamp,
+        governance_config,
         instruction,
         0,
         0,
