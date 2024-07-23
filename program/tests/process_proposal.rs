@@ -199,7 +199,7 @@ async fn fail_proposal_not_initialized() {
 }
 
 #[tokio::test]
-async fn fail_proposal_not_accepted() {
+async fn fail_proposal_cooldown_in_progress() {
     let proposal = Pubkey::new_unique();
     let governance = Pubkey::new_unique(); // PDA doesn't matter here.
 
@@ -228,6 +228,62 @@ async fn fail_proposal_not_accepted() {
         0,
         0,
         ProposalStatus::Accepted,
+        NonZeroU64::new(clock.unix_timestamp as u64),
+    )
+    .await;
+
+    let instruction = process_proposal(&proposal, &governance);
+
+    let transaction = Transaction::new_signed_with_payer(
+        &[instruction],
+        Some(&context.payer.pubkey()),
+        &[&context.payer],
+        context.last_blockhash,
+    );
+
+    let err = context
+        .banks_client
+        .process_transaction(transaction)
+        .await
+        .unwrap_err()
+        .unwrap();
+
+    assert_eq!(
+        err,
+        TransactionError::InstructionError(
+            0,
+            InstructionError::Custom(PaladinGovernanceError::ProposalNotAccepted as u32)
+        )
+    );
+}
+
+#[tokio::test]
+async fn fail_proposal_not_accepted() {
+    let proposal = Pubkey::new_unique();
+    let governance = Pubkey::new_unique(); // PDA doesn't matter here.
+
+    let mut context = setup().start_with_context().await;
+
+    setup_governance(
+        &mut context,
+        &governance,
+        0,
+        0,
+        0,
+        /* stake_config_address */ &Pubkey::new_unique(), // Doesn't matter here.
+    )
+    .await;
+    let clock = context.banks_client.get_sysvar::<Clock>().await.unwrap();
+    setup_proposal_with_stake_and_cooldown(
+        &mut context,
+        &proposal,
+        &Pubkey::new_unique(),
+        0,
+        0,
+        0,
+        0,
+        0,
+        ProposalStatus::Voting, // Not accepted.
         NonZeroU64::new(clock.unix_timestamp as u64),
     )
     .await;

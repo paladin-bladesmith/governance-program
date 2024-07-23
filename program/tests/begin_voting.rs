@@ -4,6 +4,7 @@ mod setup;
 
 use {
     paladin_governance_program::{
+        error::PaladinGovernanceError,
         instruction::begin_voting,
         state::{Proposal, ProposalStatus},
     },
@@ -164,6 +165,47 @@ async fn fail_stake_authority_not_author() {
     assert_eq!(
         err,
         TransactionError::InstructionError(0, InstructionError::IncorrectAuthority)
+    );
+}
+
+#[tokio::test]
+async fn fail_proposal_not_in_draft_stage() {
+    let stake_authority = Keypair::new();
+    let proposal = Pubkey::new_unique();
+
+    let mut context = setup().start_with_context().await;
+    setup_proposal(
+        &mut context,
+        &proposal,
+        &stake_authority.pubkey(),
+        0,
+        0,
+        ProposalStatus::Voting, // Not in draft stage.
+    )
+    .await;
+
+    let instruction = begin_voting(&stake_authority.pubkey(), &proposal);
+
+    let transaction = Transaction::new_signed_with_payer(
+        &[instruction],
+        Some(&context.payer.pubkey()),
+        &[&context.payer, &stake_authority],
+        context.last_blockhash,
+    );
+
+    let err = context
+        .banks_client
+        .process_transaction(transaction)
+        .await
+        .unwrap_err()
+        .unwrap();
+
+    assert_eq!(
+        err,
+        TransactionError::InstructionError(
+            0,
+            InstructionError::Custom(PaladinGovernanceError::ProposalIsImmutable as u32)
+        )
     );
 }
 

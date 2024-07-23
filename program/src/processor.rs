@@ -253,6 +253,11 @@ fn process_begin_voting(program_id: &Pubkey, accounts: &[AccountInfo]) -> Progra
     // Ensure the stake authority is the proposal author.
     proposal_state.check_author(stake_authority_info.key)?;
 
+    // Ensure the proposal is in draft stage.
+    if proposal_state.status != ProposalStatus::Draft {
+        return Err(PaladinGovernanceError::ProposalIsImmutable.into());
+    }
+
     // Set the proposal's status to voting.
     proposal_state.status = ProposalStatus::Voting;
 
@@ -607,7 +612,12 @@ fn process_process_proposal(program_id: &Pubkey, accounts: &[AccountInfo]) -> Pr
 
     let clock = <Clock as Sysvar>::get()?;
 
+    // TODO: These checks do the same thing basically.
+    // Will be cleaned up when this processor is rearchitected.
     proposal_state.check_cooldown(governance_config.cooldown_period_seconds, &clock)?;
+    if proposal_state.status != ProposalStatus::Accepted {
+        return Err(PaladinGovernanceError::ProposalNotAccepted.into());
+    }
 
     // Process the proposal instruction.
     // TODO!
