@@ -597,7 +597,7 @@ async fn fail_proposal_incorrect_owner() {
         0,
     )
     .await;
-    setup_governance(&mut context, &governance, 0, 0, 0, &stake_config).await;
+    setup_governance(&mut context, &governance, 0, 0, 0, &stake_config, 0).await;
 
     // Set up the proposal account with the incorrect owner.
     {
@@ -662,7 +662,7 @@ async fn fail_proposal_not_initialized() {
         0,
     )
     .await;
-    setup_governance(&mut context, &governance, 0, 0, 0, &stake_config).await;
+    setup_governance(&mut context, &governance, 0, 0, 0, &stake_config, 0).await;
 
     // Set up the proposal account uninitialized.
     {
@@ -727,7 +727,7 @@ async fn fail_proposal_not_voting() {
         0,
     )
     .await;
-    setup_governance(&mut context, &governance, 0, 0, 0, &stake_config).await;
+    setup_governance(&mut context, &governance, 0, 0, 0, &stake_config, 0).await;
     setup_proposal(
         &mut context,
         &proposal,
@@ -792,7 +792,7 @@ async fn fail_proposal_vote_incorrect_address() {
         0,
     )
     .await;
-    setup_governance(&mut context, &governance, 0, 0, 0, &stake_config).await;
+    setup_governance(&mut context, &governance, 0, 0, 0, &stake_config, 0).await;
     setup_proposal(
         &mut context,
         &proposal,
@@ -858,7 +858,7 @@ async fn fail_proposal_vote_not_initialized() {
         0,
     )
     .await;
-    setup_governance(&mut context, &governance, 0, 0, 0, &stake_config).await;
+    setup_governance(&mut context, &governance, 0, 0, 0, &stake_config, 0).await;
     setup_proposal(
         &mut context,
         &proposal,
@@ -911,6 +911,7 @@ async fn fail_proposal_vote_not_initialized() {
 
 const ACCEPTANCE_THRESHOLD: u32 = 500_000_000; // 50%
 const REJECTION_THRESHOLD: u32 = 500_000_000; // 50%
+const VOTING_PERIOD_SECONDS: u64 = 100_000_000;
 const TOTAL_STAKE: u64 = 100_000_000;
 
 struct ProposalStarting {
@@ -1379,6 +1380,7 @@ async fn success(proposal_starting: ProposalStarting, switch: VoteSwitch, expect
         ACCEPTANCE_THRESHOLD,
         REJECTION_THRESHOLD,
         &stake_config,
+        VOTING_PERIOD_SECONDS,
     )
     .await;
 

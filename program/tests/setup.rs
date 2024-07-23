@@ -82,6 +82,7 @@ pub async fn setup_governance(
     proposal_acceptance_threshold: u32,
     proposal_rejection_threshold: u32,
     stake_config_address: &Pubkey,
+    voting_period_seconds: u64,
 ) {
     let state = Config::new(
         cooldown_period_seconds,
@@ -89,6 +90,7 @@ pub async fn setup_governance(
         proposal_rejection_threshold,
         /* signer_bump_seed */ 0, // TODO: Unused right now.
         stake_config_address,
+        voting_period_seconds,
     );
     let data = bytemuck::bytes_of(&state).to_vec();
 

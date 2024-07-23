@@ -645,6 +645,7 @@ fn process_initialize_governance(
     cooldown_period_seconds: u64,
     proposal_acceptance_threshold: u32,
     proposal_rejection_threshold: u32,
+    voting_period_seconds: u64,
 ) -> ProgramResult {
     let accounts_iter = &mut accounts.iter();
 
@@ -697,6 +698,7 @@ fn process_initialize_governance(
                 proposal_rejection_threshold,
                 signer_bump_seed,
                 stake_config_info.key,
+                voting_period_seconds,
             );
     }
 
@@ -712,6 +714,7 @@ fn process_update_governance(
     cooldown_period_seconds: u64,
     proposal_acceptance_threshold: u32,
     proposal_rejection_threshold: u32,
+    voting_period_seconds: u64,
 ) -> ProgramResult {
     let accounts_iter = &mut accounts.iter();
 
@@ -748,6 +751,7 @@ fn process_update_governance(
     state.cooldown_period_seconds = cooldown_period_seconds;
     state.proposal_acceptance_threshold = proposal_acceptance_threshold;
     state.proposal_rejection_threshold = proposal_rejection_threshold;
+    state.voting_period_seconds = voting_period_seconds;
 
     Ok(())
 }
@@ -785,6 +789,7 @@ pub fn process(program_id: &Pubkey, accounts: &[AccountInfo], input: &[u8]) -> P
             cooldown_period_seconds,
             proposal_acceptance_threshold,
             proposal_rejection_threshold,
+            voting_period_seconds,
         } => {
             msg!("Instruction: InitializeGovernance");
             process_initialize_governance(
@@ -793,12 +798,14 @@ pub fn process(program_id: &Pubkey, accounts: &[AccountInfo], input: &[u8]) -> P
                 cooldown_period_seconds,
                 proposal_acceptance_threshold,
                 proposal_rejection_threshold,
+                voting_period_seconds,
             )
         }
         PaladinGovernanceInstruction::UpdateGovernance {
             cooldown_period_seconds,
             proposal_acceptance_threshold,
             proposal_rejection_threshold,
+            voting_period_seconds,
         } => {
             msg!("Instruction: UpdateGovernance");
             process_update_governance(
@@ -807,6 +814,7 @@ pub fn process(program_id: &Pubkey, accounts: &[AccountInfo], input: &[u8]) -> P
                 cooldown_period_seconds,
                 proposal_acceptance_threshold,
                 proposal_rejection_threshold,
+                voting_period_seconds,
             )
         }
     }

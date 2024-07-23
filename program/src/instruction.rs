@@ -128,6 +128,8 @@ pub enum PaladinGovernanceInstruction {
         /// The minimum required threshold of proposal rejection to terminate
         /// the proposal.
         proposal_rejection_threshold: u32,
+        /// The voting period for proposals.
+        voting_period_seconds: u64,
     },
     /// Update the governance config.
     ///
@@ -153,6 +155,8 @@ pub enum PaladinGovernanceInstruction {
         /// The minimum required threshold of proposal rejection to terminate
         /// the proposal.
         proposal_rejection_threshold: u32,
+        /// The voting period for proposals.
+        voting_period_seconds: u64,
     },
 }
 
@@ -172,22 +176,26 @@ impl PaladinGovernanceInstruction {
                 cooldown_period_seconds,
                 proposal_acceptance_threshold,
                 proposal_rejection_threshold,
+                voting_period_seconds,
             } => {
                 let mut buf = vec![6];
                 buf.extend_from_slice(&cooldown_period_seconds.to_le_bytes());
                 buf.extend_from_slice(&proposal_acceptance_threshold.to_le_bytes());
                 buf.extend_from_slice(&proposal_rejection_threshold.to_le_bytes());
+                buf.extend_from_slice(&voting_period_seconds.to_le_bytes());
                 buf
             }
             Self::UpdateGovernance {
                 cooldown_period_seconds,
                 proposal_acceptance_threshold,
                 proposal_rejection_threshold,
+                voting_period_seconds,
             } => {
                 let mut buf = vec![7];
                 buf.extend_from_slice(&cooldown_period_seconds.to_le_bytes());
                 buf.extend_from_slice(&proposal_acceptance_threshold.to_le_bytes());
                 buf.extend_from_slice(&proposal_rejection_threshold.to_le_bytes());
+                buf.extend_from_slice(&voting_period_seconds.to_le_bytes());
                 buf
             }
         }
@@ -213,28 +221,32 @@ impl PaladinGovernanceInstruction {
                 Ok(Self::SwitchVote { new_election })
             }
             Some((&5, _)) => Ok(Self::ProcessProposal),
-            Some((&6, rest)) if rest.len() == 16 => {
+            Some((&6, rest)) if rest.len() == 24 => {
                 let cooldown_period_seconds = u64::from_le_bytes(rest[..8].try_into().unwrap());
                 let proposal_acceptance_threshold =
                     u32::from_le_bytes(rest[8..12].try_into().unwrap());
                 let proposal_rejection_threshold =
                     u32::from_le_bytes(rest[12..16].try_into().unwrap());
+                let voting_period_seconds = u64::from_le_bytes(rest[16..24].try_into().unwrap());
                 Ok(Self::InitializeGovernance {
                     cooldown_period_seconds,
                     proposal_acceptance_threshold,
                     proposal_rejection_threshold,
+                    voting_period_seconds,
                 })
             }
-            Some((&7, rest)) if rest.len() == 16 => {
+            Some((&7, rest)) if rest.len() == 24 => {
                 let cooldown_period_seconds = u64::from_le_bytes(rest[..8].try_into().unwrap());
                 let proposal_acceptance_threshold =
                     u32::from_le_bytes(rest[8..12].try_into().unwrap());
                 let proposal_rejection_threshold =
                     u32::from_le_bytes(rest[12..16].try_into().unwrap());
+                let voting_period_seconds = u64::from_le_bytes(rest[16..24].try_into().unwrap());
                 Ok(Self::UpdateGovernance {
                     cooldown_period_seconds,
                     proposal_acceptance_threshold,
                     proposal_rejection_threshold,
+                    voting_period_seconds,
                 })
             }
             _ => Err(ProgramError::InvalidInstructionData),
@@ -356,6 +368,7 @@ pub fn initialize_governance(
     cooldown_period_seconds: u64,
     proposal_acceptance_threshold: u32,
     proposal_rejection_threshold: u32,
+    voting_period_seconds: u64,
 ) -> Instruction {
     let accounts = vec![
         AccountMeta::new(*governance_config_address, false),
@@ -366,6 +379,7 @@ pub fn initialize_governance(
         cooldown_period_seconds,
         proposal_acceptance_threshold,
         proposal_rejection_threshold,
+        voting_period_seconds,
     }
     .pack();
     Instruction::new_with_bytes(crate::id(), &data, accounts)
@@ -380,6 +394,7 @@ pub fn update_governance(
     cooldown_period_seconds: u64,
     proposal_acceptance_threshold: u32,
     proposal_rejection_threshold: u32,
+    voting_period_seconds: u64,
 ) -> Instruction {
     let accounts = vec![
         AccountMeta::new(*governance_config_address, false),
@@ -389,6 +404,7 @@ pub fn update_governance(
         cooldown_period_seconds,
         proposal_acceptance_threshold,
         proposal_rejection_threshold,
+        voting_period_seconds,
     }
     .pack();
     Instruction::new_with_bytes(crate::id(), &data, accounts)
@@ -456,6 +472,7 @@ mod tests {
             cooldown_period_seconds: 1,
             proposal_acceptance_threshold: 2,
             proposal_rejection_threshold: 3,
+            voting_period_seconds: 4,
         });
     }
 
@@ -465,6 +482,7 @@ mod tests {
             cooldown_period_seconds: 1,
             proposal_acceptance_threshold: 2,
             proposal_rejection_threshold: 3,
+            voting_period_seconds: 4,
         });
     }
 }

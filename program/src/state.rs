@@ -141,10 +141,12 @@ pub struct Config {
     /// The signing bump seed, used to sign transactions for this governance
     /// config account with `invoke_signed`. Stored here to save on compute.
     pub signer_bump_seed: u8,
+    _padding: [u8; 7],
     /// The Paladin stake config account that this governance config account
     /// corresponds to.
     pub stake_config_address: Pubkey,
-    _padding: [u8; 7],
+    /// The voting period for proposals.
+    pub voting_period_seconds: u64,
 }
 
 impl Config {
@@ -155,14 +157,16 @@ impl Config {
         proposal_rejection_threshold: u32,
         signer_bump_seed: u8,
         stake_config_address: &Pubkey,
+        voting_period_seconds: u64,
     ) -> Self {
         Self {
             cooldown_period_seconds,
             proposal_acceptance_threshold,
             proposal_rejection_threshold,
             signer_bump_seed,
-            stake_config_address: *stake_config_address,
             _padding: [0; 7],
+            stake_config_address: *stake_config_address,
+            voting_period_seconds,
         }
     }
 

@@ -113,6 +113,7 @@ async fn fail_proposal_incorrect_owner() {
         0,
         0,
         /* stake_config_address */ &Pubkey::new_unique(), // Doesn't matter here.
+        0,
     )
     .await;
 
@@ -162,6 +163,7 @@ async fn fail_proposal_not_initialized() {
         0,
         0,
         /* stake_config_address */ &Pubkey::new_unique(), // Doesn't matter here.
+        0,
     )
     .await;
 
@@ -215,6 +217,7 @@ async fn fail_proposal_cooldown_in_progress() {
         0,
         0,
         /* stake_config_address */ &Pubkey::new_unique(), // Doesn't matter here.
+        0,
     )
     .await;
     let clock = context.banks_client.get_sysvar::<Clock>().await.unwrap();
@@ -271,6 +274,7 @@ async fn fail_proposal_not_accepted() {
         0,
         0,
         /* stake_config_address */ &Pubkey::new_unique(), // Doesn't matter here.
+        0,
     )
     .await;
     let clock = context.banks_client.get_sysvar::<Clock>().await.unwrap();
@@ -326,6 +330,7 @@ async fn success() {
         0,
         0,
         /* stake_config_address */ &Pubkey::new_unique(), // Doesn't matter here.
+        0,
     )
     .await;
     setup_proposal_with_stake_and_cooldown(
