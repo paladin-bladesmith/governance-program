@@ -8,8 +8,8 @@ use {
             collect_governance_signer_seeds, collect_proposal_transaction_signer_seeds,
             collect_proposal_vote_signer_seeds, get_governance_address_and_bump_seed,
             get_proposal_transaction_address_and_bump_seed, get_proposal_vote_address,
-            get_proposal_vote_address_and_bump_seed, Config, Proposal, ProposalStatus,
-            ProposalTransaction, ProposalVote, ProposalVoteElection,
+            get_proposal_vote_address_and_bump_seed, Config, Proposal, ProposalAccountMeta,
+            ProposalStatus, ProposalTransaction, ProposalVote, ProposalVoteElection,
         },
     },
     borsh::BorshSerialize,
@@ -251,6 +251,30 @@ fn process_create_proposal(program_id: &Pubkey, accounts: &[AccountInfo]) -> Pro
         state.serialize(&mut &mut proposal_transaction_info.try_borrow_mut_data()?[..])?;
     }
 
+    Ok(())
+}
+
+/// Processes a
+/// [InsertInstruction](enum.PaladinGovernanceInstruction.html)
+/// instruction.
+fn process_insert_instruction(
+    _program_id: &Pubkey,
+    _accounts: &[AccountInfo],
+    _instruction_program_id: Pubkey,
+    _instruction_account_metas: Vec<ProposalAccountMeta>,
+    _instruction_data: Vec<u8>,
+) -> ProgramResult {
+    Ok(())
+}
+
+/// Processes a
+/// [RemoveInstruction](enum.PaladinGovernanceInstruction.html)
+/// instruction.
+fn process_remove_instruction(
+    _program_id: &Pubkey,
+    _accounts: &[AccountInfo],
+    _instruction_index: u32,
+) -> ProgramResult {
     Ok(())
 }
 
@@ -807,6 +831,24 @@ pub fn process(program_id: &Pubkey, accounts: &[AccountInfo], input: &[u8]) -> P
         PaladinGovernanceInstruction::CreateProposal => {
             msg!("Instruction: CreateProposal");
             process_create_proposal(program_id, accounts)
+        }
+        PaladinGovernanceInstruction::InsertInstruction {
+            instruction_program_id,
+            instruction_account_metas,
+            instruction_data,
+        } => {
+            msg!("Instruction: InsertInstruction");
+            process_insert_instruction(
+                program_id,
+                accounts,
+                instruction_program_id,
+                instruction_account_metas,
+                instruction_data,
+            )
+        }
+        PaladinGovernanceInstruction::RemoveInstruction { instruction_index } => {
+            msg!("Instruction: RemoveInstruction");
+            process_remove_instruction(program_id, accounts, instruction_index)
         }
         PaladinGovernanceInstruction::CancelProposal => {
             msg!("Instruction: CancelProposal");
