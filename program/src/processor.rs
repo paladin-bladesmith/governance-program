@@ -6,9 +6,9 @@ use {
         instruction::PaladinGovernanceInstruction,
         state::{
             collect_governance_signer_seeds, collect_proposal_vote_signer_seeds,
-            get_governance_address, get_governance_address_and_bump_seed,
-            get_proposal_vote_address, get_proposal_vote_address_and_bump_seed, Config, Proposal,
-            ProposalStatus, ProposalVote, ProposalVoteElection,
+            get_governance_address_and_bump_seed, get_proposal_vote_address,
+            get_proposal_vote_address_and_bump_seed, Config, Proposal, ProposalStatus,
+            ProposalVote, ProposalVoteElection,
         },
     },
     paladin_stake_program::state::{find_stake_pda, Config as StakeConfig, Stake},
@@ -300,7 +300,6 @@ fn process_vote(
     let stake_config_info = next_account_info(accounts_iter)?;
     let proposal_vote_info = next_account_info(accounts_iter)?;
     let proposal_info = next_account_info(accounts_iter)?;
-    let governance_info = next_account_info(accounts_iter)?;
     let _system_program_info = next_account_info(accounts_iter)?;
 
     // Ensure the stake authority is a signer.
@@ -316,30 +315,17 @@ fn process_vote(
             .map_err(|_| ProgramError::InvalidAccountData)?
             .token_amount_delegated;
 
-    // Ensure the provided governance address is the correct address derived from
-    // the program.
-    if !governance_info
-        .key
-        .eq(&get_governance_address(stake_config_info.key, program_id))
-    {
-        return Err(PaladinGovernanceError::IncorrectGovernanceConfigAddress.into());
-    }
-
-    check_governance_exists(program_id, governance_info)?;
-
-    let governance_data = governance_info.try_borrow_data()?;
-    let governance_config = bytemuck::try_from_bytes::<Config>(&governance_data)
-        .map_err(|_| ProgramError::InvalidAccountData)?;
-
-    // Ensure the address of the provided stake config account matches the one
-    // stored in the governance config.
-    governance_config.check_stake_config(stake_config_info.key)?;
-
     check_proposal_exists(program_id, proposal_info)?;
 
     let mut proposal_data = proposal_info.try_borrow_mut_data()?;
     let proposal_state = bytemuck::try_from_bytes_mut::<Proposal>(&mut proposal_data)
         .map_err(|_| ProgramError::InvalidAccountData)?;
+
+    let governance_config = proposal_state.governance_config;
+
+    // Ensure the address of the provided stake config account matches the one
+    // stored in the proposal's governance config.
+    governance_config.check_stake_config(stake_config_info.key)?;
 
     // Ensure the proposal is in the voting stage.
     if proposal_state.status != ProposalStatus::Voting {
@@ -349,7 +335,7 @@ fn process_vote(
     let clock = <Clock as Sysvar>::get()?;
 
     // If the proposal has an active cooldown period, ensure it has not ended.
-    if proposal_state.cooldown_has_ended(governance_config.cooldown_period_seconds, &clock) {
+    if proposal_state.cooldown_has_ended(&clock) {
         // If the cooldown period has ended, the proposal is accepted.
         proposal_state.status = ProposalStatus::Accepted;
         return Ok(());
@@ -359,9 +345,7 @@ fn process_vote(
     // voting period expires, but a cooldown period still has time remaining,
     // the proposal will remain open for voting until the cooldown period ends.
     // Cooldown periods end only in an accepted or rejected proposal.
-    if proposal_state.cooldown_timestamp.is_none()
-        && proposal_state.voting_has_ended(governance_config.voting_period_seconds, &clock)
-    {
+    if proposal_state.cooldown_timestamp.is_none() && proposal_state.voting_has_ended(&clock) {
         proposal_state.status = ProposalStatus::Rejected;
         return Ok(());
     }
@@ -465,7 +449,6 @@ fn process_switch_vote(
     let stake_config_info = next_account_info(accounts_iter)?;
     let proposal_vote_info = next_account_info(accounts_iter)?;
     let proposal_info = next_account_info(accounts_iter)?;
-    let governance_info = next_account_info(accounts_iter)?;
 
     // Ensure the stake authority is a signer.
     if !stake_authority_info.is_signer {
@@ -480,30 +463,17 @@ fn process_switch_vote(
             .map_err(|_| ProgramError::InvalidAccountData)?
             .token_amount_delegated;
 
-    // Ensure the provided governance address is the correct address derived from
-    // the program.
-    if !governance_info
-        .key
-        .eq(&get_governance_address(stake_config_info.key, program_id))
-    {
-        return Err(PaladinGovernanceError::IncorrectGovernanceConfigAddress.into());
-    }
-
-    check_governance_exists(program_id, governance_info)?;
-
-    let governance_data = governance_info.try_borrow_data()?;
-    let governance_config = bytemuck::try_from_bytes::<Config>(&governance_data)
-        .map_err(|_| ProgramError::InvalidAccountData)?;
-
-    // Ensure the address of the provided stake config account matches the one
-    // stored in the governance config.
-    governance_config.check_stake_config(stake_config_info.key)?;
-
     check_proposal_exists(program_id, proposal_info)?;
 
     let mut proposal_data = proposal_info.try_borrow_mut_data()?;
     let proposal_state = bytemuck::try_from_bytes_mut::<Proposal>(&mut proposal_data)
         .map_err(|_| ProgramError::InvalidAccountData)?;
+
+    let governance_config = proposal_state.governance_config;
+
+    // Ensure the address of the provided stake config account matches the one
+    // stored in the proposal's governance config.
+    governance_config.check_stake_config(stake_config_info.key)?;
 
     // Ensure the proposal is in the voting stage.
     if proposal_state.status != ProposalStatus::Voting {
@@ -513,7 +483,7 @@ fn process_switch_vote(
     let clock = <Clock as Sysvar>::get()?;
 
     // If the proposal has an active cooldown period, ensure it has not ended.
-    if proposal_state.cooldown_has_ended(governance_config.cooldown_period_seconds, &clock) {
+    if proposal_state.cooldown_has_ended(&clock) {
         // If the cooldown period has ended, the proposal is accepted.
         proposal_state.status = ProposalStatus::Accepted;
         return Ok(());
@@ -523,9 +493,7 @@ fn process_switch_vote(
     // voting period expires, but a cooldown period still has time remaining,
     // the proposal will remain open for voting until the cooldown period ends.
     // Cooldown periods end only in an accepted or rejected proposal.
-    if proposal_state.cooldown_timestamp.is_none()
-        && proposal_state.voting_has_ended(governance_config.voting_period_seconds, &clock)
-    {
+    if proposal_state.cooldown_timestamp.is_none() && proposal_state.voting_has_ended(&clock) {
         proposal_state.status = ProposalStatus::Rejected;
         return Ok(());
     }
@@ -641,15 +609,6 @@ fn process_process_proposal(program_id: &Pubkey, accounts: &[AccountInfo]) -> Pr
     let accounts_iter = &mut accounts.iter();
 
     let proposal_info = next_account_info(accounts_iter)?;
-    // TODO: Make this whole instruction require PDA signature from governance,
-    // then drop this account.
-    let governance_info = next_account_info(accounts_iter)?;
-
-    check_governance_exists(program_id, governance_info)?;
-
-    let governance_data = governance_info.try_borrow_data()?;
-    let governance_config = bytemuck::try_from_bytes::<Config>(&governance_data)
-        .map_err(|_| ProgramError::InvalidAccountData)?;
 
     check_proposal_exists(program_id, proposal_info)?;
 
@@ -661,7 +620,7 @@ fn process_process_proposal(program_id: &Pubkey, accounts: &[AccountInfo]) -> Pr
 
     // TODO: These checks do the same thing basically.
     // Will be cleaned up when this processor is rearchitected.
-    if !proposal_state.cooldown_has_ended(governance_config.cooldown_period_seconds, &clock) {
+    if !proposal_state.cooldown_has_ended(&clock) {
         return Err(PaladinGovernanceError::ProposalNotAccepted.into());
     }
     if proposal_state.status != ProposalStatus::Accepted {
@@ -761,8 +720,6 @@ fn process_update_governance(
 
     let governance_info = next_account_info(accounts_iter)?;
     let proposal_info = next_account_info(accounts_iter)?;
-    // Same note as `process_process_proposal` applies here for cutting
-    // the stake config account.
 
     check_governance_exists(program_id, governance_info)?;
     check_proposal_exists(program_id, proposal_info)?;
@@ -773,13 +730,9 @@ fn process_update_governance(
         let proposal_state = bytemuck::try_from_bytes::<Proposal>(&proposal_data)
             .map_err(|_| ProgramError::InvalidAccountData)?;
 
-        let governance_data = governance_info.try_borrow_data()?;
-        let governance_config = bytemuck::try_from_bytes::<Config>(&governance_data)
-            .map_err(|_| ProgramError::InvalidAccountData)?;
-
         let clock = <Clock as Sysvar>::get()?;
 
-        if !proposal_state.cooldown_has_ended(governance_config.cooldown_period_seconds, &clock) {
+        if !proposal_state.cooldown_has_ended(&clock) {
             return Err(PaladinGovernanceError::ProposalNotAccepted.into());
         }
 

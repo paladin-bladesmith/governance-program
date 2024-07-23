@@ -63,7 +63,6 @@ pub enum PaladinGovernanceInstruction {
     /// 2. `[ ]` Paladin stake config account.
     /// 3. `[w]` Proposal vote account.
     /// 4. `[w]` Proposal account.
-    /// 5. `[ ]` Governance config account.
     /// 6. `[ ]` System program.
     Vote {
         /// Proposal vote election.
@@ -86,7 +85,6 @@ pub enum PaladinGovernanceInstruction {
     /// 2. `[ ]` Paladin stake config account.
     /// 3. `[w]` Proposal vote account.
     /// 4. `[w]` Proposal account.
-    /// 5. `[ ]` Governance config account.
     SwitchVote {
         /// New proposal vote election.
         new_election: ProposalVoteElection,
@@ -101,7 +99,6 @@ pub enum PaladinGovernanceInstruction {
     /// Accounts expected by this instruction:
     ///
     /// 0. `[w]` Proposal account.
-    /// 1. `[ ]` Governance config account.
     ProcessProposal,
     /// Initialize the governance config.
     ///
@@ -307,7 +304,6 @@ pub fn vote(
     stake_config_address: &Pubkey,
     proposal_vote_address: &Pubkey,
     proposal_address: &Pubkey,
-    governance_config_address: &Pubkey,
     election: ProposalVoteElection,
 ) -> Instruction {
     let accounts = vec![
@@ -316,7 +312,6 @@ pub fn vote(
         AccountMeta::new_readonly(*stake_config_address, false),
         AccountMeta::new(*proposal_vote_address, false),
         AccountMeta::new(*proposal_address, false),
-        AccountMeta::new_readonly(*governance_config_address, false),
         AccountMeta::new_readonly(system_program::id(), false),
     ];
     let data = PaladinGovernanceInstruction::Vote { election }.pack();
@@ -332,7 +327,6 @@ pub fn switch_vote(
     stake_config_address: &Pubkey,
     proposal_vote_address: &Pubkey,
     proposal_address: &Pubkey,
-    governance_config_address: &Pubkey,
     new_election: ProposalVoteElection,
 ) -> Instruction {
     let accounts = vec![
@@ -341,7 +335,6 @@ pub fn switch_vote(
         AccountMeta::new_readonly(*stake_config_address, false),
         AccountMeta::new(*proposal_vote_address, false),
         AccountMeta::new(*proposal_address, false),
-        AccountMeta::new_readonly(*governance_config_address, false),
     ];
     let data = PaladinGovernanceInstruction::SwitchVote { new_election }.pack();
     Instruction::new_with_bytes(crate::id(), &data, accounts)
@@ -350,14 +343,8 @@ pub fn switch_vote(
 /// Creates a
 /// [ProcessProposal](enum.PaladinGovernanceInstruction.html)
 /// instruction.
-pub fn process_proposal(
-    proposal_address: &Pubkey,
-    governance_config_address: &Pubkey,
-) -> Instruction {
-    let accounts = vec![
-        AccountMeta::new(*proposal_address, false),
-        AccountMeta::new_readonly(*governance_config_address, false),
-    ];
+pub fn process_proposal(proposal_address: &Pubkey) -> Instruction {
+    let accounts = vec![AccountMeta::new(*proposal_address, false)];
     let data = PaladinGovernanceInstruction::ProcessProposal.pack();
     Instruction::new_with_bytes(crate::id(), &data, accounts)
 }

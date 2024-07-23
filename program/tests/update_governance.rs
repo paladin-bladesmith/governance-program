@@ -229,9 +229,18 @@ async fn fail_proposal_not_initialized() {
 }
 
 #[tokio::test]
-async fn fail_proposal_not_accepted() {
+async fn fail_proposal_cooldown_still_active() {
     let proposal = Pubkey::new_unique();
     let governance = Pubkey::new_unique(); // PDA doesn't matter here.
+
+    let governance_config = Config::new(
+        /* cooldown_period_seconds */ 100_000_000,
+        /* proposal_acceptance_threshold */ 0,
+        /* proposal_rejection_threshold */ 0,
+        /* signer_bump_seed */ 0,
+        /* stake_config_address */ &Pubkey::new_unique(), // Doesn't matter here.
+        /* voting_period_seconds */ 0,
+    );
 
     let mut context = setup().start_with_context().await;
     let clock = context.banks_client.get_sysvar::<Clock>().await.unwrap();
@@ -242,11 +251,11 @@ async fn fail_proposal_not_accepted() {
     setup_governance(
         &mut context,
         &governance,
-        1_000_000,
-        0,
-        0,
-        /* stake_config_address */ &Pubkey::new_unique(),
-        0,
+        governance_config.cooldown_period_seconds,
+        governance_config.proposal_acceptance_threshold,
+        governance_config.proposal_rejection_threshold,
+        &governance_config.stake_config_address,
+        governance_config.voting_period_seconds,
     )
     .await;
     setup_proposal_with_stake_and_cooldown(
@@ -254,7 +263,7 @@ async fn fail_proposal_not_accepted() {
         &proposal,
         &Pubkey::new_unique(),
         0,
-        Config::default(),
+        governance_config,
         0,
         0,
         0,
