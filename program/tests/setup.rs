@@ -115,7 +115,6 @@ async fn _setup_proposal_inner(
     author: &Pubkey,
     creation_timestamp: UnixTimestamp,
     governance_config: Config,
-    instruction: u64,
     stake_for: u64,
     stake_against: u64,
     stake_abstained: u64,
@@ -123,7 +122,7 @@ async fn _setup_proposal_inner(
     voting_start_timestamp: Option<NonZeroU64>,
     cooldown_timestamp: Option<NonZeroU64>,
 ) {
-    let mut state = Proposal::new(author, creation_timestamp, governance_config, instruction);
+    let mut state = Proposal::new(author, creation_timestamp, governance_config);
     state.cooldown_timestamp = cooldown_timestamp;
     state.stake_for = stake_for;
     state.stake_against = stake_against;
@@ -154,7 +153,6 @@ pub async fn setup_proposal_with_stake_and_cooldown(
     author: &Pubkey,
     creation_timestamp: UnixTimestamp,
     governance_config: Config,
-    instruction: u64,
     stake_for: u64,
     stake_against: u64,
     stake_abstained: u64,
@@ -168,7 +166,6 @@ pub async fn setup_proposal_with_stake_and_cooldown(
         author,
         creation_timestamp,
         governance_config,
-        instruction,
         stake_for,
         stake_against,
         stake_abstained,
@@ -186,7 +183,6 @@ pub async fn setup_proposal_with_stake(
     author: &Pubkey,
     creation_timestamp: UnixTimestamp,
     governance_config: Config,
-    instruction: u64,
     stake_for: u64,
     stake_against: u64,
     stake_abstained: u64,
@@ -199,7 +195,6 @@ pub async fn setup_proposal_with_stake(
         author,
         creation_timestamp,
         governance_config,
-        instruction,
         stake_for,
         stake_against,
         stake_abstained,
@@ -216,7 +211,6 @@ pub async fn setup_proposal(
     author: &Pubkey,
     creation_timestamp: UnixTimestamp,
     governance_config: Config,
-    instruction: u64,
     status: ProposalStatus,
 ) {
     setup_proposal_with_stake(
@@ -225,7 +219,6 @@ pub async fn setup_proposal(
         author,
         creation_timestamp,
         governance_config,
-        instruction,
         0,
         0,
         0,

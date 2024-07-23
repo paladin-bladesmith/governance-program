@@ -432,7 +432,6 @@ async fn fail_proposal_already_initialized() {
         &stake_authority.pubkey(),
         0,
         Config::default(),
-        0,
         ProposalStatus::Draft,
     )
     .await;
@@ -534,6 +533,6 @@ async fn success() {
         .unwrap();
     assert_eq!(
         bytemuck::from_bytes::<Proposal>(&proposal_account.data),
-        &Proposal::new(&stake_authority.pubkey(), timestamp, governance_config, 0)
+        &Proposal::new(&stake_authority.pubkey(), timestamp, governance_config)
     );
 }

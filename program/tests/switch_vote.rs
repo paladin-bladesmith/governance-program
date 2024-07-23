@@ -256,7 +256,6 @@ async fn fail_stake_config_incorrect_owner() {
         &stake_authority.pubkey(),
         0,
         Config::default(),
-        0,
         ProposalStatus::Voting,
     )
     .await;
@@ -327,7 +326,6 @@ async fn fail_stake_config_not_initialized() {
         &stake_authority.pubkey(),
         0,
         Config::default(),
-        0,
         ProposalStatus::Voting,
     )
     .await;
@@ -532,7 +530,6 @@ async fn fail_proposal_not_voting() {
         &stake_authority.pubkey(),
         0,
         governance_config,
-        0,
         ProposalStatus::Draft, // Not in voting stage.
     )
     .await;
@@ -604,7 +601,6 @@ async fn fail_proposal_vote_incorrect_address() {
         &stake_authority.pubkey(),
         0,
         governance_config,
-        0,
         ProposalStatus::Voting,
     )
     .await;
@@ -677,7 +673,6 @@ async fn fail_proposal_vote_not_initialized() {
         &stake_authority.pubkey(),
         0,
         governance_config,
-        0,
         ProposalStatus::Voting,
     )
     .await;
@@ -1216,7 +1211,6 @@ async fn success(proposal_starting: ProposalStarting, switch: VoteSwitch, expect
             &stake_authority.pubkey(),
             0,
             governance_config,
-            0,
             proposal_starting.stake_for,
             proposal_starting.stake_against,
             proposal_starting.stake_abstained,
@@ -1233,7 +1227,6 @@ async fn success(proposal_starting: ProposalStarting, switch: VoteSwitch, expect
             &stake_authority.pubkey(),
             0,
             governance_config,
-            0,
             proposal_starting.stake_for,
             proposal_starting.stake_against,
             proposal_starting.stake_abstained,
@@ -1363,7 +1356,6 @@ async fn success_voting_closed() {
         &stake_authority.pubkey(),
         /* creation_timestamp */ 0,
         governance_config,
-        /* instruction */ 0,
         /* stake_for */ 0,
         /* stake_against */ TOTAL_STAKE,
         /* stake_abstained */ 0,
@@ -1480,7 +1472,6 @@ async fn success_voting_closed_but_cooldown_active() {
         &stake_authority.pubkey(),
         /* creation_timestamp */ 0,
         governance_config,
-        /* instruction */ 0,
         /* stake_for */ TOTAL_STAKE,
         /* stake_against */ 0,
         /* stake_abstained */ 0,
@@ -1594,7 +1585,6 @@ async fn success_cooldown_has_ended() {
         &stake_authority.pubkey(),
         /* creation_timestamp */ 0,
         governance_config,
-        /* instruction */ 0,
         /* stake_for */ TOTAL_STAKE,
         /* stake_against */ 0,
         /* stake_abstained */ 0,

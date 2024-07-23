@@ -15,13 +15,6 @@ use {
 pub enum PaladinGovernanceInstruction {
     /// Create a new governance proposal.
     ///
-    /// Creates a new proposal with an instruction. Some examples of
-    /// instructions that can be configured:
-    ///
-    /// * Slash a validator.
-    /// * Transfer X tokens from the treasury.
-    /// * Burn X tokens from the treasury.
-    ///
     /// Expects an uninitialized proposal account with enough rent-exempt
     /// lamports to store proposal state, owned by the Paladin Governance
     /// program.

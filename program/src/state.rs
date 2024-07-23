@@ -273,8 +273,6 @@ pub struct Proposal {
     pub creation_timestamp: UnixTimestamp,
     /// The governance config for this proposal.
     pub governance_config: Config,
-    /// The instruction to execute, pending proposal acceptance.
-    pub instruction: u64, // TODO: Replace with an actual serialized instruction?
     /// Amount of stake that did not vote.
     pub stake_abstained: u64,
     /// Amount of stake against the proposal.
@@ -294,7 +292,6 @@ impl Proposal {
         author: &Pubkey,
         creation_timestamp: UnixTimestamp,
         governance_config: Config,
-        instruction: u64,
     ) -> Self {
         Self {
             discriminator: Self::SPL_DISCRIMINATOR.into(),
@@ -302,7 +299,6 @@ impl Proposal {
             cooldown_timestamp: None,
             creation_timestamp,
             governance_config,
-            instruction,
             stake_abstained: 0,
             stake_against: 0,
             stake_for: 0,
