@@ -265,6 +265,10 @@ fn process_begin_voting(program_id: &Pubkey, accounts: &[AccountInfo]) -> Progra
     // Set the proposal's status to voting.
     proposal_state.status = ProposalStatus::Voting;
 
+    // Set the proposal's voting start timestamp.
+    let clock = <Clock as Sysvar>::get()?;
+    proposal_state.voting_start_timestamp = NonZeroU64::new(clock.unix_timestamp as u64);
+
     Ok(())
 }
 

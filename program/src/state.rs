@@ -221,6 +221,8 @@ pub struct Proposal {
     /// Proposal status
     pub status: ProposalStatus,
     _padding: [u8; 7],
+    /// The timestamp when voting began.
+    pub voting_start_timestamp: Option<NonZeroU64>,
 }
 
 impl Proposal {
@@ -236,6 +238,7 @@ impl Proposal {
             stake_against: 0,
             stake_for: 0,
             status: ProposalStatus::Draft,
+            voting_start_timestamp: None,
             _padding: [0; 7],
         }
     }
