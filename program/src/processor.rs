@@ -622,16 +622,6 @@ fn process_switch_vote(
                 // This is done regardless of any cooldown period.
                 proposal_state.status = ProposalStatus::Rejected;
             }
-
-            if calculate_proposal_vote_threshold(proposal_state.stake_for, total_stake)?
-                < governance_config.proposal_acceptance_threshold
-                && proposal_state.cooldown_timestamp.is_some()
-            {
-                // If the proposal has fallen below the acceptance threshold, and
-                // it's currently in a cooldown period, terminate the cooldown
-                // period.
-                proposal_state.cooldown_timestamp = None;
-            }
         }
         ProposalVoteElection::DidNotVote => {
             // New vote is "did not vote". Increment stake abstained.

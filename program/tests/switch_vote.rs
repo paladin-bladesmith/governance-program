@@ -1182,12 +1182,12 @@ enum Expect {
         new_election: ProposalVoteElection::Against,
     },
     Expect::Cast {
-        cooldown: false, // Cooldown reset.
+        cooldown: true, // Cooldown unchanged.
         stake_for: TOTAL_STAKE / 2 - TOTAL_STAKE / 10, // 40% of total stake.
         stake_against: TOTAL_STAKE / 4 + TOTAL_STAKE / 10, // 35% of total stake.
         stake_abstained: TOTAL_STAKE / 4, // Unchanged.
     };
-    "for_to_against_below_for_threshold_deducts_stake_for_increments_stake_against_rests_cooldown"
+    "for_to_against_below_for_threshold_deducts_stake_for_increments_stake_against"
 )]
 #[test_case(
     ProposalStarting {
