@@ -250,6 +250,7 @@ async fn fail_proposal_not_accepted() {
         0,
         0,
         0,
+        0,
         NonZeroU64::new(clock.unix_timestamp as u64),
     )
     .await;
@@ -302,6 +303,7 @@ async fn success() {
         0,
         0,
         0,
+        0,
         NonZeroU64::new(1),
     )
     .await;
@@ -334,13 +336,9 @@ async fn success() {
         .await
         .unwrap()
         .unwrap();
-    assert_eq!(
-        bytemuck::from_bytes::<Config>(&governance_account.data),
-        &Config {
-            cooldown_period_seconds: 1,
-            proposal_acceptance_threshold: 2,
-            proposal_rejection_threshold: 3,
-            stake_config_address,
-        }
-    );
+    let governance_state = bytemuck::from_bytes::<Config>(&governance_account.data);
+    assert_eq!(governance_state.cooldown_period_seconds, 1);
+    assert_eq!(governance_state.proposal_acceptance_threshold, 2);
+    assert_eq!(governance_state.proposal_rejection_threshold, 3);
+    assert_eq!(governance_state.stake_config_address, stake_config_address);
 }

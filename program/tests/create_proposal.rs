@@ -339,7 +339,7 @@ async fn success() {
 
     // For checks later.
     let clock = context.banks_client.get_sysvar::<Clock>().await.unwrap();
-    let timestamp = clock.unix_timestamp as u64;
+    let timestamp = clock.unix_timestamp;
 
     let instruction = create_proposal(&stake_authority.pubkey(), &stake, &proposal);
 

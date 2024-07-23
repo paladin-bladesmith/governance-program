@@ -804,12 +804,13 @@ async fn fail_proposal_vote_already_initialized() {
     );
 }
 
-const ACCEPTANCE_THRESHOLD: u64 = 500_000_000; // 50%
-const REJECTION_THRESHOLD: u64 = 500_000_000; // 50%
+const ACCEPTANCE_THRESHOLD: u32 = 500_000_000; // 50%
+const REJECTION_THRESHOLD: u32 = 500_000_000; // 50%
 const TOTAL_STAKE: u64 = 100_000_000;
 
 const PROPOSAL_STARTING_STAKE_FOR: u64 = 0;
 const PROPOSAL_STARTING_STAKE_AGAINST: u64 = 0;
+const PROPOSAL_STARTING_STAKE_ABSTAINED: u64 = 0;
 
 struct Vote {
     vote_stake: u64,
@@ -820,6 +821,7 @@ enum Expect {
         cooldown: bool,
         stake_for: u64,
         stake_against: u64,
+        stake_abstained: u64,
     },
     Terminated,
 }
@@ -833,8 +835,9 @@ enum Expect {
         cooldown: false,
         stake_for: 0,
         stake_against: 0,
+        stake_abstained: TOTAL_STAKE / 10,
     };
-    "did_not_vote_does_nothing"
+    "did_not_vote_increments_stake_abstained"
 )]
 #[test_case(
     Vote {
@@ -845,6 +848,7 @@ enum Expect {
         cooldown: false,
         stake_for: TOTAL_STAKE / 10,
         stake_against: 0,
+        stake_abstained: 0,
     };
     "vote_for_increments_stake_for"
 )]
@@ -857,6 +861,7 @@ enum Expect {
         cooldown: false,
         stake_for: 0,
         stake_against: TOTAL_STAKE / 10,
+        stake_abstained: 0,
     };
     "vote_against_increments_stake_against"
 )]
@@ -869,6 +874,7 @@ enum Expect {
         cooldown: true, // Cooldown should be set.
         stake_for: TOTAL_STAKE / 2,
         stake_against: 0,
+        stake_abstained: 0,
     };
     "vote_for_beyond_threshold_increments_stake_for_and_activates_cooldown"
 )]
@@ -924,6 +930,7 @@ async fn success(vote: Vote, expect: Expect) {
         0,
         PROPOSAL_STARTING_STAKE_FOR,
         PROPOSAL_STARTING_STAKE_AGAINST,
+        PROPOSAL_STARTING_STAKE_ABSTAINED,
     )
     .await;
 
@@ -984,11 +991,13 @@ async fn success(vote: Vote, expect: Expect) {
             cooldown,
             stake_for,
             stake_against,
+            stake_abstained,
         } => {
             // Assert the proposal stake matches the expected values.
             let proposal_state = bytemuck::from_bytes::<Proposal>(&proposal_account.data);
             assert_eq!(proposal_state.stake_for, stake_for);
             assert_eq!(proposal_state.stake_against, stake_against);
+            assert_eq!(proposal_state.stake_abstained, stake_abstained);
 
             if cooldown {
                 // Assert the cooldown time is set.

@@ -7,6 +7,7 @@ use {
     solana_program_test::*,
     solana_sdk::{
         account::{Account, AccountSharedData},
+        clock::UnixTimestamp,
         pubkey::Pubkey,
     },
     spl_discriminator::SplDiscriminate,
@@ -51,9 +52,11 @@ pub async fn setup_stake_config(
     stake_config_address: &Pubkey,
     total_stake: u64,
 ) {
-    let mut state = StakeConfig::default();
-    state.discriminator = StakeConfig::SPL_DISCRIMINATOR.into();
-    state.token_amount_delegated = total_stake;
+    let state = StakeConfig {
+        discriminator: StakeConfig::SPL_DISCRIMINATOR.into(),
+        token_amount_delegated: total_stake,
+        ..Default::default()
+    };
     let data = bytemuck::bytes_of(&state).to_vec();
 
     let rent = context.banks_client.get_rent().await.unwrap();
@@ -74,16 +77,17 @@ pub async fn setup_governance(
     context: &mut ProgramTestContext,
     governance_address: &Pubkey,
     cooldown_period_seconds: u64,
-    proposal_acceptance_threshold: u64,
-    proposal_rejection_threshold: u64,
+    proposal_acceptance_threshold: u32,
+    proposal_rejection_threshold: u32,
     stake_config_address: &Pubkey,
 ) {
-    let state = Config {
+    let state = Config::new(
         cooldown_period_seconds,
         proposal_acceptance_threshold,
         proposal_rejection_threshold,
-        stake_config_address: *stake_config_address,
-    };
+        /* signer_bump_seed */ 0, // TODO: Unused right now.
+        stake_config_address,
+    );
     let data = bytemuck::bytes_of(&state).to_vec();
 
     let rent = context.banks_client.get_rent().await.unwrap();
@@ -100,19 +104,22 @@ pub async fn setup_governance(
     );
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn _setup_proposal_inner(
     context: &mut ProgramTestContext,
     proposal_address: &Pubkey,
     author: &Pubkey,
-    creation_timestamp: u64,
+    creation_timestamp: UnixTimestamp,
     instruction: u64,
     stake_for: u64,
     stake_against: u64,
+    stake_abstained: u64,
     cooldown: Option<NonZeroU64>,
 ) {
     let mut state = Proposal::new(author, creation_timestamp, instruction);
     state.stake_for = stake_for;
     state.stake_against = stake_against;
+    state.stake_abstained = stake_abstained;
 
     if cooldown.is_some() {
         state.cooldown_timestamp = cooldown;
@@ -134,14 +141,16 @@ async fn _setup_proposal_inner(
     );
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn setup_proposal_with_stake_and_cooldown(
     context: &mut ProgramTestContext,
     proposal_address: &Pubkey,
     author: &Pubkey,
-    creation_timestamp: u64,
+    creation_timestamp: UnixTimestamp,
     instruction: u64,
     stake_for: u64,
     stake_against: u64,
+    stake_abstained: u64,
     cooldown: Option<NonZeroU64>,
 ) {
     _setup_proposal_inner(
@@ -152,19 +161,22 @@ pub async fn setup_proposal_with_stake_and_cooldown(
         instruction,
         stake_for,
         stake_against,
+        stake_abstained,
         cooldown,
     )
     .await;
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn setup_proposal_with_stake(
     context: &mut ProgramTestContext,
     proposal_address: &Pubkey,
     author: &Pubkey,
-    creation_timestamp: u64,
+    creation_timestamp: UnixTimestamp,
     instruction: u64,
     stake_for: u64,
     stake_against: u64,
+    stake_abstained: u64,
 ) {
     _setup_proposal_inner(
         context,
@@ -174,6 +186,7 @@ pub async fn setup_proposal_with_stake(
         instruction,
         stake_for,
         stake_against,
+        stake_abstained,
         None,
     )
     .await;
@@ -183,7 +196,7 @@ pub async fn setup_proposal(
     context: &mut ProgramTestContext,
     proposal_address: &Pubkey,
     author: &Pubkey,
-    creation_timestamp: u64,
+    creation_timestamp: UnixTimestamp,
     instruction: u64,
 ) {
     setup_proposal_with_stake(
@@ -192,6 +205,7 @@ pub async fn setup_proposal(
         author,
         creation_timestamp,
         instruction,
+        0,
         0,
         0,
     )

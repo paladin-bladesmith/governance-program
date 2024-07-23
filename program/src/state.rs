@@ -5,7 +5,10 @@ use {
     bytemuck::{Pod, Zeroable},
     num_enum::{IntoPrimitive, TryFromPrimitive},
     solana_program::{
-        clock::Clock, entrypoint::ProgramResult, program_error::ProgramError, pubkey::Pubkey,
+        clock::{Clock, UnixTimestamp},
+        entrypoint::ProgramResult,
+        program_error::ProgramError,
+        pubkey::Pubkey,
     },
     spl_discriminator::SplDiscriminate,
     std::num::NonZeroU64,
@@ -126,21 +129,43 @@ pub struct Config {
     /// The minimum required threshold (percentage) of proposal acceptance to
     /// begin the cooldown period.
     ///
-    /// Stored as a `u64`, which includes a scaling factor of `1e9` to
+    /// Stored as a `u32`, which includes a scaling factor of `1e9` to
     /// represent the threshold with 9 decimal places of precision.
-    pub proposal_acceptance_threshold: u64,
+    pub proposal_acceptance_threshold: u32,
     /// The minimum required threshold (percentage) of proposal rejection to
     /// terminate the proposal.
     ///
-    /// Stored as a `u64`, which includes a scaling factor of `1e9` to
+    /// Stored as a `u32`, which includes a scaling factor of `1e9` to
     /// represent the threshold with 9 decimal places of precision.
-    pub proposal_rejection_threshold: u64,
+    pub proposal_rejection_threshold: u32,
+    /// The signing bump seed, used to sign transactions for this governance
+    /// config account with `invoke_signed`. Stored here to save on compute.
+    pub signer_bump_seed: u8,
     /// The Paladin stake config account that this governance config account
     /// corresponds to.
     pub stake_config_address: Pubkey,
+    _padding: [u8; 7],
 }
 
 impl Config {
+    /// Create a new [Config](struct.Config.html).
+    pub fn new(
+        cooldown_period_seconds: u64,
+        proposal_acceptance_threshold: u32,
+        proposal_rejection_threshold: u32,
+        signer_bump_seed: u8,
+        stake_config_address: &Pubkey,
+    ) -> Self {
+        Self {
+            cooldown_period_seconds,
+            proposal_acceptance_threshold,
+            proposal_rejection_threshold,
+            signer_bump_seed,
+            stake_config_address: *stake_config_address,
+            _padding: [0; 7],
+        }
+    }
+
     /// Evaluate a provided address against the corresponding stake config.
     pub fn check_stake_config(&self, stake_config: &Pubkey) -> ProgramResult {
         if self.stake_config_address == *stake_config {
@@ -163,9 +188,11 @@ pub struct Proposal {
     /// A `None` value means cooldown has not begun.
     pub cooldown_timestamp: Option<NonZeroU64>,
     /// Timestamp for when proposal was created.
-    pub creation_timestamp: u64,
+    pub creation_timestamp: UnixTimestamp,
     /// The instruction to execute, pending proposal acceptance.
     pub instruction: u64, // TODO: Replace with an actual serialized instruction?
+    /// Amount of stake that did not vote.
+    pub stake_abstained: u64,
     /// Amount of stake against the proposal.
     pub stake_against: u64,
     /// Amount of stake in favor of the proposal.
@@ -174,13 +201,14 @@ pub struct Proposal {
 
 impl Proposal {
     /// Create a new [Proposal](struct.Proposal.html).
-    pub fn new(author: &Pubkey, creation_timestamp: u64, instruction: u64) -> Self {
+    pub fn new(author: &Pubkey, creation_timestamp: UnixTimestamp, instruction: u64) -> Self {
         Self {
             discriminator: Self::SPL_DISCRIMINATOR.into(),
             author: *author,
             cooldown_timestamp: None,
             creation_timestamp,
             instruction,
+            stake_abstained: 0,
             stake_against: 0,
             stake_for: 0,
         }

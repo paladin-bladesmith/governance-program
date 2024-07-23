@@ -239,13 +239,9 @@ async fn success() {
         .await
         .unwrap()
         .unwrap();
-    assert_eq!(
-        bytemuck::from_bytes::<Config>(&governance_account.data),
-        &Config {
-            cooldown_period_seconds: 0,
-            proposal_acceptance_threshold: 0,
-            proposal_rejection_threshold: 0,
-            stake_config_address: stake_config,
-        }
-    );
+    let governance_state = bytemuck::from_bytes::<Config>(&governance_account.data);
+    assert_eq!(governance_state.cooldown_period_seconds, 0);
+    assert_eq!(governance_state.proposal_acceptance_threshold, 0);
+    assert_eq!(governance_state.proposal_rejection_threshold, 0);
+    assert_eq!(governance_state.stake_config_address, stake_config);
 }

@@ -29,7 +29,7 @@ use {
 
 const THRESHOLD_SCALING_FACTOR: u64 = 1_000_000_000; // 1e9
 
-fn calculate_proposal_vote_threshold(stake: u64, total_stake: u64) -> Result<u64, ProgramError> {
+fn calculate_proposal_vote_threshold(stake: u64, total_stake: u64) -> Result<u32, ProgramError> {
     if total_stake == 0 {
         return Ok(0);
     }
@@ -39,6 +39,7 @@ fn calculate_proposal_vote_threshold(stake: u64, total_stake: u64) -> Result<u64
     stake
         .checked_mul(THRESHOLD_SCALING_FACTOR)
         .and_then(|product| product.checked_div(total_stake))
+        .and_then(|result| u32::try_from(result).ok())
         .ok_or(ProgramError::ArithmeticOverflow)
 }
 
@@ -187,7 +188,7 @@ fn process_create_proposal(program_id: &Pubkey, accounts: &[AccountInfo]) -> Pro
     }
 
     let clock = <Clock as Sysvar>::get()?;
-    let creation_timestamp = clock.unix_timestamp as u64;
+    let creation_timestamp = clock.unix_timestamp;
     let instruction = 0; // TODO!
 
     // Write the data.
@@ -358,7 +359,11 @@ fn process_vote(
             }
         }
         ProposalVoteElection::DidNotVote => {
-            // Do nothing to the proposal. Non-vote has been recorded.
+            // None-vote. Increase the abstained stake.
+            proposal_state.stake_abstained = proposal_state
+                .stake_abstained
+                .checked_add(stake)
+                .ok_or(ProgramError::ArithmeticOverflow)?;
         }
     }
 
@@ -475,7 +480,11 @@ fn process_switch_vote(
                 .ok_or(ProgramError::ArithmeticOverflow)?;
         }
         ProposalVoteElection::DidNotVote => {
-            // Last vote was a "did not vote". Do nothing to the proposal.
+            // Last vote was a "did not vote". Deduct stake abstained.
+            proposal_state.stake_abstained = proposal_state
+                .stake_abstained
+                .checked_sub(last_stake)
+                .ok_or(ProgramError::ArithmeticOverflow)?;
         }
     }
 
@@ -523,8 +532,11 @@ fn process_switch_vote(
             }
         }
         ProposalVoteElection::DidNotVote => {
-            // New vote is "did not vote". Do nothing to the proposal.
-            // The previous step deducted the stake from the previous vote.
+            // New vote is "did not vote". Increment stake abstained.
+            proposal_state.stake_abstained = proposal_state
+                .stake_abstained
+                .checked_add(stake)
+                .ok_or(ProgramError::ArithmeticOverflow)?;
         }
     }
 
@@ -575,8 +587,8 @@ fn process_initialize_governance(
     program_id: &Pubkey,
     accounts: &[AccountInfo],
     cooldown_period_seconds: u64,
-    proposal_acceptance_threshold: u64,
-    proposal_rejection_threshold: u64,
+    proposal_acceptance_threshold: u32,
+    proposal_rejection_threshold: u32,
 ) -> ProgramResult {
     let accounts_iter = &mut accounts.iter();
 
@@ -588,9 +600,9 @@ fn process_initialize_governance(
 
     // Create the governance config account.
     {
-        let (governance_address, bump_seed) =
+        let (governance_address, signer_bump_seed) =
             get_governance_address_and_bump_seed(stake_config_info.key, program_id);
-        let bump_seed = [bump_seed];
+        let bump_seed = [signer_bump_seed];
         let governance_signer_seeds =
             collect_governance_signer_seeds(stake_config_info.key, &bump_seed);
 
@@ -623,12 +635,13 @@ fn process_initialize_governance(
         // Write the data.
         let mut data = governance_info.try_borrow_mut_data()?;
         *bytemuck::try_from_bytes_mut(&mut data).map_err(|_| ProgramError::InvalidAccountData)? =
-            Config {
+            Config::new(
                 cooldown_period_seconds,
                 proposal_acceptance_threshold,
                 proposal_rejection_threshold,
-                stake_config_address: *stake_config_info.key,
-            };
+                signer_bump_seed,
+                stake_config_info.key,
+            );
     }
 
     Ok(())
@@ -641,8 +654,8 @@ fn process_update_governance(
     program_id: &Pubkey,
     accounts: &[AccountInfo],
     cooldown_period_seconds: u64,
-    proposal_acceptance_threshold: u64,
-    proposal_rejection_threshold: u64,
+    proposal_acceptance_threshold: u32,
+    proposal_rejection_threshold: u32,
 ) -> ProgramResult {
     let accounts_iter = &mut accounts.iter();
 
