@@ -18,6 +18,7 @@ use {
     solana_program_test::*,
     solana_sdk::{
         account::AccountSharedData,
+        clock::Clock,
         instruction::InstructionError,
         pubkey::Pubkey,
         signature::Keypair,
@@ -1364,6 +1365,8 @@ async fn success(proposal_starting: ProposalStarting, switch: VoteSwitch, expect
     let governance = get_governance_address(&stake_config, &paladin_governance_program::id());
 
     let mut context = setup().start_with_context().await;
+    let clock = context.banks_client.get_sysvar::<Clock>().await.unwrap();
+
     setup_stake_config(&mut context, &stake_config, TOTAL_STAKE).await;
     setup_stake(
         &mut context,
@@ -1376,7 +1379,7 @@ async fn success(proposal_starting: ProposalStarting, switch: VoteSwitch, expect
     setup_governance(
         &mut context,
         &governance,
-        /* cooldown_period_seconds */ 10, // Unused here.
+        /* cooldown_period_seconds */ 100_000,
         ACCEPTANCE_THRESHOLD,
         REJECTION_THRESHOLD,
         &stake_config,
@@ -1407,7 +1410,9 @@ async fn success(proposal_starting: ProposalStarting, switch: VoteSwitch, expect
             proposal_starting.stake_against,
             proposal_starting.stake_abstained,
             ProposalStatus::Voting,
-            NonZeroU64::new(1), // Doesn't matter, just has to be `Some`.
+            /* voting_start_timestamp */ NonZeroU64::new(clock.unix_timestamp as u64),
+            /* cooldown_timestamp */
+            NonZeroU64::new(clock.unix_timestamp.saturating_sub(100) as u64),
         )
         .await;
     } else {
@@ -1421,6 +1426,7 @@ async fn success(proposal_starting: ProposalStarting, switch: VoteSwitch, expect
             proposal_starting.stake_against,
             proposal_starting.stake_abstained,
             ProposalStatus::Voting,
+            /* voting_start_timestamp */ NonZeroU64::new(clock.unix_timestamp as u64),
         )
         .await;
     }
@@ -1498,4 +1504,229 @@ async fn success(proposal_starting: ProposalStarting, switch: VoteSwitch, expect
             assert_eq!(proposal_state.status, ProposalStatus::Rejected);
         }
     }
+}
+
+#[test_case(true)]
+#[test_case(false)]
+#[tokio::test]
+async fn success_voting_has_ended(was_accepted: bool) {
+    let stake_authority = Keypair::new();
+    let validator_vote = Pubkey::new_unique();
+    let stake_config = Pubkey::new_unique();
+    let proposal = Pubkey::new_unique();
+
+    let stake = find_stake_pda(&validator_vote, &stake_config, &paladin_stake_program::id()).0;
+    let proposal_vote =
+        get_proposal_vote_address(&stake, &proposal, &paladin_governance_program::id());
+    let governance = get_governance_address(&stake_config, &paladin_governance_program::id());
+
+    let mut context = setup().start_with_context().await;
+    let clock = context.banks_client.get_sysvar::<Clock>().await.unwrap();
+
+    setup_stake_config(&mut context, &stake_config, TOTAL_STAKE).await;
+    setup_stake(
+        &mut context,
+        &stake,
+        &stake_authority.pubkey(),
+        &validator_vote,
+        /* vote_stake */ 100_000,
+    )
+    .await;
+    setup_governance(
+        &mut context,
+        &governance,
+        /* cooldown_period_seconds */ 1_000, // Unused here.
+        ACCEPTANCE_THRESHOLD,
+        REJECTION_THRESHOLD,
+        &stake_config,
+        /* voting_period_seconds */ 10,
+    )
+    .await;
+
+    if was_accepted {
+        // Set up a proposal with a cooldown timestamp and stake for above
+        // threshold.
+        setup_proposal_with_stake_and_cooldown(
+            &mut context,
+            &proposal,
+            &stake_authority.pubkey(),
+            /* creation_timestamp */ 0,
+            /* instruction */ 0,
+            /* stake_for */ TOTAL_STAKE,
+            /* stake_against */ 0,
+            /* stake_abstained */ 0,
+            ProposalStatus::Voting,
+            /* voting_start_timestamp */
+            NonZeroU64::new(clock.unix_timestamp.saturating_sub(10) as u64), // Now - 10 seconds.
+            /* cooldown_timestamp */ NonZeroU64::new(clock.unix_timestamp as u64),
+        )
+        .await;
+    } else {
+        // Set up a proposal without a cooldown timestamp and stake against
+        // above threshold.
+        setup_proposal_with_stake(
+            &mut context,
+            &proposal,
+            &stake_authority.pubkey(),
+            /* creation_timestamp */ 0,
+            /* instruction */ 0,
+            /* stake_for */ 0,
+            /* stake_against */ TOTAL_STAKE,
+            /* stake_abstained */ 0,
+            ProposalStatus::Voting,
+            /* voting_start_timestamp */
+            NonZeroU64::new(clock.unix_timestamp.saturating_sub(10) as u64), // Now - 10 seconds.
+        )
+        .await;
+    }
+
+    let instruction = paladin_governance_program::instruction::switch_vote(
+        &stake_authority.pubkey(),
+        &stake,
+        &stake_config,
+        &proposal_vote,
+        &proposal,
+        &governance,
+        ProposalVoteElection::For,
+    );
+
+    let transaction = Transaction::new_signed_with_payer(
+        &[instruction],
+        Some(&context.payer.pubkey()),
+        &[&context.payer, &stake_authority],
+        context.last_blockhash,
+    );
+
+    context
+        .banks_client
+        .process_transaction(transaction)
+        .await
+        .unwrap();
+
+    // Assert the proposal vote was _not_ created.
+    assert!(context
+        .banks_client
+        .get_account(proposal_vote)
+        .await
+        .unwrap()
+        .is_none());
+
+    let proposal_account = context
+        .banks_client
+        .get_account(proposal)
+        .await
+        .unwrap()
+        .unwrap();
+    let proposal_state = bytemuck::from_bytes::<Proposal>(&proposal_account.data);
+
+    // Assert there is no cooldown timestamp.
+    assert!(proposal_state.cooldown_timestamp.is_none());
+
+    if was_accepted {
+        // Assert the proposal was accepted.
+        assert_eq!(proposal_state.status, ProposalStatus::Accepted);
+    } else {
+        // Assert the proposal was rejected.
+        assert_eq!(proposal_state.status, ProposalStatus::Rejected);
+    }
+}
+
+#[tokio::test]
+async fn success_cooldown_has_ended() {
+    let stake_authority = Keypair::new();
+    let validator_vote = Pubkey::new_unique();
+    let stake_config = Pubkey::new_unique();
+    let proposal = Pubkey::new_unique();
+
+    let stake = find_stake_pda(&validator_vote, &stake_config, &paladin_stake_program::id()).0;
+    let proposal_vote =
+        get_proposal_vote_address(&stake, &proposal, &paladin_governance_program::id());
+    let governance = get_governance_address(&stake_config, &paladin_governance_program::id());
+
+    let mut context = setup().start_with_context().await;
+    let clock = context.banks_client.get_sysvar::<Clock>().await.unwrap();
+
+    setup_stake_config(&mut context, &stake_config, TOTAL_STAKE).await;
+    setup_stake(
+        &mut context,
+        &stake,
+        &stake_authority.pubkey(),
+        &validator_vote,
+        /* vote_stake */ 100_000,
+    )
+    .await;
+    setup_governance(
+        &mut context,
+        &governance,
+        /* cooldown_period_seconds */ 10,
+        ACCEPTANCE_THRESHOLD,
+        REJECTION_THRESHOLD,
+        &stake_config,
+        /* voting_period_seconds */ 1_000, // Unused here.
+    )
+    .await;
+
+    // Set up a proposal with a cooldown timestamp and stake for above
+    // threshold.
+    setup_proposal_with_stake_and_cooldown(
+        &mut context,
+        &proposal,
+        &stake_authority.pubkey(),
+        /* creation_timestamp */ 0,
+        /* instruction */ 0,
+        /* stake_for */ TOTAL_STAKE,
+        /* stake_against */ 0,
+        /* stake_abstained */ 0,
+        ProposalStatus::Voting,
+        /* voting_start_timestamp */
+        NonZeroU64::new(clock.unix_timestamp as u64),
+        /* cooldown_timestamp */
+        NonZeroU64::new(clock.unix_timestamp.saturating_sub(10) as u64), // Now - 10 seconds.
+    )
+    .await;
+
+    let instruction = paladin_governance_program::instruction::switch_vote(
+        &stake_authority.pubkey(),
+        &stake,
+        &stake_config,
+        &proposal_vote,
+        &proposal,
+        &governance,
+        ProposalVoteElection::For,
+    );
+
+    let transaction = Transaction::new_signed_with_payer(
+        &[instruction],
+        Some(&context.payer.pubkey()),
+        &[&context.payer, &stake_authority],
+        context.last_blockhash,
+    );
+
+    context
+        .banks_client
+        .process_transaction(transaction)
+        .await
+        .unwrap();
+
+    // Assert the proposal vote was _not_ created.
+    assert!(context
+        .banks_client
+        .get_account(proposal_vote)
+        .await
+        .unwrap()
+        .is_none());
+
+    let proposal_account = context
+        .banks_client
+        .get_account(proposal)
+        .await
+        .unwrap()
+        .unwrap();
+    let proposal_state = bytemuck::from_bytes::<Proposal>(&proposal_account.data);
+
+    // Assert there is no cooldown timestamp.
+    assert!(proposal_state.cooldown_timestamp.is_none());
+
+    // Assert the proposal was accepted.
+    assert_eq!(proposal_state.status, ProposalStatus::Accepted);
 }

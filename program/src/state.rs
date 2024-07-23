@@ -256,15 +256,27 @@ impl Proposal {
     }
 
     /// Evaluate the proposal cooldown period against the clock sysvar.
-    pub fn check_cooldown(&self, cooldown_period_seconds: u64, clock: &Clock) -> ProgramResult {
+    pub fn cooldown_has_ended(&self, cooldown_period_seconds: u64, clock: &Clock) -> bool {
         if let Some(cooldown_timestamp) = self.cooldown_timestamp {
             if (clock.unix_timestamp as u64).saturating_sub(cooldown_period_seconds)
                 >= cooldown_timestamp.get()
             {
-                return Ok(());
+                return true;
             }
         }
-        Err(PaladinGovernanceError::ProposalNotAccepted.into())
+        false
+    }
+
+    /// Evaluate the proposal voting period against the clock sysvar.
+    pub fn voting_has_ended(&self, voting_period_seconds: u64, clock: &Clock) -> bool {
+        if let Some(voting_start_timestamp) = self.voting_start_timestamp {
+            if (clock.unix_timestamp as u64).saturating_sub(voting_period_seconds)
+                >= voting_start_timestamp.get()
+            {
+                return true;
+            }
+        }
+        false
     }
 }
 

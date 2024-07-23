@@ -335,6 +335,31 @@ fn process_vote(
 
     let clock = <Clock as Sysvar>::get()?;
 
+    // Ensure the voting period has not ended.
+    if proposal_state.voting_has_ended(governance_config.voting_period_seconds, &clock) {
+        // If it has, determine whether the proposal was accepted or rejected
+        // by checking if it has a cooldown. If it does not, the proposal is
+        // rejected.
+        // Proposals with cooldowns when voting ends are automatically
+        // accepted, regardless of cooldown time remaining.
+        if proposal_state.cooldown_timestamp.is_some() {
+            proposal_state.cooldown_timestamp = None;
+            proposal_state.status = ProposalStatus::Accepted;
+        } else {
+            proposal_state.status = ProposalStatus::Rejected;
+        }
+        return Ok(());
+    } else {
+        // If it has not, ensure that - if the proposal has an active cooldown
+        // period - the cooldown period has not ended.
+        if proposal_state.cooldown_has_ended(governance_config.cooldown_period_seconds, &clock) {
+            // If the cooldown period has ended, the proposal is accepted.
+            proposal_state.cooldown_timestamp = None;
+            proposal_state.status = ProposalStatus::Accepted;
+            return Ok(());
+        }
+    }
+
     // Create the proposal vote account.
     {
         let (proposal_vote_address, bump_seed) =
@@ -481,6 +506,31 @@ fn process_switch_vote(
 
     let clock = <Clock as Sysvar>::get()?;
 
+    // Ensure the voting period has not ended.
+    if proposal_state.voting_has_ended(governance_config.voting_period_seconds, &clock) {
+        // If it has, determine whether the proposal was accepted or rejected
+        // by checking if it has a cooldown. If it does not, the proposal is
+        // rejected.
+        // Proposals with cooldowns when voting ends are automatically
+        // accepted, regardless of cooldown time remaining.
+        if proposal_state.cooldown_timestamp.is_some() {
+            proposal_state.cooldown_timestamp = None;
+            proposal_state.status = ProposalStatus::Accepted;
+        } else {
+            proposal_state.status = ProposalStatus::Rejected;
+        }
+        return Ok(());
+    } else {
+        // If it has not, ensure that - if the proposal has an active cooldown
+        // period - the cooldown period has not ended.
+        if proposal_state.cooldown_has_ended(governance_config.cooldown_period_seconds, &clock) {
+            // If the cooldown period has ended, the proposal is accepted.
+            proposal_state.cooldown_timestamp = None;
+            proposal_state.status = ProposalStatus::Accepted;
+            return Ok(());
+        }
+    }
+
     // Update the proposal vote account.
     let (last_election, last_stake) = {
         // Ensure the provided proposal vote address is the correct address
@@ -622,7 +672,9 @@ fn process_process_proposal(program_id: &Pubkey, accounts: &[AccountInfo]) -> Pr
 
     // TODO: These checks do the same thing basically.
     // Will be cleaned up when this processor is rearchitected.
-    proposal_state.check_cooldown(governance_config.cooldown_period_seconds, &clock)?;
+    if !proposal_state.cooldown_has_ended(governance_config.cooldown_period_seconds, &clock) {
+        return Err(PaladinGovernanceError::ProposalNotAccepted.into());
+    }
     if proposal_state.status != ProposalStatus::Accepted {
         return Err(PaladinGovernanceError::ProposalNotAccepted.into());
     }
@@ -738,7 +790,9 @@ fn process_update_governance(
 
         let clock = <Clock as Sysvar>::get()?;
 
-        proposal_state.check_cooldown(governance_config.cooldown_period_seconds, &clock)?;
+        if !proposal_state.cooldown_has_ended(governance_config.cooldown_period_seconds, &clock) {
+            return Err(PaladinGovernanceError::ProposalNotAccepted.into());
+        }
 
         // TODO: This instruction requires a gate to ensure it can only be
         // invoked from a proposal.
