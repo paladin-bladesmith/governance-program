@@ -231,9 +231,9 @@ fn process_cancel_proposal(program_id: &Pubkey, accounts: &[AccountInfo]) -> Pro
 }
 
 /// Processes a
-/// [FinalizeProposal](enum.PaladinGovernanceInstruction.html)
+/// [BeginVoting](enum.PaladinGovernanceInstruction.html)
 /// instruction.
-fn process_finalize_proposal(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
+fn process_begin_voting(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
     let accounts_iter = &mut accounts.iter();
 
     let stake_authority_info = next_account_info(accounts_iter)?;
@@ -747,9 +747,9 @@ pub fn process(program_id: &Pubkey, accounts: &[AccountInfo], input: &[u8]) -> P
             msg!("Instruction: CancelProposal");
             process_cancel_proposal(program_id, accounts)
         }
-        PaladinGovernanceInstruction::FinalizeProposal => {
-            msg!("Instruction: FinalizeProposal");
-            process_finalize_proposal(program_id, accounts)
+        PaladinGovernanceInstruction::BeginVoting => {
+            msg!("Instruction: BeginVoting");
+            process_begin_voting(program_id, accounts)
         }
         PaladinGovernanceInstruction::Vote { election } => {
             msg!("Instruction: Vote");

@@ -41,7 +41,7 @@ pub enum PaladinGovernanceInstruction {
     /// 0. `[s]` Paladin stake authority account.
     /// 1. `[w]` Proposal account.
     CancelProposal,
-    /// Finalize a draft governance proposal.
+    /// Finalize a draft governance proposal and begin voting.
     ///
     /// Authority account provided must be the proposal creator.
     ///
@@ -49,7 +49,7 @@ pub enum PaladinGovernanceInstruction {
     ///
     /// 0. `[s]` Paladin stake authority account.
     /// 1. `[w]` Proposal account.
-    FinalizeProposal,
+    BeginVoting,
     /// Vote on a governance proposal.
     ///
     /// Expects an uninitialized proposal vote account with enough rent-exempt
@@ -164,7 +164,7 @@ impl PaladinGovernanceInstruction {
         match self {
             Self::CreateProposal => vec![0],
             Self::CancelProposal => vec![1],
-            Self::FinalizeProposal => vec![2],
+            Self::BeginVoting => vec![2],
             Self::Vote { election } => vec![3, (*election).into()],
             Self::SwitchVote { new_election } => vec![4, (*new_election).into()],
             Self::ProcessProposal => vec![5],
@@ -199,7 +199,7 @@ impl PaladinGovernanceInstruction {
         match input.split_first() {
             Some((&0, _)) => Ok(Self::CreateProposal),
             Some((&1, _)) => Ok(Self::CancelProposal),
-            Some((&2, _)) => Ok(Self::FinalizeProposal),
+            Some((&2, _)) => Ok(Self::BeginVoting),
             Some((&3, rest)) if rest.len() == 1 => {
                 let election = rest[0]
                     .try_into()
@@ -272,17 +272,14 @@ pub fn cancel_proposal(stake_authority_address: &Pubkey, proposal_address: &Pubk
 }
 
 /// Creates a
-/// [FinalizeProposal](enum.PaladinGovernanceInstruction.html)
+/// [BeginVoting](enum.PaladinGovernanceInstruction.html)
 /// instruction.
-pub fn finalize_proposal(
-    stake_authority_address: &Pubkey,
-    proposal_address: &Pubkey,
-) -> Instruction {
+pub fn begin_voting(stake_authority_address: &Pubkey, proposal_address: &Pubkey) -> Instruction {
     let accounts = vec![
         AccountMeta::new_readonly(*stake_authority_address, true),
         AccountMeta::new(*proposal_address, false),
     ];
-    let data = PaladinGovernanceInstruction::FinalizeProposal.pack();
+    let data = PaladinGovernanceInstruction::BeginVoting.pack();
     Instruction::new_with_bytes(crate::id(), &data, accounts)
 }
 
@@ -418,8 +415,8 @@ mod tests {
     }
 
     #[test]
-    fn test_pack_unpack_finalize_proposal() {
-        test_pack_unpack(PaladinGovernanceInstruction::FinalizeProposal);
+    fn test_pack_unpack_begin_voting() {
+        test_pack_unpack(PaladinGovernanceInstruction::BeginVoting);
     }
 
     #[test]

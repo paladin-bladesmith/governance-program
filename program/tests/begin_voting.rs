@@ -4,7 +4,7 @@ mod setup;
 
 use {
     paladin_governance_program::{
-        instruction::finalize_proposal,
+        instruction::begin_voting,
         state::{Proposal, ProposalStatus},
     },
     setup::{setup, setup_proposal},
@@ -26,7 +26,7 @@ async fn fail_stake_authority_not_signer() {
 
     let mut context = setup().start_with_context().await;
 
-    let mut instruction = finalize_proposal(&stake_authority.pubkey(), &proposal);
+    let mut instruction = begin_voting(&stake_authority.pubkey(), &proposal);
     instruction.accounts[0].is_signer = false; // Stake authority not signer.
 
     let transaction = Transaction::new_signed_with_payer(
@@ -67,7 +67,7 @@ async fn fail_proposal_incorrect_owner() {
         );
     }
 
-    let instruction = finalize_proposal(&stake_authority.pubkey(), &proposal);
+    let instruction = begin_voting(&stake_authority.pubkey(), &proposal);
 
     let transaction = Transaction::new_signed_with_payer(
         &[instruction],
@@ -107,7 +107,7 @@ async fn fail_proposal_not_initialized() {
         );
     }
 
-    let instruction = finalize_proposal(&stake_authority.pubkey(), &proposal);
+    let instruction = begin_voting(&stake_authority.pubkey(), &proposal);
 
     let transaction = Transaction::new_signed_with_payer(
         &[instruction],
@@ -145,7 +145,7 @@ async fn fail_stake_authority_not_author() {
     )
     .await;
 
-    let instruction = finalize_proposal(&stake_authority.pubkey(), &proposal);
+    let instruction = begin_voting(&stake_authority.pubkey(), &proposal);
 
     let transaction = Transaction::new_signed_with_payer(
         &[instruction],
@@ -183,7 +183,7 @@ async fn success() {
     )
     .await;
 
-    let instruction = finalize_proposal(&stake_authority.pubkey(), &proposal);
+    let instruction = begin_voting(&stake_authority.pubkey(), &proposal);
 
     let transaction = Transaction::new_signed_with_payer(
         &[instruction],
