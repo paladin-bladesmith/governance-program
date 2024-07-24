@@ -7,12 +7,13 @@ use {
         state::{
             collect_governance_signer_seeds, collect_proposal_transaction_signer_seeds,
             collect_proposal_vote_signer_seeds, get_governance_address_and_bump_seed,
-            get_proposal_transaction_address_and_bump_seed, get_proposal_vote_address,
-            get_proposal_vote_address_and_bump_seed, Config, Proposal, ProposalAccountMeta,
-            ProposalStatus, ProposalTransaction, ProposalVote, ProposalVoteElection,
+            get_proposal_transaction_address, get_proposal_transaction_address_and_bump_seed,
+            get_proposal_vote_address, get_proposal_vote_address_and_bump_seed, Config, Proposal,
+            ProposalAccountMeta, ProposalInstruction, ProposalStatus, ProposalTransaction,
+            ProposalVote, ProposalVoteElection,
         },
     },
-    borsh::BorshSerialize,
+    borsh::{BorshDeserialize, BorshSerialize},
     paladin_stake_program::state::{find_stake_pda, Config as StakeConfig, Stake},
     solana_program::{
         account_info::{next_account_info, AccountInfo},
@@ -140,6 +141,24 @@ fn check_proposal_exists(program_id: &Pubkey, proposal_info: &AccountInfo) -> Pr
     Ok(())
 }
 
+fn check_proposal_transaction_exists(
+    program_id: &Pubkey,
+    proposal_transaction_info: &AccountInfo,
+) -> ProgramResult {
+    // Ensure the proposal transaction account is owned by the Paladin
+    // Governance program.
+    if proposal_transaction_info.owner != program_id {
+        return Err(ProgramError::InvalidAccountOwner);
+    }
+
+    // Ensure the proposal transaction account is initialized.
+    if proposal_transaction_info.data_len() == 0 {
+        return Err(ProgramError::UninitializedAccount);
+    }
+
+    Ok(())
+}
+
 /// Processes a
 /// [CreateProposal](enum.PaladinGovernanceInstruction.html)
 /// instruction.
@@ -258,12 +277,73 @@ fn process_create_proposal(program_id: &Pubkey, accounts: &[AccountInfo]) -> Pro
 /// [InsertInstruction](enum.PaladinGovernanceInstruction.html)
 /// instruction.
 fn process_insert_instruction(
-    _program_id: &Pubkey,
-    _accounts: &[AccountInfo],
-    _instruction_program_id: Pubkey,
-    _instruction_account_metas: Vec<ProposalAccountMeta>,
-    _instruction_data: Vec<u8>,
+    program_id: &Pubkey,
+    accounts: &[AccountInfo],
+    instruction_program_id: Pubkey,
+    instruction_account_metas: Vec<ProposalAccountMeta>,
+    instruction_data: Vec<u8>,
 ) -> ProgramResult {
+    let accounts_iter = &mut accounts.iter();
+
+    let stake_authority_info = next_account_info(accounts_iter)?;
+    let proposal_info = next_account_info(accounts_iter)?;
+    let proposal_transaction_info = next_account_info(accounts_iter)?;
+    let _system_program_info = next_account_info(accounts_iter)?;
+
+    // Ensure the stake authority is a signer.
+    if !stake_authority_info.is_signer {
+        return Err(ProgramError::MissingRequiredSignature);
+    }
+
+    check_proposal_exists(program_id, proposal_info)?;
+
+    let proposal_data = proposal_info.try_borrow_data()?;
+    let proposal_state = bytemuck::try_from_bytes::<Proposal>(&proposal_data)
+        .map_err(|_| ProgramError::InvalidAccountData)?;
+
+    // Ensure the stake authority is the proposal author.
+    proposal_state.check_author(stake_authority_info.key)?;
+
+    // Ensure the proposal is in draft stage.
+    if proposal_state.status != ProposalStatus::Draft {
+        return Err(PaladinGovernanceError::ProposalIsImmutable.into());
+    }
+
+    // Ensure the provided proposal transaction address is the correct address
+    // derived from the proposal.
+    if !proposal_transaction_info
+        .key
+        .eq(&get_proposal_transaction_address(
+            proposal_info.key,
+            program_id,
+        ))
+    {
+        return Err(PaladinGovernanceError::IncorrectProposalTransactionAddress.into());
+    }
+
+    check_proposal_transaction_exists(program_id, proposal_transaction_info)?;
+
+    let mut proposal_transaction_state =
+        ProposalTransaction::try_from_slice(&proposal_transaction_info.try_borrow_data()?)?;
+
+    // Insert the instruction.
+    let new_instruction = ProposalInstruction::new(
+        &instruction_program_id,
+        instruction_account_metas,
+        instruction_data,
+    );
+    proposal_transaction_state
+        .instructions
+        .push(new_instruction);
+
+    // Reallocate the account.
+    let new_len = get_instance_packed_len(&proposal_transaction_state)?;
+    proposal_transaction_info.realloc(new_len, true)?;
+
+    // Write the data.
+    proposal_transaction_state
+        .serialize(&mut &mut proposal_transaction_info.try_borrow_mut_data()?[..])?;
+
     Ok(())
 }
 

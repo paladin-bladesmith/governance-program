@@ -240,6 +240,17 @@ pub struct ProposalInstruction {
     pub executed: bool,
 }
 
+impl ProposalInstruction {
+    pub fn new(program_id: &Pubkey, accounts: Vec<ProposalAccountMeta>, data: Vec<u8>) -> Self {
+        Self {
+            program_id: *program_id,
+            accounts,
+            data,
+            executed: false,
+        }
+    }
+}
+
 /// Governance proposal transaction account.
 #[derive(BorshDeserialize, BorshSerialize, Clone, Debug, Default, PartialEq)]
 pub struct ProposalTransaction {
