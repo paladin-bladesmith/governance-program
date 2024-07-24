@@ -17,6 +17,12 @@ pub enum PaladinGovernanceError {
     /// Incorrect governance config address.
     #[error("Incorrect governance config address.")]
     IncorrectGovernanceConfigAddress,
+    /// Proposal not in voting stage.
+    #[error("Proposal not in voting stage.")]
+    ProposalNotInVotingStage,
+    /// Proposal is immutable.
+    #[error("Proposal is immutable.")]
+    ProposalIsImmutable,
     /// Proposal not accepted.
     #[error("Proposal not accepted.")]
     ProposalNotAccepted,

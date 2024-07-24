@@ -2,7 +2,9 @@
 #![allow(dead_code)]
 
 use {
-    paladin_governance_program::state::{Config, Proposal, ProposalVote, ProposalVoteElection},
+    paladin_governance_program::state::{
+        Config, Proposal, ProposalStatus, ProposalVote, ProposalVoteElection,
+    },
     paladin_stake_program::state::{Config as StakeConfig, Stake},
     solana_program_test::*,
     solana_sdk::{
@@ -114,12 +116,14 @@ async fn _setup_proposal_inner(
     stake_for: u64,
     stake_against: u64,
     stake_abstained: u64,
+    status: ProposalStatus,
     cooldown: Option<NonZeroU64>,
 ) {
     let mut state = Proposal::new(author, creation_timestamp, instruction);
     state.stake_for = stake_for;
     state.stake_against = stake_against;
     state.stake_abstained = stake_abstained;
+    state.status = status;
 
     if cooldown.is_some() {
         state.cooldown_timestamp = cooldown;
@@ -151,6 +155,7 @@ pub async fn setup_proposal_with_stake_and_cooldown(
     stake_for: u64,
     stake_against: u64,
     stake_abstained: u64,
+    status: ProposalStatus,
     cooldown: Option<NonZeroU64>,
 ) {
     _setup_proposal_inner(
@@ -162,6 +167,7 @@ pub async fn setup_proposal_with_stake_and_cooldown(
         stake_for,
         stake_against,
         stake_abstained,
+        status,
         cooldown,
     )
     .await;
@@ -177,6 +183,7 @@ pub async fn setup_proposal_with_stake(
     stake_for: u64,
     stake_against: u64,
     stake_abstained: u64,
+    status: ProposalStatus,
 ) {
     _setup_proposal_inner(
         context,
@@ -187,6 +194,7 @@ pub async fn setup_proposal_with_stake(
         stake_for,
         stake_against,
         stake_abstained,
+        status,
         None,
     )
     .await;
@@ -198,6 +206,7 @@ pub async fn setup_proposal(
     author: &Pubkey,
     creation_timestamp: UnixTimestamp,
     instruction: u64,
+    status: ProposalStatus,
 ) {
     setup_proposal_with_stake(
         context,
@@ -208,6 +217,7 @@ pub async fn setup_proposal(
         0,
         0,
         0,
+        status,
     )
     .await;
 }

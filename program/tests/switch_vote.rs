@@ -6,8 +6,8 @@ use {
     paladin_governance_program::{
         error::PaladinGovernanceError,
         state::{
-            get_governance_address, get_proposal_vote_address, Config, Proposal, ProposalVote,
-            ProposalVoteElection,
+            get_governance_address, get_proposal_vote_address, Config, Proposal, ProposalStatus,
+            ProposalVote, ProposalVoteElection,
         },
     },
     paladin_stake_program::state::{find_stake_pda, Config as StakeConfig, Stake},
@@ -258,7 +258,15 @@ async fn fail_stake_config_incorrect_owner() {
         0,
     )
     .await;
-    setup_proposal(&mut context, &proposal, &stake_authority.pubkey(), 0, 0).await;
+    setup_proposal(
+        &mut context,
+        &proposal,
+        &stake_authority.pubkey(),
+        0,
+        0,
+        ProposalStatus::Voting,
+    )
+    .await;
 
     // Set up a stake config account with an incorrect owner.
     {
@@ -322,7 +330,15 @@ async fn fail_stake_config_not_initialized() {
         0,
     )
     .await;
-    setup_proposal(&mut context, &proposal, &stake_authority.pubkey(), 0, 0).await;
+    setup_proposal(
+        &mut context,
+        &proposal,
+        &stake_authority.pubkey(),
+        0,
+        0,
+        ProposalStatus::Voting,
+    )
+    .await;
 
     // Set up an uninitialized stake config account.
     {
@@ -387,7 +403,15 @@ async fn fail_governance_incorrect_address() {
         0,
     )
     .await;
-    setup_proposal(&mut context, &proposal, &stake_authority.pubkey(), 0, 0).await;
+    setup_proposal(
+        &mut context,
+        &proposal,
+        &stake_authority.pubkey(),
+        0,
+        0,
+        ProposalStatus::Voting,
+    )
+    .await;
 
     let instruction = paladin_governance_program::instruction::switch_vote(
         &stake_authority.pubkey(),
@@ -682,6 +706,72 @@ async fn fail_proposal_not_initialized() {
 }
 
 #[tokio::test]
+async fn fail_proposal_not_voting() {
+    let stake_authority = Keypair::new();
+    let validator_vote = Pubkey::new_unique();
+    let stake_config = Pubkey::new_unique();
+    let proposal = Pubkey::new_unique();
+
+    let stake = find_stake_pda(&validator_vote, &stake_config, &paladin_stake_program::id()).0;
+    let proposal_vote =
+        get_proposal_vote_address(&stake, &proposal, &paladin_governance_program::id());
+    let governance = get_governance_address(&stake_config, &paladin_governance_program::id());
+
+    let mut context = setup().start_with_context().await;
+    setup_stake_config(&mut context, &stake_config, 0).await;
+    setup_stake(
+        &mut context,
+        &stake,
+        &stake_authority.pubkey(),
+        &validator_vote,
+        0,
+    )
+    .await;
+    setup_governance(&mut context, &governance, 0, 0, 0, &stake_config).await;
+    setup_proposal(
+        &mut context,
+        &proposal,
+        &stake_authority.pubkey(),
+        0,
+        0,
+        ProposalStatus::Draft, // Not in voting stage.
+    )
+    .await;
+
+    let instruction = paladin_governance_program::instruction::switch_vote(
+        &stake_authority.pubkey(),
+        &stake,
+        &stake_config,
+        &proposal_vote,
+        &proposal,
+        &governance,
+        ProposalVoteElection::For,
+    );
+
+    let transaction = Transaction::new_signed_with_payer(
+        &[instruction],
+        Some(&context.payer.pubkey()),
+        &[&context.payer, &stake_authority],
+        context.last_blockhash,
+    );
+
+    let err = context
+        .banks_client
+        .process_transaction(transaction)
+        .await
+        .unwrap_err()
+        .unwrap();
+
+    assert_eq!(
+        err,
+        TransactionError::InstructionError(
+            0,
+            InstructionError::Custom(PaladinGovernanceError::ProposalNotInVotingStage as u32)
+        )
+    );
+}
+
+#[tokio::test]
 async fn fail_proposal_vote_incorrect_address() {
     let stake_authority = Keypair::new();
     let validator_vote = Pubkey::new_unique();
@@ -703,7 +793,15 @@ async fn fail_proposal_vote_incorrect_address() {
     )
     .await;
     setup_governance(&mut context, &governance, 0, 0, 0, &stake_config).await;
-    setup_proposal(&mut context, &proposal, &stake_authority.pubkey(), 0, 0).await;
+    setup_proposal(
+        &mut context,
+        &proposal,
+        &stake_authority.pubkey(),
+        0,
+        0,
+        ProposalStatus::Voting,
+    )
+    .await;
 
     let instruction = paladin_governance_program::instruction::switch_vote(
         &stake_authority.pubkey(),
@@ -761,7 +859,15 @@ async fn fail_proposal_vote_not_initialized() {
     )
     .await;
     setup_governance(&mut context, &governance, 0, 0, 0, &stake_config).await;
-    setup_proposal(&mut context, &proposal, &stake_authority.pubkey(), 0, 0).await;
+    setup_proposal(
+        &mut context,
+        &proposal,
+        &stake_authority.pubkey(),
+        0,
+        0,
+        ProposalStatus::Voting,
+    )
+    .await;
 
     // Set up an uninitialized proposal vote account.
     {
@@ -1298,6 +1404,7 @@ async fn success(proposal_starting: ProposalStarting, switch: VoteSwitch, expect
             proposal_starting.stake_for,
             proposal_starting.stake_against,
             proposal_starting.stake_abstained,
+            ProposalStatus::Voting,
             NonZeroU64::new(1), // Doesn't matter, just has to be `Some`.
         )
         .await;
@@ -1311,6 +1418,7 @@ async fn success(proposal_starting: ProposalStarting, switch: VoteSwitch, expect
             proposal_starting.stake_for,
             proposal_starting.stake_against,
             proposal_starting.stake_abstained,
+            ProposalStatus::Voting,
         )
         .await;
     }
@@ -1361,6 +1469,7 @@ async fn success(proposal_starting: ProposalStarting, switch: VoteSwitch, expect
         .await
         .unwrap()
         .unwrap();
+    let proposal_state = bytemuck::from_bytes::<Proposal>(&proposal_account.data);
 
     match expect {
         Expect::Cast {
@@ -1370,7 +1479,6 @@ async fn success(proposal_starting: ProposalStarting, switch: VoteSwitch, expect
             stake_abstained,
         } => {
             // Assert the proposal stake matches the expected values.
-            let proposal_state = bytemuck::from_bytes::<Proposal>(&proposal_account.data);
             assert_eq!(proposal_state.stake_for, stake_for);
             assert_eq!(proposal_state.stake_against, stake_against);
             assert_eq!(proposal_state.stake_abstained, stake_abstained);
@@ -1384,10 +1492,8 @@ async fn success(proposal_starting: ProposalStarting, switch: VoteSwitch, expect
             }
         }
         Expect::Terminated => {
-            // Assert the proposal was terminated.
-            // The proposal should be cleared and reassigned to the system program.
-            assert_eq!(proposal_account.owner, solana_program::system_program::id());
-            assert_eq!(proposal_account.data.len(), 0);
+            // Assert the proposal was rejected.
+            assert_eq!(proposal_state.status, ProposalStatus::Rejected);
         }
     }
 }

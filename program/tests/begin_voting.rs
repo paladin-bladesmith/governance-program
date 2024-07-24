@@ -5,7 +5,7 @@ mod setup;
 use {
     paladin_governance_program::{
         error::PaladinGovernanceError,
-        instruction::cancel_proposal,
+        instruction::begin_voting,
         state::{Proposal, ProposalStatus},
     },
     setup::{setup, setup_proposal},
@@ -27,7 +27,7 @@ async fn fail_stake_authority_not_signer() {
 
     let mut context = setup().start_with_context().await;
 
-    let mut instruction = cancel_proposal(&stake_authority.pubkey(), &proposal);
+    let mut instruction = begin_voting(&stake_authority.pubkey(), &proposal);
     instruction.accounts[0].is_signer = false; // Stake authority not signer.
 
     let transaction = Transaction::new_signed_with_payer(
@@ -68,7 +68,7 @@ async fn fail_proposal_incorrect_owner() {
         );
     }
 
-    let instruction = cancel_proposal(&stake_authority.pubkey(), &proposal);
+    let instruction = begin_voting(&stake_authority.pubkey(), &proposal);
 
     let transaction = Transaction::new_signed_with_payer(
         &[instruction],
@@ -108,7 +108,7 @@ async fn fail_proposal_not_initialized() {
         );
     }
 
-    let instruction = cancel_proposal(&stake_authority.pubkey(), &proposal);
+    let instruction = begin_voting(&stake_authority.pubkey(), &proposal);
 
     let transaction = Transaction::new_signed_with_payer(
         &[instruction],
@@ -146,7 +146,7 @@ async fn fail_stake_authority_not_author() {
     )
     .await;
 
-    let instruction = cancel_proposal(&stake_authority.pubkey(), &proposal);
+    let instruction = begin_voting(&stake_authority.pubkey(), &proposal);
 
     let transaction = Transaction::new_signed_with_payer(
         &[instruction],
@@ -169,7 +169,7 @@ async fn fail_stake_authority_not_author() {
 }
 
 #[tokio::test]
-async fn fail_proposal_immutable() {
+async fn fail_proposal_not_in_draft_stage() {
     let stake_authority = Keypair::new();
     let proposal = Pubkey::new_unique();
 
@@ -180,11 +180,11 @@ async fn fail_proposal_immutable() {
         &stake_authority.pubkey(),
         0,
         0,
-        ProposalStatus::Accepted, // Proposal is immutable.
+        ProposalStatus::Voting, // Not in draft stage.
     )
     .await;
 
-    let instruction = cancel_proposal(&stake_authority.pubkey(), &proposal);
+    let instruction = begin_voting(&stake_authority.pubkey(), &proposal);
 
     let transaction = Transaction::new_signed_with_payer(
         &[instruction],
@@ -225,7 +225,7 @@ async fn success() {
     )
     .await;
 
-    let instruction = cancel_proposal(&stake_authority.pubkey(), &proposal);
+    let instruction = begin_voting(&stake_authority.pubkey(), &proposal);
 
     let transaction = Transaction::new_signed_with_payer(
         &[instruction],
@@ -240,7 +240,7 @@ async fn success() {
         .await
         .unwrap();
 
-    // Assert the proposal was marked with cancelled status.
+    // Assert the proposal was marked with voting status.
     let proposal_account = context
         .banks_client
         .get_account(proposal)
@@ -248,5 +248,5 @@ async fn success() {
         .unwrap()
         .unwrap();
     let proposal_state = bytemuck::from_bytes::<Proposal>(&proposal_account.data);
-    assert_eq!(proposal_state.status, ProposalStatus::Cancelled);
+    assert_eq!(proposal_state.status, ProposalStatus::Voting);
 }
