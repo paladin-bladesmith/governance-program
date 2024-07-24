@@ -29,4 +29,7 @@ pub enum PaladinGovernanceError {
     /// Proposal not accepted.
     #[error("Proposal not accepted.")]
     ProposalNotAccepted,
+    /// Invalid transaction index.
+    #[error("Invalid transaction index.")]
+    InvalidTransactionIndex,
 }
