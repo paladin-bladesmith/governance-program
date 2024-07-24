@@ -218,10 +218,14 @@ fn process_cancel_proposal(program_id: &Pubkey, accounts: &[AccountInfo]) -> Pro
     proposal_state.check_author(stake_authority_info.key)?;
 
     // Ensure the proposal is in draft or voting stage.
-    if proposal_state.status != ProposalStatus::Draft
-        && proposal_state.status != ProposalStatus::Voting
-    {
-        return Err(PaladinGovernanceError::ProposalIsImmutable.into());
+    match proposal_state.status {
+        ProposalStatus::Draft | ProposalStatus::Voting => (),
+        ProposalStatus::Cancelled
+        | ProposalStatus::Accepted
+        | ProposalStatus::Rejected
+        | ProposalStatus::Processed => {
+            return Err(PaladinGovernanceError::ProposalIsImmutable.into())
+        }
     }
 
     // Set the proposal's status to cancelled.
