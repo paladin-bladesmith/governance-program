@@ -99,6 +99,17 @@ pub(crate) fn collect_proposal_transaction_seeds(proposal_address: &Pubkey) -> [
     [SEED_PREFIX_PROPOSAL_TRANSACTION, proposal_address.as_ref()]
 }
 
+pub(crate) fn collect_proposal_transaction_signer_seeds<'a>(
+    proposal_address: &'a Pubkey,
+    bump_seed: &'a [u8],
+) -> [&'a [u8]; 3] {
+    [
+        SEED_PREFIX_PROPOSAL_TRANSACTION,
+        proposal_address.as_ref(),
+        bump_seed,
+    ]
+}
+
 /// Derive the address of a proposal vote account.
 pub fn get_proposal_vote_address(
     stake_address: &Pubkey,
@@ -206,7 +217,7 @@ impl Config {
 }
 
 /// An account metadata for a proposal instruction.
-#[derive(BorshDeserialize, BorshSerialize, Clone, Debug, PartialEq)]
+#[derive(BorshDeserialize, BorshSerialize, Clone, Debug, Default, PartialEq)]
 pub struct ProposalAccountMeta {
     /// The pubkey of the account.
     pub pubkey: Pubkey,
@@ -217,7 +228,7 @@ pub struct ProposalAccountMeta {
 }
 
 /// An instruction to be executed by a governance proposal.
-#[derive(BorshDeserialize, BorshSerialize, Clone, Debug, PartialEq)]
+#[derive(BorshDeserialize, BorshSerialize, Clone, Debug, Default, PartialEq)]
 pub struct ProposalInstruction {
     /// The program ID to invoke.
     pub program_id: Pubkey,
@@ -230,7 +241,7 @@ pub struct ProposalInstruction {
 }
 
 /// Governance proposal transaction account.
-#[derive(BorshDeserialize, BorshSerialize, Clone, Debug, PartialEq)]
+#[derive(BorshDeserialize, BorshSerialize, Clone, Debug, Default, PartialEq)]
 pub struct ProposalTransaction {
     /// The instructions to execute.
     pub instructions: Vec<ProposalInstruction>,

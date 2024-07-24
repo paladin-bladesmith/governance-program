@@ -2,8 +2,9 @@
 #![allow(dead_code)]
 
 use {
+    borsh::BorshSerialize,
     paladin_governance_program::state::{
-        Config, Proposal, ProposalStatus, ProposalVote, ProposalVoteElection,
+        Config, Proposal, ProposalStatus, ProposalTransaction, ProposalVote, ProposalVoteElection,
     },
     paladin_stake_program::state::{Config as StakeConfig, Stake},
     solana_program_test::*,
@@ -226,6 +227,28 @@ pub async fn setup_proposal(
         None,
     )
     .await;
+}
+
+pub async fn setup_proposal_transaction(
+    context: &mut ProgramTestContext,
+    proposal_transaction_address: &Pubkey,
+    proposal_transaction: ProposalTransaction,
+) {
+    let mut data = Vec::new();
+    proposal_transaction.serialize(&mut data).unwrap();
+
+    let rent = context.banks_client.get_rent().await.unwrap();
+    let lamports = rent.minimum_balance(data.len());
+
+    context.set_account(
+        proposal_transaction_address,
+        &AccountSharedData::from(Account {
+            lamports,
+            data,
+            owner: paladin_governance_program::id(),
+            ..Account::default()
+        }),
+    );
 }
 
 pub async fn setup_proposal_vote(
