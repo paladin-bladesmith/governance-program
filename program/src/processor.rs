@@ -13,7 +13,7 @@ use {
             ProposalVote, ProposalVoteElection,
         },
     },
-    borsh::{BorshDeserialize, BorshSerialize},
+    borsh::BorshDeserialize,
     paladin_stake_program::state::{find_stake_pda, Config as StakeConfig, Stake},
     solana_program::{
         account_info::{next_account_info, AccountInfo},
@@ -267,7 +267,7 @@ fn process_create_proposal(program_id: &Pubkey, accounts: &[AccountInfo]) -> Pro
         )?;
 
         // Write the data.
-        state.serialize(&mut &mut proposal_transaction_info.try_borrow_mut_data()?[..])?;
+        borsh::to_writer(&mut proposal_transaction_info.data.borrow_mut()[..], &state)?;
     }
 
     Ok(())
@@ -340,8 +340,10 @@ fn process_push_instruction(
     proposal_transaction_info.realloc(new_len, true)?;
 
     // Write the data.
-    proposal_transaction_state
-        .serialize(&mut &mut proposal_transaction_info.try_borrow_mut_data()?[..])?;
+    borsh::to_writer(
+        &mut proposal_transaction_info.data.borrow_mut()[..],
+        &proposal_transaction_state,
+    )?;
 
     Ok(())
 }
@@ -412,8 +414,10 @@ fn process_remove_instruction(
     proposal_transaction_info.realloc(new_len, true)?;
 
     // Write the data.
-    proposal_transaction_state
-        .serialize(&mut &mut proposal_transaction_info.try_borrow_mut_data()?[..])?;
+    borsh::to_writer(
+        &mut proposal_transaction_info.data.borrow_mut()[..],
+        &proposal_transaction_state,
+    )?;
 
     Ok(())
 }
