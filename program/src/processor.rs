@@ -335,29 +335,23 @@ fn process_vote(
 
     let clock = <Clock as Sysvar>::get()?;
 
-    // Ensure the voting period has not ended.
-    if proposal_state.voting_has_ended(governance_config.voting_period_seconds, &clock) {
-        // If it has, determine whether the proposal was accepted or rejected
-        // by checking if it has a cooldown. If it does not, the proposal is
-        // rejected.
-        // Proposals with cooldowns when voting ends are automatically
-        // accepted, regardless of cooldown time remaining.
-        if proposal_state.cooldown_timestamp.is_some() {
-            proposal_state.cooldown_timestamp = None;
-            proposal_state.status = ProposalStatus::Accepted;
-        } else {
-            proposal_state.status = ProposalStatus::Rejected;
-        }
+    // If the proposal has an active cooldown period, ensure it has not ended.
+    if proposal_state.cooldown_has_ended(governance_config.cooldown_period_seconds, &clock) {
+        // If the cooldown period has ended, the proposal is accepted.
+        proposal_state.cooldown_timestamp = None;
+        proposal_state.status = ProposalStatus::Accepted;
         return Ok(());
-    } else {
-        // If it has not, ensure that - if the proposal has an active cooldown
-        // period - the cooldown period has not ended.
-        if proposal_state.cooldown_has_ended(governance_config.cooldown_period_seconds, &clock) {
-            // If the cooldown period has ended, the proposal is accepted.
-            proposal_state.cooldown_timestamp = None;
-            proposal_state.status = ProposalStatus::Accepted;
-            return Ok(());
-        }
+    }
+
+    // Cooldown periods take precedence over voting periods. For example, if a
+    // voting period expires, but a cooldown period still has time remaining,
+    // the proposal will remain open for voting until the cooldown period ends.
+    // Cooldown periods end only in an accepted or rejected proposal.
+    if proposal_state.cooldown_timestamp.is_none()
+        && proposal_state.voting_has_ended(governance_config.voting_period_seconds, &clock)
+    {
+        proposal_state.status = ProposalStatus::Rejected;
+        return Ok(());
     }
 
     // Create the proposal vote account.
@@ -506,29 +500,23 @@ fn process_switch_vote(
 
     let clock = <Clock as Sysvar>::get()?;
 
-    // Ensure the voting period has not ended.
-    if proposal_state.voting_has_ended(governance_config.voting_period_seconds, &clock) {
-        // If it has, determine whether the proposal was accepted or rejected
-        // by checking if it has a cooldown. If it does not, the proposal is
-        // rejected.
-        // Proposals with cooldowns when voting ends are automatically
-        // accepted, regardless of cooldown time remaining.
-        if proposal_state.cooldown_timestamp.is_some() {
-            proposal_state.cooldown_timestamp = None;
-            proposal_state.status = ProposalStatus::Accepted;
-        } else {
-            proposal_state.status = ProposalStatus::Rejected;
-        }
+    // If the proposal has an active cooldown period, ensure it has not ended.
+    if proposal_state.cooldown_has_ended(governance_config.cooldown_period_seconds, &clock) {
+        // If the cooldown period has ended, the proposal is accepted.
+        proposal_state.cooldown_timestamp = None;
+        proposal_state.status = ProposalStatus::Accepted;
         return Ok(());
-    } else {
-        // If it has not, ensure that - if the proposal has an active cooldown
-        // period - the cooldown period has not ended.
-        if proposal_state.cooldown_has_ended(governance_config.cooldown_period_seconds, &clock) {
-            // If the cooldown period has ended, the proposal is accepted.
-            proposal_state.cooldown_timestamp = None;
-            proposal_state.status = ProposalStatus::Accepted;
-            return Ok(());
-        }
+    }
+
+    // Cooldown periods take precedence over voting periods. For example, if a
+    // voting period expires, but a cooldown period still has time remaining,
+    // the proposal will remain open for voting until the cooldown period ends.
+    // Cooldown periods end only in an accepted or rejected proposal.
+    if proposal_state.cooldown_timestamp.is_none()
+        && proposal_state.voting_has_ended(governance_config.voting_period_seconds, &clock)
+    {
+        proposal_state.status = ProposalStatus::Rejected;
+        return Ok(());
     }
 
     // Update the proposal vote account.
