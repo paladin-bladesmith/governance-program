@@ -40,7 +40,7 @@ pub enum PaladinGovernanceInstruction {
     /// 0. `[s]` Paladin stake authority account.
     /// 1. `[ ]` Proposal account.
     /// 2. `[w]` Proposal transaction account.
-    InsertInstruction {
+    PushInstruction {
         /// The program ID to invoke.
         instruction_program_id: Pubkey,
         /// The accounts to pass to the program.
@@ -193,7 +193,7 @@ impl PaladinGovernanceInstruction {
     pub fn pack(&self) -> Vec<u8> {
         match self {
             Self::CreateProposal => vec![0],
-            Self::InsertInstruction {
+            Self::PushInstruction {
                 instruction_program_id,
                 instruction_account_metas,
                 instruction_data,
@@ -261,7 +261,7 @@ impl PaladinGovernanceInstruction {
                     instruction_data,
                 } = Instruction::try_from_slice(rest)
                     .map_err(|_| ProgramError::InvalidInstructionData)?;
-                Ok(Self::InsertInstruction {
+                Ok(Self::PushInstruction {
                     instruction_program_id,
                     instruction_account_metas,
                     instruction_data,
@@ -342,9 +342,9 @@ pub fn create_proposal(
 }
 
 /// Creates a
-/// [InsertInstruction](enum.PaladinGovernanceInstruction.html)
+/// [PushInstruction](enum.PaladinGovernanceInstruction.html)
 /// instruction.
-pub fn insert_instruction(
+pub fn push_instruction(
     stake_authority_address: &Pubkey,
     proposal_address: &Pubkey,
     proposal_transaction_address: &Pubkey,
@@ -357,7 +357,7 @@ pub fn insert_instruction(
         AccountMeta::new_readonly(*proposal_address, false),
         AccountMeta::new(*proposal_transaction_address, false),
     ];
-    let data = PaladinGovernanceInstruction::InsertInstruction {
+    let data = PaladinGovernanceInstruction::PushInstruction {
         instruction_program_id: *instruction_program_id,
         instruction_account_metas,
         instruction_data,
@@ -529,7 +529,7 @@ mod tests {
     }
 
     #[test]
-    fn test_pack_unpack_insert_transaction() {
+    fn test_pack_unpack_push_instruction() {
         let program_id = Pubkey::new_unique();
         let account_metas = vec![
             ProposalAccountMeta {
@@ -544,7 +544,7 @@ mod tests {
             },
         ];
         let data = vec![1, 2, 3];
-        test_pack_unpack(PaladinGovernanceInstruction::InsertInstruction {
+        test_pack_unpack(PaladinGovernanceInstruction::PushInstruction {
             instruction_program_id: program_id,
             instruction_account_metas: account_metas,
             instruction_data: data,
@@ -552,7 +552,7 @@ mod tests {
     }
 
     #[test]
-    fn test_pack_unpack_remove_transaction() {
+    fn test_pack_unpack_remove_instruction() {
         test_pack_unpack(PaladinGovernanceInstruction::RemoveInstruction {
             instruction_index: 45,
         });

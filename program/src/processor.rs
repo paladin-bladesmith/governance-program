@@ -274,9 +274,9 @@ fn process_create_proposal(program_id: &Pubkey, accounts: &[AccountInfo]) -> Pro
 }
 
 /// Processes a
-/// [InsertInstruction](enum.PaladinGovernanceInstruction.html)
+/// [PushInstruction](enum.PaladinGovernanceInstruction.html)
 /// instruction.
-fn process_insert_instruction(
+fn process_push_instruction(
     program_id: &Pubkey,
     accounts: &[AccountInfo],
     instruction_program_id: Pubkey,
@@ -972,13 +972,13 @@ pub fn process(program_id: &Pubkey, accounts: &[AccountInfo], input: &[u8]) -> P
             msg!("Instruction: CreateProposal");
             process_create_proposal(program_id, accounts)
         }
-        PaladinGovernanceInstruction::InsertInstruction {
+        PaladinGovernanceInstruction::PushInstruction {
             instruction_program_id,
             instruction_account_metas,
             instruction_data,
         } => {
-            msg!("Instruction: InsertInstruction");
-            process_insert_instruction(
+            msg!("Instruction: PushInstruction");
+            process_push_instruction(
                 program_id,
                 accounts,
                 instruction_program_id,

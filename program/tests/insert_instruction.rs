@@ -6,7 +6,7 @@ use {
     borsh::BorshDeserialize,
     paladin_governance_program::{
         error::PaladinGovernanceError,
-        instruction::insert_instruction,
+        instruction::push_instruction,
         state::{
             get_proposal_transaction_address, Config, Proposal, ProposalAccountMeta,
             ProposalInstruction, ProposalStatus, ProposalTransaction,
@@ -35,7 +35,7 @@ async fn fail_stake_authority_not_signer() {
 
     let mut context = setup().start_with_context().await;
 
-    let mut instruction = insert_instruction(
+    let mut instruction = push_instruction(
         &stake_authority.pubkey(),
         &proposal_address,
         &proposal_transaction_address,
@@ -86,7 +86,7 @@ async fn fail_proposal_incorrect_owner() {
         );
     }
 
-    let instruction = insert_instruction(
+    let instruction = push_instruction(
         &stake_authority.pubkey(),
         &proposal_address,
         &proposal_transaction_address,
@@ -136,7 +136,7 @@ async fn fail_proposal_not_initialized() {
         );
     }
 
-    let instruction = insert_instruction(
+    let instruction = push_instruction(
         &stake_authority.pubkey(),
         &proposal_address,
         &proposal_transaction_address,
@@ -184,7 +184,7 @@ async fn fail_stake_authority_not_author() {
     )
     .await;
 
-    let instruction = insert_instruction(
+    let instruction = push_instruction(
         &stake_authority.pubkey(),
         &proposal_address,
         &proposal_transaction_address,
@@ -232,7 +232,7 @@ async fn fail_proposal_not_in_draft_stage() {
     )
     .await;
 
-    let instruction = insert_instruction(
+    let instruction = push_instruction(
         &stake_authority.pubkey(),
         &proposal_address,
         &proposal_transaction_address,
@@ -282,7 +282,7 @@ async fn fail_proposal_transaction_incorrect_address() {
     )
     .await;
 
-    let instruction = insert_instruction(
+    let instruction = push_instruction(
         &stake_authority.pubkey(),
         &proposal_address,
         &proposal_transaction_address,
@@ -346,7 +346,7 @@ async fn fail_proposal_transaction_incorrect_owner() {
         );
     }
 
-    let instruction = insert_instruction(
+    let instruction = push_instruction(
         &stake_authority.pubkey(),
         &proposal_address,
         &proposal_transaction_address,
@@ -405,7 +405,7 @@ async fn fail_proposal_transaction_not_initialized() {
         );
     }
 
-    let instruction = insert_instruction(
+    let instruction = push_instruction(
         &stake_authority.pubkey(),
         &proposal_address,
         &proposal_transaction_address,
@@ -496,7 +496,7 @@ async fn success() {
         );
     }
 
-    let instruction = insert_instruction(
+    let instruction = push_instruction(
         &stake_authority.pubkey(),
         &proposal_address,
         &proposal_transaction_address,
@@ -577,7 +577,7 @@ async fn success() {
         );
     }
 
-    let instruction = insert_instruction(
+    let instruction = push_instruction(
         &stake_authority.pubkey(),
         &proposal_address,
         &proposal_transaction_address,
