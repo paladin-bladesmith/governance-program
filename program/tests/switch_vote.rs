@@ -18,6 +18,7 @@ use {
     solana_program_test::*,
     solana_sdk::{
         account::AccountSharedData,
+        clock::Clock,
         instruction::InstructionError,
         pubkey::Pubkey,
         signature::Keypair,
@@ -597,7 +598,7 @@ async fn fail_proposal_incorrect_owner() {
         0,
     )
     .await;
-    setup_governance(&mut context, &governance, 0, 0, 0, &stake_config).await;
+    setup_governance(&mut context, &governance, 0, 0, 0, &stake_config, 0).await;
 
     // Set up the proposal account with the incorrect owner.
     {
@@ -662,7 +663,7 @@ async fn fail_proposal_not_initialized() {
         0,
     )
     .await;
-    setup_governance(&mut context, &governance, 0, 0, 0, &stake_config).await;
+    setup_governance(&mut context, &governance, 0, 0, 0, &stake_config, 0).await;
 
     // Set up the proposal account uninitialized.
     {
@@ -727,7 +728,7 @@ async fn fail_proposal_not_voting() {
         0,
     )
     .await;
-    setup_governance(&mut context, &governance, 0, 0, 0, &stake_config).await;
+    setup_governance(&mut context, &governance, 0, 0, 0, &stake_config, 0).await;
     setup_proposal(
         &mut context,
         &proposal,
@@ -792,7 +793,7 @@ async fn fail_proposal_vote_incorrect_address() {
         0,
     )
     .await;
-    setup_governance(&mut context, &governance, 0, 0, 0, &stake_config).await;
+    setup_governance(&mut context, &governance, 0, 0, 0, &stake_config, 0).await;
     setup_proposal(
         &mut context,
         &proposal,
@@ -858,7 +859,7 @@ async fn fail_proposal_vote_not_initialized() {
         0,
     )
     .await;
-    setup_governance(&mut context, &governance, 0, 0, 0, &stake_config).await;
+    setup_governance(&mut context, &governance, 0, 0, 0, &stake_config, 0).await;
     setup_proposal(
         &mut context,
         &proposal,
@@ -911,6 +912,7 @@ async fn fail_proposal_vote_not_initialized() {
 
 const ACCEPTANCE_THRESHOLD: u32 = 500_000_000; // 50%
 const REJECTION_THRESHOLD: u32 = 500_000_000; // 50%
+const VOTING_PERIOD_SECONDS: u64 = 100_000_000;
 const TOTAL_STAKE: u64 = 100_000_000;
 
 struct ProposalStarting {
@@ -1180,12 +1182,12 @@ enum Expect {
         new_election: ProposalVoteElection::Against,
     },
     Expect::Cast {
-        cooldown: false, // Cooldown reset.
+        cooldown: true, // Cooldown unchanged.
         stake_for: TOTAL_STAKE / 2 - TOTAL_STAKE / 10, // 40% of total stake.
         stake_against: TOTAL_STAKE / 4 + TOTAL_STAKE / 10, // 35% of total stake.
         stake_abstained: TOTAL_STAKE / 4, // Unchanged.
     };
-    "for_to_against_below_for_threshold_deducts_stake_for_increments_stake_against_rests_cooldown"
+    "for_to_against_below_for_threshold_deducts_stake_for_increments_stake_against"
 )]
 #[test_case(
     ProposalStarting {
@@ -1363,6 +1365,8 @@ async fn success(proposal_starting: ProposalStarting, switch: VoteSwitch, expect
     let governance = get_governance_address(&stake_config, &paladin_governance_program::id());
 
     let mut context = setup().start_with_context().await;
+    let clock = context.banks_client.get_sysvar::<Clock>().await.unwrap();
+
     setup_stake_config(&mut context, &stake_config, TOTAL_STAKE).await;
     setup_stake(
         &mut context,
@@ -1375,10 +1379,11 @@ async fn success(proposal_starting: ProposalStarting, switch: VoteSwitch, expect
     setup_governance(
         &mut context,
         &governance,
-        /* cooldown_period_seconds */ 10, // Unused here.
+        /* cooldown_period_seconds */ 100_000,
         ACCEPTANCE_THRESHOLD,
         REJECTION_THRESHOLD,
         &stake_config,
+        VOTING_PERIOD_SECONDS,
     )
     .await;
 
@@ -1405,7 +1410,9 @@ async fn success(proposal_starting: ProposalStarting, switch: VoteSwitch, expect
             proposal_starting.stake_against,
             proposal_starting.stake_abstained,
             ProposalStatus::Voting,
-            NonZeroU64::new(1), // Doesn't matter, just has to be `Some`.
+            /* voting_start_timestamp */ NonZeroU64::new(clock.unix_timestamp as u64),
+            /* cooldown_timestamp */
+            NonZeroU64::new(clock.unix_timestamp.saturating_sub(100) as u64),
         )
         .await;
     } else {
@@ -1419,6 +1426,7 @@ async fn success(proposal_starting: ProposalStarting, switch: VoteSwitch, expect
             proposal_starting.stake_against,
             proposal_starting.stake_abstained,
             ProposalStatus::Voting,
+            /* voting_start_timestamp */ NonZeroU64::new(clock.unix_timestamp as u64),
         )
         .await;
     }
@@ -1496,4 +1504,355 @@ async fn success(proposal_starting: ProposalStarting, switch: VoteSwitch, expect
             assert_eq!(proposal_state.status, ProposalStatus::Rejected);
         }
     }
+}
+
+#[tokio::test]
+async fn success_voting_closed() {
+    let stake_authority = Keypair::new();
+    let validator_vote = Pubkey::new_unique();
+    let stake_config = Pubkey::new_unique();
+    let proposal = Pubkey::new_unique();
+
+    let stake = find_stake_pda(&validator_vote, &stake_config, &paladin_stake_program::id()).0;
+    let proposal_vote =
+        get_proposal_vote_address(&stake, &proposal, &paladin_governance_program::id());
+    let governance = get_governance_address(&stake_config, &paladin_governance_program::id());
+
+    let prev_vote_stake = TOTAL_STAKE / 10;
+    let prev_election = ProposalVoteElection::Against;
+
+    let new_vote_stake = TOTAL_STAKE / 10 + 100;
+    let new_election = ProposalVoteElection::For;
+
+    let mut context = setup().start_with_context().await;
+
+    setup_stake_config(&mut context, &stake_config, TOTAL_STAKE).await;
+    setup_stake(
+        &mut context,
+        &stake,
+        &stake_authority.pubkey(),
+        &validator_vote,
+        new_vote_stake,
+    )
+    .await;
+    setup_governance(
+        &mut context,
+        &governance,
+        /* cooldown_period_seconds */ 10,
+        ACCEPTANCE_THRESHOLD,
+        REJECTION_THRESHOLD,
+        &stake_config,
+        /* voting_period_seconds */ 10,
+    )
+    .await;
+
+    // Set up a proposal with stake against > threshold and a voting period
+    // that began very long ago (expired).
+    setup_proposal_with_stake(
+        &mut context,
+        &proposal,
+        &stake_authority.pubkey(),
+        /* creation_timestamp */ 0,
+        /* instruction */ 0,
+        /* stake_for */ 0,
+        /* stake_against */ TOTAL_STAKE,
+        /* stake_abstained */ 0,
+        ProposalStatus::Voting,
+        /* voting_start_timestamp */ NonZeroU64::new(1), // Wayyy earlier.
+    )
+    .await;
+
+    setup_proposal_vote(
+        &mut context,
+        &proposal_vote,
+        &proposal,
+        prev_vote_stake,
+        &stake_authority.pubkey(),
+        prev_election,
+    )
+    .await;
+
+    let instruction = paladin_governance_program::instruction::switch_vote(
+        &stake_authority.pubkey(),
+        &stake,
+        &stake_config,
+        &proposal_vote,
+        &proposal,
+        &governance,
+        new_election,
+    );
+
+    let transaction = Transaction::new_signed_with_payer(
+        &[instruction],
+        Some(&context.payer.pubkey()),
+        &[&context.payer, &stake_authority],
+        context.last_blockhash,
+    );
+
+    context
+        .banks_client
+        .process_transaction(transaction)
+        .await
+        .unwrap();
+
+    let proposal_account = context
+        .banks_client
+        .get_account(proposal)
+        .await
+        .unwrap()
+        .unwrap();
+
+    // Assert the proposal was marked as rejected.
+    let proposal_state = bytemuck::from_bytes::<Proposal>(&proposal_account.data);
+    assert_eq!(proposal_state.status, ProposalStatus::Rejected);
+
+    let proposal_vote_account = context
+        .banks_client
+        .get_account(proposal_vote)
+        .await
+        .unwrap()
+        .unwrap();
+
+    // Assert the proposal vote was _not_ updated.
+    let proposal_vote_state = bytemuck::from_bytes::<ProposalVote>(&proposal_vote_account.data);
+    assert_eq!(proposal_vote_state.stake, prev_vote_stake);
+    assert_eq!(proposal_vote_state.election, prev_election);
+}
+
+#[tokio::test]
+async fn success_voting_closed_but_cooldown_active() {
+    // Here we're testing the case where a proposal's voting period has
+    // expired, but since there's an active cooldown period, it doesn'
+    // actually disable voting, and instead lets the cooldown period expire.
+    let stake_authority = Keypair::new();
+    let validator_vote = Pubkey::new_unique();
+    let stake_config = Pubkey::new_unique();
+    let proposal = Pubkey::new_unique();
+
+    let stake = find_stake_pda(&validator_vote, &stake_config, &paladin_stake_program::id()).0;
+    let proposal_vote =
+        get_proposal_vote_address(&stake, &proposal, &paladin_governance_program::id());
+    let governance = get_governance_address(&stake_config, &paladin_governance_program::id());
+
+    let prev_vote_stake = TOTAL_STAKE / 10;
+    let prev_election = ProposalVoteElection::For;
+
+    let new_vote_stake = TOTAL_STAKE / 10 + 100;
+    let new_election = ProposalVoteElection::Against;
+
+    let mut context = setup().start_with_context().await;
+    let clock = context.banks_client.get_sysvar::<Clock>().await.unwrap();
+
+    setup_stake_config(&mut context, &stake_config, TOTAL_STAKE).await;
+    setup_stake(
+        &mut context,
+        &stake,
+        &stake_authority.pubkey(),
+        &validator_vote,
+        new_vote_stake,
+    )
+    .await;
+    setup_governance(
+        &mut context,
+        &governance,
+        /* cooldown_period_seconds */ 1_000,
+        ACCEPTANCE_THRESHOLD,
+        REJECTION_THRESHOLD,
+        &stake_config,
+        /* voting_period_seconds */ 10,
+    )
+    .await;
+
+    // Set up a proposal with stake for > threshold and an active cooldown
+    // period.
+    // The cooldown period is scheduled to expire _after_ the voting period
+    // expires.
+    setup_proposal_with_stake_and_cooldown(
+        &mut context,
+        &proposal,
+        &stake_authority.pubkey(),
+        /* creation_timestamp */ 0,
+        /* instruction */ 0,
+        /* stake_for */ TOTAL_STAKE,
+        /* stake_against */ 0,
+        /* stake_abstained */ 0,
+        ProposalStatus::Voting,
+        /* voting_start_timestamp */ NonZeroU64::new(1), // Wayyy earlier.
+        /* cooldown_timestamp */
+        NonZeroU64::new(clock.unix_timestamp.saturating_sub(10) as u64), // Still active.
+    )
+    .await;
+
+    setup_proposal_vote(
+        &mut context,
+        &proposal_vote,
+        &proposal,
+        prev_vote_stake,
+        &stake_authority.pubkey(),
+        prev_election,
+    )
+    .await;
+
+    let instruction = paladin_governance_program::instruction::switch_vote(
+        &stake_authority.pubkey(),
+        &stake,
+        &stake_config,
+        &proposal_vote,
+        &proposal,
+        &governance,
+        new_election,
+    );
+
+    let transaction = Transaction::new_signed_with_payer(
+        &[instruction],
+        Some(&context.payer.pubkey()),
+        &[&context.payer, &stake_authority],
+        context.last_blockhash,
+    );
+
+    context
+        .banks_client
+        .process_transaction(transaction)
+        .await
+        .unwrap();
+
+    let proposal_account = context
+        .banks_client
+        .get_account(proposal)
+        .await
+        .unwrap()
+        .unwrap();
+
+    // Assert the proposal is still in the voting stage.
+    let proposal_state = bytemuck::from_bytes::<Proposal>(&proposal_account.data);
+    assert_eq!(proposal_state.status, ProposalStatus::Voting);
+
+    let proposal_vote_account = context
+        .banks_client
+        .get_account(proposal_vote)
+        .await
+        .unwrap()
+        .unwrap();
+
+    // Assert the proposal vote was updated.
+    let proposal_vote_state = bytemuck::from_bytes::<ProposalVote>(&proposal_vote_account.data);
+    assert_eq!(proposal_vote_state.stake, new_vote_stake);
+    assert_eq!(proposal_vote_state.election, new_election);
+}
+
+#[tokio::test]
+async fn success_cooldown_has_ended() {
+    let stake_authority = Keypair::new();
+    let validator_vote = Pubkey::new_unique();
+    let stake_config = Pubkey::new_unique();
+    let proposal = Pubkey::new_unique();
+
+    let stake = find_stake_pda(&validator_vote, &stake_config, &paladin_stake_program::id()).0;
+    let proposal_vote =
+        get_proposal_vote_address(&stake, &proposal, &paladin_governance_program::id());
+    let governance = get_governance_address(&stake_config, &paladin_governance_program::id());
+
+    let prev_vote_stake = TOTAL_STAKE / 10;
+    let prev_election = ProposalVoteElection::Against;
+
+    let new_vote_stake = TOTAL_STAKE / 10 + 100;
+    let new_election = ProposalVoteElection::For;
+
+    let mut context = setup().start_with_context().await;
+    let clock = context.banks_client.get_sysvar::<Clock>().await.unwrap();
+
+    setup_stake_config(&mut context, &stake_config, TOTAL_STAKE).await;
+    setup_stake(
+        &mut context,
+        &stake,
+        &stake_authority.pubkey(),
+        &validator_vote,
+        new_vote_stake,
+    )
+    .await;
+    setup_governance(
+        &mut context,
+        &governance,
+        /* cooldown_period_seconds */ 10,
+        ACCEPTANCE_THRESHOLD,
+        REJECTION_THRESHOLD,
+        &stake_config,
+        /* voting_period_seconds */ 1_000,
+    )
+    .await;
+
+    // Set up a proposal with a cooldown timestamp and stake for above
+    // threshold.
+    setup_proposal_with_stake_and_cooldown(
+        &mut context,
+        &proposal,
+        &stake_authority.pubkey(),
+        /* creation_timestamp */ 0,
+        /* instruction */ 0,
+        /* stake_for */ TOTAL_STAKE,
+        /* stake_against */ 0,
+        /* stake_abstained */ 0,
+        ProposalStatus::Voting,
+        /* voting_start_timestamp */
+        NonZeroU64::new(clock.unix_timestamp as u64),
+        /* cooldown_timestamp */
+        NonZeroU64::new(clock.unix_timestamp.saturating_sub(10) as u64), // Now - 10 seconds.
+    )
+    .await;
+
+    setup_proposal_vote(
+        &mut context,
+        &proposal_vote,
+        &proposal,
+        prev_vote_stake,
+        &stake_authority.pubkey(),
+        prev_election,
+    )
+    .await;
+
+    let instruction = paladin_governance_program::instruction::switch_vote(
+        &stake_authority.pubkey(),
+        &stake,
+        &stake_config,
+        &proposal_vote,
+        &proposal,
+        &governance,
+        new_election,
+    );
+
+    let transaction = Transaction::new_signed_with_payer(
+        &[instruction],
+        Some(&context.payer.pubkey()),
+        &[&context.payer, &stake_authority],
+        context.last_blockhash,
+    );
+
+    context
+        .banks_client
+        .process_transaction(transaction)
+        .await
+        .unwrap();
+
+    let proposal_account = context
+        .banks_client
+        .get_account(proposal)
+        .await
+        .unwrap()
+        .unwrap();
+    let proposal_state = bytemuck::from_bytes::<Proposal>(&proposal_account.data);
+
+    // Assert the proposal was accepted.
+    assert_eq!(proposal_state.status, ProposalStatus::Accepted);
+
+    let proposal_vote_account = context
+        .banks_client
+        .get_account(proposal_vote)
+        .await
+        .unwrap()
+        .unwrap();
+
+    // Assert the proposal vote was _not_ updated.
+    let proposal_vote_state = bytemuck::from_bytes::<ProposalVote>(&proposal_vote_account.data);
+    assert_eq!(proposal_vote_state.stake, prev_vote_stake);
+    assert_eq!(proposal_vote_state.election, prev_election);
 }

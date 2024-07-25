@@ -265,6 +265,10 @@ fn process_begin_voting(program_id: &Pubkey, accounts: &[AccountInfo]) -> Progra
     // Set the proposal's status to voting.
     proposal_state.status = ProposalStatus::Voting;
 
+    // Set the proposal's voting start timestamp.
+    let clock = <Clock as Sysvar>::get()?;
+    proposal_state.voting_start_timestamp = NonZeroU64::new(clock.unix_timestamp as u64);
+
     Ok(())
 }
 
@@ -330,6 +334,24 @@ fn process_vote(
     }
 
     let clock = <Clock as Sysvar>::get()?;
+
+    // If the proposal has an active cooldown period, ensure it has not ended.
+    if proposal_state.cooldown_has_ended(governance_config.cooldown_period_seconds, &clock) {
+        // If the cooldown period has ended, the proposal is accepted.
+        proposal_state.status = ProposalStatus::Accepted;
+        return Ok(());
+    }
+
+    // Cooldown periods take precedence over voting periods. For example, if a
+    // voting period expires, but a cooldown period still has time remaining,
+    // the proposal will remain open for voting until the cooldown period ends.
+    // Cooldown periods end only in an accepted or rejected proposal.
+    if proposal_state.cooldown_timestamp.is_none()
+        && proposal_state.voting_has_ended(governance_config.voting_period_seconds, &clock)
+    {
+        proposal_state.status = ProposalStatus::Rejected;
+        return Ok(());
+    }
 
     // Create the proposal vote account.
     {
@@ -477,6 +499,24 @@ fn process_switch_vote(
 
     let clock = <Clock as Sysvar>::get()?;
 
+    // If the proposal has an active cooldown period, ensure it has not ended.
+    if proposal_state.cooldown_has_ended(governance_config.cooldown_period_seconds, &clock) {
+        // If the cooldown period has ended, the proposal is accepted.
+        proposal_state.status = ProposalStatus::Accepted;
+        return Ok(());
+    }
+
+    // Cooldown periods take precedence over voting periods. For example, if a
+    // voting period expires, but a cooldown period still has time remaining,
+    // the proposal will remain open for voting until the cooldown period ends.
+    // Cooldown periods end only in an accepted or rejected proposal.
+    if proposal_state.cooldown_timestamp.is_none()
+        && proposal_state.voting_has_ended(governance_config.voting_period_seconds, &clock)
+    {
+        proposal_state.status = ProposalStatus::Rejected;
+        return Ok(());
+    }
+
     // Update the proposal vote account.
     let (last_election, last_stake) = {
         // Ensure the provided proposal vote address is the correct address
@@ -568,16 +608,6 @@ fn process_switch_vote(
                 // This is done regardless of any cooldown period.
                 proposal_state.status = ProposalStatus::Rejected;
             }
-
-            if calculate_proposal_vote_threshold(proposal_state.stake_for, total_stake)?
-                < governance_config.proposal_acceptance_threshold
-                && proposal_state.cooldown_timestamp.is_some()
-            {
-                // If the proposal has fallen below the acceptance threshold, and
-                // it's currently in a cooldown period, terminate the cooldown
-                // period.
-                proposal_state.cooldown_timestamp = None;
-            }
         }
         ProposalVoteElection::DidNotVote => {
             // New vote is "did not vote". Increment stake abstained.
@@ -618,7 +648,9 @@ fn process_process_proposal(program_id: &Pubkey, accounts: &[AccountInfo]) -> Pr
 
     // TODO: These checks do the same thing basically.
     // Will be cleaned up when this processor is rearchitected.
-    proposal_state.check_cooldown(governance_config.cooldown_period_seconds, &clock)?;
+    if !proposal_state.cooldown_has_ended(governance_config.cooldown_period_seconds, &clock) {
+        return Err(PaladinGovernanceError::ProposalNotAccepted.into());
+    }
     if proposal_state.status != ProposalStatus::Accepted {
         return Err(PaladinGovernanceError::ProposalNotAccepted.into());
     }
@@ -641,6 +673,7 @@ fn process_initialize_governance(
     cooldown_period_seconds: u64,
     proposal_acceptance_threshold: u32,
     proposal_rejection_threshold: u32,
+    voting_period_seconds: u64,
 ) -> ProgramResult {
     let accounts_iter = &mut accounts.iter();
 
@@ -693,6 +726,7 @@ fn process_initialize_governance(
                 proposal_rejection_threshold,
                 signer_bump_seed,
                 stake_config_info.key,
+                voting_period_seconds,
             );
     }
 
@@ -708,6 +742,7 @@ fn process_update_governance(
     cooldown_period_seconds: u64,
     proposal_acceptance_threshold: u32,
     proposal_rejection_threshold: u32,
+    voting_period_seconds: u64,
 ) -> ProgramResult {
     let accounts_iter = &mut accounts.iter();
 
@@ -731,7 +766,9 @@ fn process_update_governance(
 
         let clock = <Clock as Sysvar>::get()?;
 
-        proposal_state.check_cooldown(governance_config.cooldown_period_seconds, &clock)?;
+        if !proposal_state.cooldown_has_ended(governance_config.cooldown_period_seconds, &clock) {
+            return Err(PaladinGovernanceError::ProposalNotAccepted.into());
+        }
 
         // TODO: This instruction requires a gate to ensure it can only be
         // invoked from a proposal.
@@ -744,6 +781,7 @@ fn process_update_governance(
     state.cooldown_period_seconds = cooldown_period_seconds;
     state.proposal_acceptance_threshold = proposal_acceptance_threshold;
     state.proposal_rejection_threshold = proposal_rejection_threshold;
+    state.voting_period_seconds = voting_period_seconds;
 
     Ok(())
 }
@@ -781,6 +819,7 @@ pub fn process(program_id: &Pubkey, accounts: &[AccountInfo], input: &[u8]) -> P
             cooldown_period_seconds,
             proposal_acceptance_threshold,
             proposal_rejection_threshold,
+            voting_period_seconds,
         } => {
             msg!("Instruction: InitializeGovernance");
             process_initialize_governance(
@@ -789,12 +828,14 @@ pub fn process(program_id: &Pubkey, accounts: &[AccountInfo], input: &[u8]) -> P
                 cooldown_period_seconds,
                 proposal_acceptance_threshold,
                 proposal_rejection_threshold,
+                voting_period_seconds,
             )
         }
         PaladinGovernanceInstruction::UpdateGovernance {
             cooldown_period_seconds,
             proposal_acceptance_threshold,
             proposal_rejection_threshold,
+            voting_period_seconds,
         } => {
             msg!("Instruction: UpdateGovernance");
             process_update_governance(
@@ -803,6 +844,7 @@ pub fn process(program_id: &Pubkey, accounts: &[AccountInfo], input: &[u8]) -> P
                 cooldown_period_seconds,
                 proposal_acceptance_threshold,
                 proposal_rejection_threshold,
+                voting_period_seconds,
             )
         }
     }

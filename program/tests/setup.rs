@@ -82,6 +82,7 @@ pub async fn setup_governance(
     proposal_acceptance_threshold: u32,
     proposal_rejection_threshold: u32,
     stake_config_address: &Pubkey,
+    voting_period_seconds: u64,
 ) {
     let state = Config::new(
         cooldown_period_seconds,
@@ -89,6 +90,7 @@ pub async fn setup_governance(
         proposal_rejection_threshold,
         /* signer_bump_seed */ 0, // TODO: Unused right now.
         stake_config_address,
+        voting_period_seconds,
     );
     let data = bytemuck::bytes_of(&state).to_vec();
 
@@ -117,17 +119,16 @@ async fn _setup_proposal_inner(
     stake_against: u64,
     stake_abstained: u64,
     status: ProposalStatus,
-    cooldown: Option<NonZeroU64>,
+    voting_start_timestamp: Option<NonZeroU64>,
+    cooldown_timestamp: Option<NonZeroU64>,
 ) {
     let mut state = Proposal::new(author, creation_timestamp, instruction);
+    state.cooldown_timestamp = cooldown_timestamp;
     state.stake_for = stake_for;
     state.stake_against = stake_against;
     state.stake_abstained = stake_abstained;
     state.status = status;
-
-    if cooldown.is_some() {
-        state.cooldown_timestamp = cooldown;
-    }
+    state.voting_start_timestamp = voting_start_timestamp;
 
     let data = bytemuck::bytes_of(&state).to_vec();
 
@@ -156,7 +157,8 @@ pub async fn setup_proposal_with_stake_and_cooldown(
     stake_against: u64,
     stake_abstained: u64,
     status: ProposalStatus,
-    cooldown: Option<NonZeroU64>,
+    voting_start_timestamp: Option<NonZeroU64>,
+    cooldown_timestamp: Option<NonZeroU64>,
 ) {
     _setup_proposal_inner(
         context,
@@ -168,7 +170,8 @@ pub async fn setup_proposal_with_stake_and_cooldown(
         stake_against,
         stake_abstained,
         status,
-        cooldown,
+        voting_start_timestamp,
+        cooldown_timestamp,
     )
     .await;
 }
@@ -184,6 +187,7 @@ pub async fn setup_proposal_with_stake(
     stake_against: u64,
     stake_abstained: u64,
     status: ProposalStatus,
+    voting_start_timestamp: Option<NonZeroU64>,
 ) {
     _setup_proposal_inner(
         context,
@@ -195,6 +199,7 @@ pub async fn setup_proposal_with_stake(
         stake_against,
         stake_abstained,
         status,
+        voting_start_timestamp,
         None,
     )
     .await;
@@ -218,6 +223,7 @@ pub async fn setup_proposal(
         0,
         0,
         status,
+        None,
     )
     .await;
 }

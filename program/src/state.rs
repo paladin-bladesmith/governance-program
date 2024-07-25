@@ -141,10 +141,12 @@ pub struct Config {
     /// The signing bump seed, used to sign transactions for this governance
     /// config account with `invoke_signed`. Stored here to save on compute.
     pub signer_bump_seed: u8,
+    _padding: [u8; 7],
     /// The Paladin stake config account that this governance config account
     /// corresponds to.
     pub stake_config_address: Pubkey,
-    _padding: [u8; 7],
+    /// The voting period for proposals.
+    pub voting_period_seconds: u64,
 }
 
 impl Config {
@@ -155,14 +157,16 @@ impl Config {
         proposal_rejection_threshold: u32,
         signer_bump_seed: u8,
         stake_config_address: &Pubkey,
+        voting_period_seconds: u64,
     ) -> Self {
         Self {
             cooldown_period_seconds,
             proposal_acceptance_threshold,
             proposal_rejection_threshold,
             signer_bump_seed,
-            stake_config_address: *stake_config_address,
             _padding: [0; 7],
+            stake_config_address: *stake_config_address,
+            voting_period_seconds,
         }
     }
 
@@ -221,6 +225,8 @@ pub struct Proposal {
     /// Proposal status
     pub status: ProposalStatus,
     _padding: [u8; 7],
+    /// The timestamp when voting began.
+    pub voting_start_timestamp: Option<NonZeroU64>,
 }
 
 impl Proposal {
@@ -236,6 +242,7 @@ impl Proposal {
             stake_against: 0,
             stake_for: 0,
             status: ProposalStatus::Draft,
+            voting_start_timestamp: None,
             _padding: [0; 7],
         }
     }
@@ -249,15 +256,27 @@ impl Proposal {
     }
 
     /// Evaluate the proposal cooldown period against the clock sysvar.
-    pub fn check_cooldown(&self, cooldown_period_seconds: u64, clock: &Clock) -> ProgramResult {
+    pub fn cooldown_has_ended(&self, cooldown_period_seconds: u64, clock: &Clock) -> bool {
         if let Some(cooldown_timestamp) = self.cooldown_timestamp {
             if (clock.unix_timestamp as u64).saturating_sub(cooldown_period_seconds)
                 >= cooldown_timestamp.get()
             {
-                return Ok(());
+                return true;
             }
         }
-        Err(PaladinGovernanceError::ProposalNotAccepted.into())
+        false
+    }
+
+    /// Evaluate the proposal voting period against the clock sysvar.
+    pub fn voting_has_ended(&self, voting_period_seconds: u64, clock: &Clock) -> bool {
+        if let Some(voting_start_timestamp) = self.voting_start_timestamp {
+            if (clock.unix_timestamp as u64).saturating_sub(voting_period_seconds)
+                >= voting_start_timestamp.get()
+            {
+                return true;
+            }
+        }
+        false
     }
 }
 

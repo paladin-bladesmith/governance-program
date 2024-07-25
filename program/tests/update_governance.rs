@@ -45,6 +45,7 @@ async fn fail_governance_incorrect_owner() {
         /* cooldown_period_seconds */ 0,
         /* proposal_acceptance_threshold */ 0,
         /* proposal_rejection_threshold */ 0,
+        /* voting_period_seconds */ 0,
     );
 
     let transaction = Transaction::new_signed_with_payer(
@@ -90,6 +91,7 @@ async fn fail_governance_not_initialized() {
         /* cooldown_period_seconds */ 0,
         /* proposal_acceptance_threshold */ 0,
         /* proposal_rejection_threshold */ 0,
+        /* voting_period_seconds */ 0,
     );
 
     let transaction = Transaction::new_signed_with_payer(
@@ -125,6 +127,7 @@ async fn fail_proposal_incorrect_owner() {
         0,
         0,
         /* stake_config_address */ &Pubkey::new_unique(),
+        0,
     )
     .await;
 
@@ -145,6 +148,7 @@ async fn fail_proposal_incorrect_owner() {
         /* cooldown_period_seconds */ 0,
         /* proposal_acceptance_threshold */ 0,
         /* proposal_rejection_threshold */ 0,
+        /* voting_period_seconds */ 0,
     );
 
     let transaction = Transaction::new_signed_with_payer(
@@ -180,6 +184,7 @@ async fn fail_proposal_not_initialized() {
         0,
         0,
         /* stake_config_address */ &Pubkey::new_unique(),
+        0,
     )
     .await;
 
@@ -200,6 +205,7 @@ async fn fail_proposal_not_initialized() {
         /* cooldown_period_seconds */ 0,
         /* proposal_acceptance_threshold */ 0,
         /* proposal_rejection_threshold */ 0,
+        /* voting_period_seconds */ 0,
     );
 
     let transaction = Transaction::new_signed_with_payer(
@@ -228,6 +234,7 @@ async fn fail_proposal_not_accepted() {
     let governance = Pubkey::new_unique(); // PDA doesn't matter here.
 
     let mut context = setup().start_with_context().await;
+    let clock = context.banks_client.get_sysvar::<Clock>().await.unwrap();
 
     // Set up an unaccepted proposal.
     // Simply set the cooldown timestamp to the current clock timestamp,
@@ -239,9 +246,9 @@ async fn fail_proposal_not_accepted() {
         0,
         0,
         /* stake_config_address */ &Pubkey::new_unique(),
+        0,
     )
     .await;
-    let clock = context.banks_client.get_sysvar::<Clock>().await.unwrap();
     setup_proposal_with_stake_and_cooldown(
         &mut context,
         &proposal,
@@ -252,7 +259,8 @@ async fn fail_proposal_not_accepted() {
         0,
         0,
         ProposalStatus::Accepted,
-        NonZeroU64::new(clock.unix_timestamp as u64),
+        /* voting_start_timestamp */ NonZeroU64::new(clock.unix_timestamp as u64),
+        /* voting_start_timestamp */ NonZeroU64::new(clock.unix_timestamp as u64),
     )
     .await;
 
@@ -262,6 +270,7 @@ async fn fail_proposal_not_accepted() {
         /* cooldown_period_seconds */ 0,
         /* proposal_acceptance_threshold */ 0,
         /* proposal_rejection_threshold */ 0,
+        /* voting_period_seconds */ 0,
     );
 
     let transaction = Transaction::new_signed_with_payer(
@@ -295,7 +304,9 @@ async fn success() {
     let stake_config_address = Pubkey::new_unique();
 
     let mut context = setup().start_with_context().await;
-    setup_governance(&mut context, &governance, 0, 0, 0, &stake_config_address).await;
+    let clock = context.banks_client.get_sysvar::<Clock>().await.unwrap();
+
+    setup_governance(&mut context, &governance, 0, 0, 0, &stake_config_address, 0).await;
     setup_proposal_with_stake_and_cooldown(
         &mut context,
         &proposal,
@@ -306,7 +317,8 @@ async fn success() {
         0,
         0,
         ProposalStatus::Accepted,
-        NonZeroU64::new(1),
+        /* voting_start_timestamp */ NonZeroU64::new(clock.unix_timestamp as u64),
+        /* voting_start_timestamp */ NonZeroU64::new(clock.unix_timestamp as u64),
     )
     .await;
 
@@ -316,6 +328,7 @@ async fn success() {
         /* cooldown_period_seconds */ 1,
         /* proposal_acceptance_threshold */ 2,
         /* proposal_rejection_threshold */ 3,
+        /* voting_period_seconds */ 4,
     );
 
     let transaction = Transaction::new_signed_with_payer(
