@@ -127,7 +127,6 @@ async fn fail_proposal_cooldown_in_progress() {
         0,
         0,
         0,
-        0,
         ProposalStatus::Accepted,
         /* voting_start_timestamp */ NonZeroU64::new(clock.unix_timestamp as u64),
         /* voting_start_timestamp */ NonZeroU64::new(clock.unix_timestamp as u64),
@@ -181,7 +180,6 @@ async fn fail_proposal_not_accepted() {
         &Pubkey::new_unique(),
         0,
         governance_config,
-        0,
         0,
         0,
         0,
@@ -241,7 +239,6 @@ async fn success() {
         0,
         0,
         0,
-        0,
         ProposalStatus::Accepted,
         /* voting_start_timestamp */ NonZeroU64::new(clock.unix_timestamp as u64),
         /* voting_start_timestamp */ NonZeroU64::new(1),
@@ -273,5 +270,5 @@ async fn success() {
     let proposal_state = bytemuck::from_bytes::<Proposal>(&proposal_account.data);
     assert_eq!(proposal_state.status, ProposalStatus::Processed);
 
-    // TODO: Assert the instruction was processed.
+    // TODO: Assert the transactions were processed.
 }

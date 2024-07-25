@@ -2,6 +2,7 @@
 
 use {
     crate::error::PaladinGovernanceError,
+    borsh::{BorshDeserialize, BorshSerialize},
     bytemuck::{Pod, Zeroable},
     num_enum::{IntoPrimitive, TryFromPrimitive},
     solana_program::{
@@ -27,6 +28,11 @@ pub const SEED_PREFIX_GOVERNANCE: &[u8] = b"governance";
 /// proposal.
 /// Seeds: `"proposal_vote" + stake_address + proposal_address`.
 pub const SEED_PREFIX_PROPOSAL_VOTE: &[u8] = b"proposal_vote";
+/// The seed prefix (`"proposal_transaction"`) in bytes used to derive the
+/// address of a proposal transaction account, representing a list of
+/// instructions to be executed by a proposal.
+/// Seeds: `"proposal_transaction" + proposal_address`.
+pub const SEED_PREFIX_PROPOSAL_TRANSACTION: &[u8] = b"proposal_transaction";
 
 /// Derive the address of the treasury account.
 pub fn get_treasury_address(stake_config_address: &Pubkey, program_id: &Pubkey) -> Pubkey {
@@ -69,6 +75,37 @@ pub(crate) fn collect_governance_signer_seeds<'a>(
     [
         SEED_PREFIX_GOVERNANCE,
         stake_config_address.as_ref(),
+        bump_seed,
+    ]
+}
+
+/// Derive the address of a proposal transaction account.
+pub fn get_proposal_transaction_address(proposal_address: &Pubkey, program_id: &Pubkey) -> Pubkey {
+    get_proposal_transaction_address_and_bump_seed(proposal_address, program_id).0
+}
+
+/// Derive the address of a proposal transaction account, with bump seed.
+pub fn get_proposal_transaction_address_and_bump_seed(
+    proposal_address: &Pubkey,
+    program_id: &Pubkey,
+) -> (Pubkey, u8) {
+    Pubkey::find_program_address(
+        &collect_proposal_transaction_seeds(proposal_address),
+        program_id,
+    )
+}
+
+pub(crate) fn collect_proposal_transaction_seeds(proposal_address: &Pubkey) -> [&[u8]; 2] {
+    [SEED_PREFIX_PROPOSAL_TRANSACTION, proposal_address.as_ref()]
+}
+
+pub(crate) fn collect_proposal_transaction_signer_seeds<'a>(
+    proposal_address: &'a Pubkey,
+    bump_seed: &'a [u8],
+) -> [&'a [u8]; 3] {
+    [
+        SEED_PREFIX_PROPOSAL_TRANSACTION,
+        proposal_address.as_ref(),
         bump_seed,
     ]
 }
@@ -179,6 +216,48 @@ impl Config {
     }
 }
 
+/// An account metadata for a proposal instruction.
+#[derive(BorshDeserialize, BorshSerialize, Clone, Debug, Default, PartialEq)]
+pub struct ProposalAccountMeta {
+    /// The pubkey of the account.
+    pub pubkey: Pubkey,
+    /// Whether the account is a signer.
+    pub is_signer: bool,
+    /// Whether the account is writable.
+    pub is_writable: bool,
+}
+
+/// An instruction to be executed by a governance proposal.
+#[derive(BorshDeserialize, BorshSerialize, Clone, Debug, Default, PartialEq)]
+pub struct ProposalInstruction {
+    /// The program ID to invoke.
+    pub program_id: Pubkey,
+    /// The accounts to pass to the program.
+    pub accounts: Vec<ProposalAccountMeta>,
+    /// The data to pass to the program.
+    pub data: Vec<u8>,
+    /// Whether the instruction has been executed.
+    pub executed: bool,
+}
+
+impl ProposalInstruction {
+    pub fn new(program_id: &Pubkey, accounts: Vec<ProposalAccountMeta>, data: Vec<u8>) -> Self {
+        Self {
+            program_id: *program_id,
+            accounts,
+            data,
+            executed: false,
+        }
+    }
+}
+
+/// Governance proposal transaction account.
+#[derive(BorshDeserialize, BorshSerialize, Clone, Debug, Default, PartialEq)]
+pub struct ProposalTransaction {
+    /// The instructions to execute.
+    pub instructions: Vec<ProposalInstruction>,
+}
+
 /// The status of a governance proposal.
 #[derive(Clone, Copy, Debug, PartialEq, IntoPrimitive, TryFromPrimitive)]
 #[repr(u8)]
@@ -216,8 +295,6 @@ pub struct Proposal {
     pub creation_timestamp: UnixTimestamp,
     /// The governance config for this proposal.
     pub governance_config: Config,
-    /// The instruction to execute, pending proposal acceptance.
-    pub instruction: u64, // TODO: Replace with an actual serialized instruction?
     /// Amount of stake that did not vote.
     pub stake_abstained: u64,
     /// Amount of stake against the proposal.
@@ -237,7 +314,6 @@ impl Proposal {
         author: &Pubkey,
         creation_timestamp: UnixTimestamp,
         governance_config: Config,
-        instruction: u64,
     ) -> Self {
         Self {
             discriminator: Self::SPL_DISCRIMINATOR.into(),
@@ -245,7 +321,6 @@ impl Proposal {
             cooldown_timestamp: None,
             creation_timestamp,
             governance_config,
-            instruction,
             stake_abstained: 0,
             stake_against: 0,
             stake_for: 0,

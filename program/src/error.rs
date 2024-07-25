@@ -11,6 +11,9 @@ pub enum PaladinGovernanceError {
     /// Incorrect stake config.
     #[error("Incorrect stake config.")]
     IncorrectStakeConfig,
+    /// Incorrect proposal transaction address.
+    #[error("Incorrect proposal transaction address.")]
+    IncorrectProposalTransactionAddress,
     /// Incorrect proposal vote address.
     #[error("Incorrect proposal vote address.")]
     IncorrectProposalVoteAddress,
@@ -26,4 +29,7 @@ pub enum PaladinGovernanceError {
     /// Proposal not accepted.
     #[error("Proposal not accepted.")]
     ProposalNotAccepted,
+    /// Invalid transaction index.
+    #[error("Invalid transaction index.")]
+    InvalidTransactionIndex,
 }

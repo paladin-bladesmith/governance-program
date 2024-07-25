@@ -142,7 +142,6 @@ async fn fail_stake_authority_not_author() {
         &Pubkey::new_unique(), // Stake authority not author.
         0,
         Config::default(),
-        0,
         ProposalStatus::Draft,
     )
     .await;
@@ -181,7 +180,6 @@ async fn fail_proposal_not_in_draft_stage() {
         &stake_authority.pubkey(),
         0,
         Config::default(),
-        0,
         ProposalStatus::Voting, // Not in draft stage.
     )
     .await;
@@ -223,7 +221,6 @@ async fn success() {
         &stake_authority.pubkey(),
         0,
         Config::default(),
-        0,
         ProposalStatus::Draft,
     )
     .await;

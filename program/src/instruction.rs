@@ -1,7 +1,8 @@
 //! Program instruction types.
 
 use {
-    crate::state::ProposalVoteElection,
+    crate::state::{ProposalAccountMeta, ProposalVoteElection},
+    borsh::{BorshDeserialize, BorshSerialize},
     solana_program::{
         instruction::{AccountMeta, Instruction},
         program_error::ProgramError,
@@ -11,16 +12,9 @@ use {
 };
 
 /// Instructions supported by the Paladin Governance program.
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum PaladinGovernanceInstruction {
     /// Create a new governance proposal.
-    ///
-    /// Creates a new proposal with an instruction. Some examples of
-    /// instructions that can be configured:
-    ///
-    /// * Slash a validator.
-    /// * Transfer X tokens from the treasury.
-    /// * Burn X tokens from the treasury.
     ///
     /// Expects an uninitialized proposal account with enough rent-exempt
     /// lamports to store proposal state, owned by the Paladin Governance
@@ -31,8 +25,42 @@ pub enum PaladinGovernanceInstruction {
     /// 0. `[s]` Paladin stake authority account.
     /// 1. `[ ]` Paladin stake account.
     /// 2. `[w]` Proposal account.
-    /// 3. `[ ]` Governance config account.
+    /// 3. `[w]` Proposal transaction account.
+    /// 4. `[ ]` Governance config account.
+    /// 5. `[ ]` System program.
     CreateProposal,
+    /// Insert an instruction into a governance proposal.
+    ///
+    /// Expects an initialized proposal and proposal transaction account.
+    ///
+    /// Authority account provided must be the proposal creator.
+    ///
+    /// Accounts expected by this instruction:
+    ///
+    /// 0. `[s]` Paladin stake authority account.
+    /// 1. `[ ]` Proposal account.
+    /// 2. `[w]` Proposal transaction account.
+    PushInstruction {
+        /// The program ID to invoke.
+        instruction_program_id: Pubkey,
+        /// The accounts to pass to the program.
+        instruction_account_metas: Vec<ProposalAccountMeta>,
+        /// The data to pass to the program.
+        instruction_data: Vec<u8>,
+    },
+    /// Removes an instruction from a governance proposal.
+    ///
+    /// Authority account provided must be the proposal creator.
+    ///
+    /// Accounts expected by this instruction:
+    ///
+    /// 0. `[s]` Paladin stake authority account.
+    /// 1. `[ ]` Proposal account.
+    /// 2. `[w]` Proposal transaction account.
+    RemoveInstruction {
+        /// The index of the instruction to remove.
+        instruction_index: u32,
+    },
     /// Cancel a governance proposal.
     ///
     /// Authority account provided must be the proposal creator.
@@ -165,18 +193,34 @@ impl PaladinGovernanceInstruction {
     pub fn pack(&self) -> Vec<u8> {
         match self {
             Self::CreateProposal => vec![0],
-            Self::CancelProposal => vec![1],
-            Self::BeginVoting => vec![2],
-            Self::Vote { election } => vec![3, (*election).into()],
-            Self::SwitchVote { new_election } => vec![4, (*new_election).into()],
-            Self::ProcessProposal => vec![5],
+            Self::PushInstruction {
+                instruction_program_id,
+                instruction_account_metas,
+                instruction_data,
+            } => {
+                let mut buf = vec![1];
+                instruction_program_id.serialize(&mut buf).unwrap();
+                instruction_account_metas.serialize(&mut buf).unwrap();
+                instruction_data.serialize(&mut buf).unwrap();
+                buf
+            }
+            Self::RemoveInstruction { instruction_index } => {
+                let mut buf = vec![2];
+                buf.extend_from_slice(&instruction_index.to_le_bytes());
+                buf
+            }
+            Self::CancelProposal => vec![3],
+            Self::BeginVoting => vec![4],
+            Self::Vote { election } => vec![5, (*election).into()],
+            Self::SwitchVote { new_election } => vec![6, (*new_election).into()],
+            Self::ProcessProposal => vec![7],
             Self::InitializeGovernance {
                 cooldown_period_seconds,
                 proposal_acceptance_threshold,
                 proposal_rejection_threshold,
                 voting_period_seconds,
             } => {
-                let mut buf = vec![6];
+                let mut buf = vec![8];
                 buf.extend_from_slice(&cooldown_period_seconds.to_le_bytes());
                 buf.extend_from_slice(&proposal_acceptance_threshold.to_le_bytes());
                 buf.extend_from_slice(&proposal_rejection_threshold.to_le_bytes());
@@ -189,7 +233,7 @@ impl PaladinGovernanceInstruction {
                 proposal_rejection_threshold,
                 voting_period_seconds,
             } => {
-                let mut buf = vec![7];
+                let mut buf = vec![9];
                 buf.extend_from_slice(&cooldown_period_seconds.to_le_bytes());
                 buf.extend_from_slice(&proposal_acceptance_threshold.to_le_bytes());
                 buf.extend_from_slice(&proposal_rejection_threshold.to_le_bytes());
@@ -204,22 +248,45 @@ impl PaladinGovernanceInstruction {
     pub fn unpack(input: &[u8]) -> Result<Self, ProgramError> {
         match input.split_first() {
             Some((&0, _)) => Ok(Self::CreateProposal),
-            Some((&1, _)) => Ok(Self::CancelProposal),
-            Some((&2, _)) => Ok(Self::BeginVoting),
-            Some((&3, rest)) if rest.len() == 1 => {
+            Some((&1, rest)) => {
+                #[derive(BorshDeserialize)]
+                struct Instruction {
+                    instruction_program_id: Pubkey,
+                    instruction_account_metas: Vec<ProposalAccountMeta>,
+                    instruction_data: Vec<u8>,
+                }
+                let Instruction {
+                    instruction_program_id,
+                    instruction_account_metas,
+                    instruction_data,
+                } = Instruction::try_from_slice(rest)
+                    .map_err(|_| ProgramError::InvalidInstructionData)?;
+                Ok(Self::PushInstruction {
+                    instruction_program_id,
+                    instruction_account_metas,
+                    instruction_data,
+                })
+            }
+            Some((&2, rest)) if rest.len() == 4 => {
+                let instruction_index = u32::from_le_bytes(rest.try_into().unwrap());
+                Ok(Self::RemoveInstruction { instruction_index })
+            }
+            Some((&3, _)) => Ok(Self::CancelProposal),
+            Some((&4, _)) => Ok(Self::BeginVoting),
+            Some((&5, rest)) if rest.len() == 1 => {
                 let election = rest[0]
                     .try_into()
                     .map_err(|_| ProgramError::InvalidInstructionData)?;
                 Ok(Self::Vote { election })
             }
-            Some((&4, rest)) if rest.len() == 1 => {
+            Some((&6, rest)) if rest.len() == 1 => {
                 let new_election = rest[0]
                     .try_into()
                     .map_err(|_| ProgramError::InvalidInstructionData)?;
                 Ok(Self::SwitchVote { new_election })
             }
-            Some((&5, _)) => Ok(Self::ProcessProposal),
-            Some((&6, rest)) if rest.len() == 24 => {
+            Some((&7, _)) => Ok(Self::ProcessProposal),
+            Some((&8, rest)) if rest.len() == 24 => {
                 let cooldown_period_seconds = u64::from_le_bytes(rest[..8].try_into().unwrap());
                 let proposal_acceptance_threshold =
                     u32::from_le_bytes(rest[8..12].try_into().unwrap());
@@ -233,7 +300,7 @@ impl PaladinGovernanceInstruction {
                     voting_period_seconds,
                 })
             }
-            Some((&7, rest)) if rest.len() == 24 => {
+            Some((&9, rest)) if rest.len() == 24 => {
                 let cooldown_period_seconds = u64::from_le_bytes(rest[..8].try_into().unwrap());
                 let proposal_acceptance_threshold =
                     u32::from_le_bytes(rest[8..12].try_into().unwrap());
@@ -259,15 +326,61 @@ pub fn create_proposal(
     stake_authority_address: &Pubkey,
     stake_address: &Pubkey,
     proposal_address: &Pubkey,
+    proposal_transaction_address: &Pubkey,
     governance_config_address: &Pubkey,
 ) -> Instruction {
     let accounts = vec![
         AccountMeta::new_readonly(*stake_authority_address, true),
         AccountMeta::new_readonly(*stake_address, false),
         AccountMeta::new(*proposal_address, false),
+        AccountMeta::new(*proposal_transaction_address, false),
         AccountMeta::new_readonly(*governance_config_address, false),
+        AccountMeta::new_readonly(system_program::id(), false),
     ];
     let data = PaladinGovernanceInstruction::CreateProposal.pack();
+    Instruction::new_with_bytes(crate::id(), &data, accounts)
+}
+
+/// Creates a
+/// [PushInstruction](enum.PaladinGovernanceInstruction.html)
+/// instruction.
+pub fn push_instruction(
+    stake_authority_address: &Pubkey,
+    proposal_address: &Pubkey,
+    proposal_transaction_address: &Pubkey,
+    instruction_program_id: &Pubkey,
+    instruction_account_metas: Vec<ProposalAccountMeta>,
+    instruction_data: Vec<u8>,
+) -> Instruction {
+    let accounts = vec![
+        AccountMeta::new_readonly(*stake_authority_address, true),
+        AccountMeta::new_readonly(*proposal_address, false),
+        AccountMeta::new(*proposal_transaction_address, false),
+    ];
+    let data = PaladinGovernanceInstruction::PushInstruction {
+        instruction_program_id: *instruction_program_id,
+        instruction_account_metas,
+        instruction_data,
+    }
+    .pack();
+    Instruction::new_with_bytes(crate::id(), &data, accounts)
+}
+
+/// Creates a
+/// [RemoveInstruction](enum.PaladinGovernanceInstruction.html)
+/// instruction.
+pub fn remove_instruction(
+    stake_authority_address: &Pubkey,
+    proposal_address: &Pubkey,
+    proposal_transaction_address: &Pubkey,
+    instruction_index: u32,
+) -> Instruction {
+    let accounts = vec![
+        AccountMeta::new_readonly(*stake_authority_address, true),
+        AccountMeta::new_readonly(*proposal_address, false),
+        AccountMeta::new(*proposal_transaction_address, false),
+    ];
+    let data = PaladinGovernanceInstruction::RemoveInstruction { instruction_index }.pack();
     Instruction::new_with_bytes(crate::id(), &data, accounts)
 }
 
@@ -402,7 +515,7 @@ pub fn update_governance(
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use {super::*, crate::state::ProposalAccountMeta};
 
     fn test_pack_unpack(instruction: PaladinGovernanceInstruction) {
         let packed = instruction.pack();
@@ -413,6 +526,36 @@ mod tests {
     #[test]
     fn test_pack_unpack_create_proposal() {
         test_pack_unpack(PaladinGovernanceInstruction::CreateProposal);
+    }
+
+    #[test]
+    fn test_pack_unpack_push_instruction() {
+        let program_id = Pubkey::new_unique();
+        let account_metas = vec![
+            ProposalAccountMeta {
+                pubkey: Pubkey::new_unique(),
+                is_signer: false,
+                is_writable: false,
+            },
+            ProposalAccountMeta {
+                pubkey: Pubkey::new_unique(),
+                is_signer: false,
+                is_writable: true,
+            },
+        ];
+        let data = vec![1, 2, 3];
+        test_pack_unpack(PaladinGovernanceInstruction::PushInstruction {
+            instruction_program_id: program_id,
+            instruction_account_metas: account_metas,
+            instruction_data: data,
+        });
+    }
+
+    #[test]
+    fn test_pack_unpack_remove_instruction() {
+        test_pack_unpack(PaladinGovernanceInstruction::RemoveInstruction {
+            instruction_index: 45,
+        });
     }
 
     #[test]

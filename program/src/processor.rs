@@ -5,15 +5,19 @@ use {
         error::PaladinGovernanceError,
         instruction::PaladinGovernanceInstruction,
         state::{
-            collect_governance_signer_seeds, collect_proposal_vote_signer_seeds,
-            get_governance_address_and_bump_seed, get_proposal_vote_address,
-            get_proposal_vote_address_and_bump_seed, Config, Proposal, ProposalStatus,
+            collect_governance_signer_seeds, collect_proposal_transaction_signer_seeds,
+            collect_proposal_vote_signer_seeds, get_governance_address_and_bump_seed,
+            get_proposal_transaction_address, get_proposal_transaction_address_and_bump_seed,
+            get_proposal_vote_address, get_proposal_vote_address_and_bump_seed, Config, Proposal,
+            ProposalAccountMeta, ProposalInstruction, ProposalStatus, ProposalTransaction,
             ProposalVote, ProposalVoteElection,
         },
     },
+    borsh::BorshDeserialize,
     paladin_stake_program::state::{find_stake_pda, Config as StakeConfig, Stake},
     solana_program::{
         account_info::{next_account_info, AccountInfo},
+        borsh1::get_instance_packed_len,
         clock::Clock,
         entrypoint::ProgramResult,
         msg,
@@ -137,6 +141,24 @@ fn check_proposal_exists(program_id: &Pubkey, proposal_info: &AccountInfo) -> Pr
     Ok(())
 }
 
+fn check_proposal_transaction_exists(
+    program_id: &Pubkey,
+    proposal_transaction_info: &AccountInfo,
+) -> ProgramResult {
+    // Ensure the proposal transaction account is owned by the Paladin
+    // Governance program.
+    if proposal_transaction_info.owner != program_id {
+        return Err(ProgramError::InvalidAccountOwner);
+    }
+
+    // Ensure the proposal transaction account is initialized.
+    if proposal_transaction_info.data_len() == 0 {
+        return Err(ProgramError::UninitializedAccount);
+    }
+
+    Ok(())
+}
+
 /// Processes a
 /// [CreateProposal](enum.PaladinGovernanceInstruction.html)
 /// instruction.
@@ -146,6 +168,7 @@ fn process_create_proposal(program_id: &Pubkey, accounts: &[AccountInfo]) -> Pro
     let stake_authority_info = next_account_info(accounts_iter)?;
     let stake_info = next_account_info(accounts_iter)?;
     let proposal_info = next_account_info(accounts_iter)?;
+    let proposal_transaction_info = next_account_info(accounts_iter)?;
     let governance_info = next_account_info(accounts_iter)?;
 
     // Ensure the stake authority is a signer.
@@ -175,34 +198,226 @@ fn process_create_proposal(program_id: &Pubkey, accounts: &[AccountInfo]) -> Pro
             .map_err(|_| ProgramError::InvalidAccountData)?
     };
 
-    // Ensure the proposal account is owned by the Paladin Governance program.
-    if proposal_info.owner != program_id {
-        return Err(ProgramError::InvalidAccountOwner);
+    // Initialize the proposal account.
+    {
+        // Ensure the proposal account is owned by the Paladin Governance program.
+        if proposal_info.owner != program_id {
+            return Err(ProgramError::InvalidAccountOwner);
+        }
+
+        // Ensure the proposal account has enough space.
+        if proposal_info.data_len() != std::mem::size_of::<Proposal>() {
+            return Err(ProgramError::InvalidAccountData);
+        }
+
+        // Ensure the proposal account is not initialized.
+        if &proposal_info.try_borrow_data()?[0..8] != ArrayDiscriminator::UNINITIALIZED.as_slice() {
+            return Err(ProgramError::AccountAlreadyInitialized);
+        }
+
+        let clock = <Clock as Sysvar>::get()?;
+        let creation_timestamp = clock.unix_timestamp;
+
+        // Write the data.
+        let mut proposal_data = proposal_info.try_borrow_mut_data()?;
+        *bytemuck::try_from_bytes_mut::<Proposal>(&mut proposal_data)
+            .map_err(|_| ProgramError::InvalidAccountData)? = Proposal::new(
+            stake_authority_info.key,
+            creation_timestamp,
+            governance_config,
+        );
     }
 
-    // Ensure the proposal account has enough space.
-    if proposal_info.data_len() != std::mem::size_of::<Proposal>() {
-        return Err(ProgramError::InvalidAccountData);
+    // Initialize the proposal transaction account.
+    {
+        let (proposal_transaction_address, signer_bump_seed) =
+            get_proposal_transaction_address_and_bump_seed(proposal_info.key, program_id);
+        let bump_seed = [signer_bump_seed];
+        let proposal_transaction_signer_seeds =
+            collect_proposal_transaction_signer_seeds(proposal_info.key, &bump_seed);
+
+        // Ensure the provided proposal transaction address is the correct
+        // address derived from the program.
+        if !proposal_transaction_info
+            .key
+            .eq(&proposal_transaction_address)
+        {
+            return Err(PaladinGovernanceError::IncorrectProposalTransactionAddress.into());
+        }
+
+        // Ensure the proposal transaction account has not already been
+        // initialized.
+        if proposal_transaction_info.data_len() != 0 {
+            return Err(ProgramError::AccountAlreadyInitialized);
+        }
+
+        let state = ProposalTransaction::default();
+        let space = get_instance_packed_len(&state)? as u64;
+
+        // Allocate & assign.
+        invoke_signed(
+            &system_instruction::allocate(&proposal_transaction_address, space),
+            &[proposal_transaction_info.clone()],
+            &[&proposal_transaction_signer_seeds],
+        )?;
+        invoke_signed(
+            &system_instruction::assign(&proposal_transaction_address, program_id),
+            &[proposal_transaction_info.clone()],
+            &[&proposal_transaction_signer_seeds],
+        )?;
+
+        // Write the data.
+        borsh::to_writer(&mut proposal_transaction_info.data.borrow_mut()[..], &state)?;
     }
 
-    // Ensure the proposal account is not initialized.
-    if &proposal_info.try_borrow_data()?[0..8] != ArrayDiscriminator::UNINITIALIZED.as_slice() {
-        return Err(ProgramError::AccountAlreadyInitialized);
+    Ok(())
+}
+
+/// Processes a
+/// [PushInstruction](enum.PaladinGovernanceInstruction.html)
+/// instruction.
+fn process_push_instruction(
+    program_id: &Pubkey,
+    accounts: &[AccountInfo],
+    instruction_program_id: Pubkey,
+    instruction_account_metas: Vec<ProposalAccountMeta>,
+    instruction_data: Vec<u8>,
+) -> ProgramResult {
+    let accounts_iter = &mut accounts.iter();
+
+    let stake_authority_info = next_account_info(accounts_iter)?;
+    let proposal_info = next_account_info(accounts_iter)?;
+    let proposal_transaction_info = next_account_info(accounts_iter)?;
+
+    // Ensure the stake authority is a signer.
+    if !stake_authority_info.is_signer {
+        return Err(ProgramError::MissingRequiredSignature);
     }
 
-    let clock = <Clock as Sysvar>::get()?;
-    let creation_timestamp = clock.unix_timestamp;
-    let instruction = 0; // TODO!
+    check_proposal_exists(program_id, proposal_info)?;
+
+    let proposal_data = proposal_info.try_borrow_data()?;
+    let proposal_state = bytemuck::try_from_bytes::<Proposal>(&proposal_data)
+        .map_err(|_| ProgramError::InvalidAccountData)?;
+
+    // Ensure the stake authority is the proposal author.
+    proposal_state.check_author(stake_authority_info.key)?;
+
+    // Ensure the proposal is in draft stage.
+    if proposal_state.status != ProposalStatus::Draft {
+        return Err(PaladinGovernanceError::ProposalIsImmutable.into());
+    }
+
+    // Ensure the provided proposal transaction address is the correct address
+    // derived from the proposal.
+    if !proposal_transaction_info
+        .key
+        .eq(&get_proposal_transaction_address(
+            proposal_info.key,
+            program_id,
+        ))
+    {
+        return Err(PaladinGovernanceError::IncorrectProposalTransactionAddress.into());
+    }
+
+    check_proposal_transaction_exists(program_id, proposal_transaction_info)?;
+
+    let mut proposal_transaction_state =
+        ProposalTransaction::try_from_slice(&proposal_transaction_info.try_borrow_data()?)?;
+
+    // Insert the instruction.
+    let new_instruction = ProposalInstruction::new(
+        &instruction_program_id,
+        instruction_account_metas,
+        instruction_data,
+    );
+    proposal_transaction_state
+        .instructions
+        .push(new_instruction);
+
+    // Reallocate the account.
+    let new_len = get_instance_packed_len(&proposal_transaction_state)?;
+    proposal_transaction_info.realloc(new_len, true)?;
 
     // Write the data.
-    let mut proposal_data = proposal_info.try_borrow_mut_data()?;
-    *bytemuck::try_from_bytes_mut::<Proposal>(&mut proposal_data)
-        .map_err(|_| ProgramError::InvalidAccountData)? = Proposal::new(
-        stake_authority_info.key,
-        creation_timestamp,
-        governance_config,
-        instruction,
-    );
+    borsh::to_writer(
+        &mut proposal_transaction_info.data.borrow_mut()[..],
+        &proposal_transaction_state,
+    )?;
+
+    Ok(())
+}
+
+/// Processes a
+/// [RemoveInstruction](enum.PaladinGovernanceInstruction.html)
+/// instruction.
+fn process_remove_instruction(
+    program_id: &Pubkey,
+    accounts: &[AccountInfo],
+    instruction_index: u32,
+) -> ProgramResult {
+    let accounts_iter = &mut accounts.iter();
+
+    let stake_authority_info = next_account_info(accounts_iter)?;
+    let proposal_info = next_account_info(accounts_iter)?;
+    let proposal_transaction_info = next_account_info(accounts_iter)?;
+
+    // Ensure the stake authority is a signer.
+    if !stake_authority_info.is_signer {
+        return Err(ProgramError::MissingRequiredSignature);
+    }
+
+    check_proposal_exists(program_id, proposal_info)?;
+
+    let proposal_data = proposal_info.try_borrow_data()?;
+    let proposal_state = bytemuck::try_from_bytes::<Proposal>(&proposal_data)
+        .map_err(|_| ProgramError::InvalidAccountData)?;
+
+    // Ensure the stake authority is the proposal author.
+    proposal_state.check_author(stake_authority_info.key)?;
+
+    // Ensure the proposal is in draft stage.
+    if proposal_state.status != ProposalStatus::Draft {
+        return Err(PaladinGovernanceError::ProposalIsImmutable.into());
+    }
+
+    // Ensure the provided proposal transaction account has the correct address
+    // derived from the proposal.
+    if !proposal_transaction_info
+        .key
+        .eq(&get_proposal_transaction_address(
+            proposal_info.key,
+            program_id,
+        ))
+    {
+        return Err(PaladinGovernanceError::IncorrectProposalTransactionAddress.into());
+    }
+
+    check_proposal_transaction_exists(program_id, proposal_transaction_info)?;
+
+    let mut proposal_transaction_state =
+        ProposalTransaction::try_from_slice(&proposal_transaction_info.try_borrow_data()?)?;
+
+    // Ensure the index is valid.
+    let instruction_index = instruction_index as usize;
+    if instruction_index >= proposal_transaction_state.instructions.len() {
+        return Err(PaladinGovernanceError::InvalidTransactionIndex.into());
+    }
+
+    // Remove the instruction.
+    proposal_transaction_state
+        .instructions
+        .remove(instruction_index);
+
+    // Reallocate the account.
+    let new_len = get_instance_packed_len(&proposal_transaction_state)?;
+    proposal_transaction_info.realloc(new_len, true)?;
+
+    // Write the data.
+    borsh::to_writer(
+        &mut proposal_transaction_info.data.borrow_mut()[..],
+        &proposal_transaction_state,
+    )?;
 
     Ok(())
 }
@@ -760,6 +975,24 @@ pub fn process(program_id: &Pubkey, accounts: &[AccountInfo], input: &[u8]) -> P
         PaladinGovernanceInstruction::CreateProposal => {
             msg!("Instruction: CreateProposal");
             process_create_proposal(program_id, accounts)
+        }
+        PaladinGovernanceInstruction::PushInstruction {
+            instruction_program_id,
+            instruction_account_metas,
+            instruction_data,
+        } => {
+            msg!("Instruction: PushInstruction");
+            process_push_instruction(
+                program_id,
+                accounts,
+                instruction_program_id,
+                instruction_account_metas,
+                instruction_data,
+            )
+        }
+        PaladinGovernanceInstruction::RemoveInstruction { instruction_index } => {
+            msg!("Instruction: RemoveInstruction");
+            process_remove_instruction(program_id, accounts, instruction_index)
         }
         PaladinGovernanceInstruction::CancelProposal => {
             msg!("Instruction: CancelProposal");
