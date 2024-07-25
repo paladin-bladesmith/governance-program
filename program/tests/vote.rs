@@ -1453,9 +1453,6 @@ async fn success_cooldown_has_ended() {
         .unwrap();
     let proposal_state = bytemuck::from_bytes::<Proposal>(&proposal_account.data);
 
-    // Assert there is no cooldown timestamp.
-    assert!(proposal_state.cooldown_timestamp.is_none());
-
     // Assert the proposal was accepted.
     assert_eq!(proposal_state.status, ProposalStatus::Accepted);
 

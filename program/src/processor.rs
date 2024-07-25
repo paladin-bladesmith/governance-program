@@ -338,7 +338,6 @@ fn process_vote(
     // If the proposal has an active cooldown period, ensure it has not ended.
     if proposal_state.cooldown_has_ended(governance_config.cooldown_period_seconds, &clock) {
         // If the cooldown period has ended, the proposal is accepted.
-        proposal_state.cooldown_timestamp = None;
         proposal_state.status = ProposalStatus::Accepted;
         return Ok(());
     }
@@ -503,7 +502,6 @@ fn process_switch_vote(
     // If the proposal has an active cooldown period, ensure it has not ended.
     if proposal_state.cooldown_has_ended(governance_config.cooldown_period_seconds, &clock) {
         // If the cooldown period has ended, the proposal is accepted.
-        proposal_state.cooldown_timestamp = None;
         proposal_state.status = ProposalStatus::Accepted;
         return Ok(());
     }
