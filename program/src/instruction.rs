@@ -40,7 +40,6 @@ pub enum PaladinGovernanceInstruction {
     /// 0. `[s]` Paladin stake authority account.
     /// 1. `[ ]` Proposal account.
     /// 2. `[w]` Proposal transaction account.
-    /// 3. `[ ]` System program.
     InsertInstruction {
         /// The program ID to invoke.
         instruction_program_id: Pubkey,
@@ -357,7 +356,6 @@ pub fn insert_instruction(
         AccountMeta::new_readonly(*stake_authority_address, true),
         AccountMeta::new_readonly(*proposal_address, false),
         AccountMeta::new(*proposal_transaction_address, false),
-        AccountMeta::new_readonly(system_program::id(), false),
     ];
     let data = PaladinGovernanceInstruction::InsertInstruction {
         instruction_program_id: *instruction_program_id,
