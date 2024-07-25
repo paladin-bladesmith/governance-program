@@ -117,17 +117,25 @@ pub enum PaladinGovernanceInstruction {
         /// New proposal vote election.
         new_election: ProposalVoteElection,
     },
-    /// Process a governance proposal.
+    /// Process an instruction in an accepted governance proposal.
     ///
-    /// Given an accepted proposal, execute it. An accepted proposal has at
-    /// least 50% majority in favor and has passed the cooldown period.
+    /// Given an accepted proposal and one of its instructions, executes it.
+    /// If the proposal has been accepted, executes the instruction via CPI
+    /// and applies the governance PDA signature, then marks the instruction as
+    /// executed.
     ///
-    /// Closes the proposal account after execution.
+    /// Note: Returns an error if the previous instruction in this proposal has
+    /// not been executed.
     ///
     /// Accounts expected by this instruction:
     ///
-    /// 0. `[w]` Proposal account.
-    ProcessProposal,
+    /// 0. `[ ]` Proposal account.
+    /// 2. `[w]` Proposal transaction account.
+    /// 3..N.    Instruction accounts.
+    ProcessInstruction {
+        /// The index of the instruction to execute.
+        instruction_index: u32,
+    },
     /// Initialize the governance config.
     ///
     /// Initializes the configurations that will dictate governance
@@ -213,7 +221,11 @@ impl PaladinGovernanceInstruction {
             Self::BeginVoting => vec![4],
             Self::Vote { election } => vec![5, (*election).into()],
             Self::SwitchVote { new_election } => vec![6, (*new_election).into()],
-            Self::ProcessProposal => vec![7],
+            Self::ProcessInstruction { instruction_index } => {
+                let mut buf = vec![7];
+                buf.extend_from_slice(&instruction_index.to_le_bytes());
+                buf
+            }
             Self::InitializeGovernance {
                 cooldown_period_seconds,
                 proposal_acceptance_threshold,
@@ -285,7 +297,10 @@ impl PaladinGovernanceInstruction {
                     .map_err(|_| ProgramError::InvalidInstructionData)?;
                 Ok(Self::SwitchVote { new_election })
             }
-            Some((&7, _)) => Ok(Self::ProcessProposal),
+            Some((&7, rest)) if rest.len() == 4 => {
+                let instruction_index = u32::from_le_bytes(rest.try_into().unwrap());
+                Ok(Self::ProcessInstruction { instruction_index })
+            }
             Some((&8, rest)) if rest.len() == 24 => {
                 let cooldown_period_seconds = u64::from_le_bytes(rest[..8].try_into().unwrap());
                 let proposal_acceptance_threshold =
@@ -454,11 +469,18 @@ pub fn switch_vote(
 }
 
 /// Creates a
-/// [ProcessProposal](enum.PaladinGovernanceInstruction.html)
+/// [ProcessInstruction](enum.PaladinGovernanceInstruction.html)
 /// instruction.
-pub fn process_proposal(proposal_address: &Pubkey) -> Instruction {
-    let accounts = vec![AccountMeta::new(*proposal_address, false)];
-    let data = PaladinGovernanceInstruction::ProcessProposal.pack();
+pub fn process_instruction(
+    proposal_address: &Pubkey,
+    proposal_transaction_address: &Pubkey,
+    instruction_index: u32,
+) -> Instruction {
+    let accounts = vec![
+        AccountMeta::new_readonly(*proposal_address, false),
+        AccountMeta::new(*proposal_transaction_address, false),
+    ];
+    let data = PaladinGovernanceInstruction::ProcessInstruction { instruction_index }.pack();
     Instruction::new_with_bytes(crate::id(), &data, accounts)
 }
 
@@ -595,8 +617,10 @@ mod tests {
     }
 
     #[test]
-    fn test_pack_unpack_process_proposal() {
-        test_pack_unpack(PaladinGovernanceInstruction::ProcessProposal);
+    fn test_pack_unpack_process_instruction() {
+        test_pack_unpack(PaladinGovernanceInstruction::ProcessInstruction {
+            instruction_index: 45,
+        });
     }
 
     #[test]

@@ -818,35 +818,17 @@ fn process_switch_vote(
 }
 
 /// Processes a
-/// [ProcessProposal](enum.PaladinGovernanceInstruction.html)
+/// [ProcessInstruction](enum.PaladinGovernanceInstruction.html)
 /// instruction.
-fn process_process_proposal(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
+fn process_process_instruction(
+    _program_id: &Pubkey,
+    accounts: &[AccountInfo],
+    _nstruction_index: u32,
+) -> ProgramResult {
     let accounts_iter = &mut accounts.iter();
 
-    let proposal_info = next_account_info(accounts_iter)?;
-
-    check_proposal_exists(program_id, proposal_info)?;
-
-    let mut proposal_data = proposal_info.try_borrow_mut_data()?;
-    let proposal_state = bytemuck::try_from_bytes_mut::<Proposal>(&mut proposal_data)
-        .map_err(|_| ProgramError::InvalidAccountData)?;
-
-    let clock = <Clock as Sysvar>::get()?;
-
-    // TODO: These checks do the same thing basically.
-    // Will be cleaned up when this processor is rearchitected.
-    if !proposal_state.cooldown_has_ended(&clock) {
-        return Err(PaladinGovernanceError::ProposalNotAccepted.into());
-    }
-    if proposal_state.status != ProposalStatus::Accepted {
-        return Err(PaladinGovernanceError::ProposalNotAccepted.into());
-    }
-
-    // Process the proposal instruction.
-    // TODO!
-
-    // Set the proposal's status to processed.
-    proposal_state.status = ProposalStatus::Processed;
+    let _proposal_info = next_account_info(accounts_iter)?;
+    let _proposal_transaction_info = next_account_info(accounts_iter)?;
 
     Ok(())
 }
@@ -1010,9 +992,9 @@ pub fn process(program_id: &Pubkey, accounts: &[AccountInfo], input: &[u8]) -> P
             msg!("Instruction: SwitchVote");
             process_switch_vote(program_id, accounts, new_election)
         }
-        PaladinGovernanceInstruction::ProcessProposal => {
-            msg!("Instruction: ProcessProposal");
-            process_process_proposal(program_id, accounts)
+        PaladinGovernanceInstruction::ProcessInstruction { instruction_index } => {
+            msg!("Instruction: ProcessInstruction");
+            process_process_instruction(program_id, accounts, instruction_index)
         }
         PaladinGovernanceInstruction::InitializeGovernance {
             cooldown_period_seconds,
