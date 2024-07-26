@@ -192,6 +192,22 @@ pub enum PaladinGovernanceInstruction {
         /// The voting period for proposals.
         voting_period_seconds: u64,
     },
+    /// Transfer lamports from the treasury to some destination.
+    ///
+    /// This instruction can _only_ be invoked by `ProcessInstruction` since
+    /// it explicitly requires the governance PDA signature.
+    ///
+    /// This means this instruction requires an accepted proposal to execute.
+    ///
+    /// Accounts expected by this instruction:
+    ///
+    /// 0. `[s]` Governance config account.
+    /// 1. `[w]` Treasury account.
+    /// 2. `[w]` Destination account.
+    TransferFromTreasury {
+        /// The amount of lamports to transfer.
+        amount: u64,
+    },
 }
 
 impl PaladinGovernanceInstruction {
@@ -250,6 +266,11 @@ impl PaladinGovernanceInstruction {
                 buf.extend_from_slice(&proposal_acceptance_threshold.to_le_bytes());
                 buf.extend_from_slice(&proposal_rejection_threshold.to_le_bytes());
                 buf.extend_from_slice(&voting_period_seconds.to_le_bytes());
+                buf
+            }
+            Self::TransferFromTreasury { amount } => {
+                let mut buf = vec![10];
+                buf.extend_from_slice(&amount.to_le_bytes());
                 buf
             }
         }
@@ -328,6 +349,10 @@ impl PaladinGovernanceInstruction {
                     proposal_rejection_threshold,
                     voting_period_seconds,
                 })
+            }
+            Some((&10, rest)) if rest.len() == 8 => {
+                let amount = u64::from_le_bytes(rest.try_into().unwrap());
+                Ok(Self::TransferFromTreasury { amount })
             }
             _ => Err(ProgramError::InvalidInstructionData),
         }
@@ -537,6 +562,24 @@ pub fn update_governance(
     Instruction::new_with_bytes(crate::id(), &data, accounts)
 }
 
+/// Creates a
+/// [TransferFromTreasury](enum.PaladinGovernanceInstruction.html)
+/// instruction.
+pub fn transfer_from_treasury(
+    governance_config_address: &Pubkey,
+    treasury_address: &Pubkey,
+    destination_address: &Pubkey,
+    amount: u64,
+) -> Instruction {
+    let accounts = vec![
+        AccountMeta::new(*governance_config_address, true),
+        AccountMeta::new(*treasury_address, false),
+        AccountMeta::new(*destination_address, false),
+    ];
+    let data = PaladinGovernanceInstruction::TransferFromTreasury { amount }.pack();
+    Instruction::new_with_bytes(crate::id(), &data, accounts)
+}
+
 #[cfg(test)]
 mod tests {
     use {super::*, crate::state::ProposalAccountMeta};
@@ -643,5 +686,10 @@ mod tests {
             proposal_rejection_threshold: 3,
             voting_period_seconds: 4,
         });
+    }
+
+    #[test]
+    fn test_pack_unpack_transfer_from_treasury() {
+        test_pack_unpack(PaladinGovernanceInstruction::TransferFromTreasury { amount: 45 });
     }
 }

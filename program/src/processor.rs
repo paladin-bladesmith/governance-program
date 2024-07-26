@@ -1027,6 +1027,17 @@ fn process_update_governance(
 }
 
 /// Processes a
+/// [TransferFromTreasury](enum.PaladinGovernanceInstruction.html)
+/// instruction.
+fn process_transfer_from_treasury(
+    _program_id: &Pubkey,
+    _accounts: &[AccountInfo],
+    _amount: u64,
+) -> ProgramResult {
+    Ok(())
+}
+
+/// Processes a
 /// [PaladinGovernanceInstruction](enum.PaladinGovernanceInstruction.html).
 pub fn process(program_id: &Pubkey, accounts: &[AccountInfo], input: &[u8]) -> ProgramResult {
     let instruction = PaladinGovernanceInstruction::unpack(input)?;
@@ -1104,6 +1115,10 @@ pub fn process(program_id: &Pubkey, accounts: &[AccountInfo], input: &[u8]) -> P
                 proposal_rejection_threshold,
                 voting_period_seconds,
             )
+        }
+        PaladinGovernanceInstruction::TransferFromTreasury { amount } => {
+            msg!("Instruction: TransferFromTreasury");
+            process_transfer_from_treasury(program_id, accounts, amount)
         }
     }
 }
