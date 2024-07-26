@@ -7,11 +7,12 @@ use {
         state::{
             collect_governance_signer_seeds, collect_proposal_transaction_signer_seeds,
             collect_proposal_vote_signer_seeds, collect_treasury_signer_seeds,
-            get_governance_address_and_bump_seed, get_proposal_transaction_address,
-            get_proposal_transaction_address_and_bump_seed, get_proposal_vote_address,
-            get_proposal_vote_address_and_bump_seed, get_treasury_address_and_bump_seed, Config,
-            Proposal, ProposalAccountMeta, ProposalInstruction, ProposalStatus,
-            ProposalTransaction, ProposalVote, ProposalVoteElection,
+            get_governance_address, get_governance_address_and_bump_seed,
+            get_proposal_transaction_address, get_proposal_transaction_address_and_bump_seed,
+            get_proposal_vote_address, get_proposal_vote_address_and_bump_seed,
+            get_treasury_address, get_treasury_address_and_bump_seed, Config, Proposal,
+            ProposalAccountMeta, ProposalInstruction, ProposalStatus, ProposalTransaction,
+            ProposalVote, ProposalVoteElection,
         },
     },
     borsh::BorshDeserialize,
@@ -993,32 +994,41 @@ fn process_update_governance(
 ) -> ProgramResult {
     let accounts_iter = &mut accounts.iter();
 
+    let treasury_info = next_account_info(accounts_iter)?;
     let governance_info = next_account_info(accounts_iter)?;
-    let proposal_info = next_account_info(accounts_iter)?;
 
-    check_governance_exists(program_id, governance_info)?;
-    check_proposal_exists(program_id, proposal_info)?;
-
-    {
-        // Ensure the proposal meets the acceptance threshold.
-        let proposal_data = proposal_info.try_borrow_data()?;
-        let proposal_state = bytemuck::try_from_bytes::<Proposal>(&proposal_data)
-            .map_err(|_| ProgramError::InvalidAccountData)?;
-
-        let clock = <Clock as Sysvar>::get()?;
-
-        if !proposal_state.cooldown_has_ended(&clock) {
-            return Err(PaladinGovernanceError::ProposalNotAccepted.into());
-        }
-
-        // TODO: This instruction requires a gate to ensure it can only be
-        // invoked from a proposal.
+    // Ensure the treasury is a signer.
+    if !treasury_info.is_signer {
+        return Err(ProgramError::MissingRequiredSignature);
     }
 
-    // Update the governance config.
+    check_governance_exists(program_id, governance_info)?;
+
     let mut data = governance_info.try_borrow_mut_data()?;
     let state = bytemuck::try_from_bytes_mut::<Config>(&mut data)
         .map_err(|_| ProgramError::InvalidAccountData)?;
+
+    let stake_config_address = state.stake_config_address;
+
+    // Ensure the provided treasury account has the correct address derived
+    // from the stake config.
+    if !treasury_info
+        .key
+        .eq(&get_treasury_address(&stake_config_address, program_id))
+    {
+        return Err(PaladinGovernanceError::IncorrectTreasuryAddress.into());
+    }
+
+    // Ensure the provided governance account has the correct address derived
+    // from the stake config.
+    if !governance_info
+        .key
+        .eq(&get_governance_address(&stake_config_address, program_id))
+    {
+        return Err(PaladinGovernanceError::IncorrectGovernanceConfigAddress.into());
+    }
+
+    // Update the governance config.
     state.cooldown_period_seconds = cooldown_period_seconds;
     state.proposal_acceptance_threshold = proposal_acceptance_threshold;
     state.proposal_rejection_threshold = proposal_rejection_threshold;
