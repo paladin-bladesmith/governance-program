@@ -8,6 +8,7 @@ use {
     solana_program::{
         clock::{Clock, UnixTimestamp},
         entrypoint::ProgramResult,
+        instruction::{AccountMeta, Instruction},
         program_error::ProgramError,
         pubkey::Pubkey,
     },
@@ -49,6 +50,17 @@ pub fn get_treasury_address_and_bump_seed(
 
 pub(crate) fn collect_treasury_seeds(stake_config_address: &Pubkey) -> [&[u8]; 2] {
     [SEED_PREFIX_TREASURY, stake_config_address.as_ref()]
+}
+
+pub(crate) fn collect_treasury_signer_seeds<'a>(
+    stake_config_address: &'a Pubkey,
+    bump_seed: &'a [u8],
+) -> [&'a [u8]; 3] {
+    [
+        SEED_PREFIX_TREASURY,
+        stake_config_address.as_ref(),
+        bump_seed,
+    ]
 }
 
 /// Derive the address of the governance config account.
@@ -227,6 +239,26 @@ pub struct ProposalAccountMeta {
     pub is_writable: bool,
 }
 
+impl From<&ProposalAccountMeta> for AccountMeta {
+    fn from(meta: &ProposalAccountMeta) -> Self {
+        Self {
+            pubkey: meta.pubkey,
+            is_signer: meta.is_signer,
+            is_writable: meta.is_writable,
+        }
+    }
+}
+
+impl From<&AccountMeta> for ProposalAccountMeta {
+    fn from(meta: &AccountMeta) -> Self {
+        Self {
+            pubkey: meta.pubkey,
+            is_signer: meta.is_signer,
+            is_writable: meta.is_writable,
+        }
+    }
+}
+
 /// An instruction to be executed by a governance proposal.
 #[derive(BorshDeserialize, BorshSerialize, Clone, Debug, Default, PartialEq)]
 pub struct ProposalInstruction {
@@ -246,6 +278,27 @@ impl ProposalInstruction {
             program_id: *program_id,
             accounts,
             data,
+            executed: false,
+        }
+    }
+}
+
+impl From<&ProposalInstruction> for Instruction {
+    fn from(instruction: &ProposalInstruction) -> Self {
+        Self {
+            program_id: instruction.program_id,
+            accounts: instruction.accounts.iter().map(Into::into).collect(),
+            data: instruction.data.clone(),
+        }
+    }
+}
+
+impl From<&Instruction> for ProposalInstruction {
+    fn from(instruction: &Instruction) -> Self {
+        Self {
+            program_id: instruction.program_id,
+            accounts: instruction.accounts.iter().map(Into::into).collect(),
+            data: instruction.data.clone(),
             executed: false,
         }
     }

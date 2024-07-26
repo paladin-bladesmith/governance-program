@@ -4,7 +4,8 @@
 use {
     borsh::BorshSerialize,
     paladin_governance_program::state::{
-        Config, Proposal, ProposalStatus, ProposalTransaction, ProposalVote, ProposalVoteElection,
+        Config, Proposal, ProposalAccountMeta, ProposalInstruction, ProposalStatus,
+        ProposalTransaction, ProposalVote, ProposalVoteElection,
     },
     paladin_stake_program::state::{Config as StakeConfig, Stake},
     solana_program_test::*,
@@ -274,4 +275,29 @@ pub async fn setup_proposal_vote(
             ..Account::default()
         }),
     );
+}
+
+pub fn create_mock_proposal_transaction(program_ids: &[&Pubkey]) -> ProposalTransaction {
+    let mut instructions = Vec::new();
+    for instruction_program_id in program_ids {
+        let instruction_account_metas = vec![
+            ProposalAccountMeta {
+                pubkey: Pubkey::new_unique(),
+                is_signer: false,
+                is_writable: false,
+            },
+            ProposalAccountMeta {
+                pubkey: Pubkey::new_unique(),
+                is_signer: false,
+                is_writable: true,
+            },
+        ];
+        let instruction_data = vec![4; 12];
+        instructions.push(ProposalInstruction::new(
+            instruction_program_id,
+            instruction_account_metas,
+            instruction_data,
+        ));
+    }
+    ProposalTransaction { instructions }
 }

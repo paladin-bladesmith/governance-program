@@ -3,12 +3,12 @@
 mod setup;
 
 use {
-    borsh::BorshDeserialize,
     paladin_governance_program::{
         error::PaladinGovernanceError,
-        instruction::remove_instruction,
+        instruction::process_instruction,
         state::{
-            get_proposal_transaction_address, Config, Proposal, ProposalStatus, ProposalTransaction,
+            get_proposal_transaction_address, get_treasury_address, Config, Proposal,
+            ProposalStatus, ProposalTransaction,
         },
     },
     setup::{create_mock_proposal_transaction, setup, setup_proposal, setup_proposal_transaction},
@@ -16,59 +16,18 @@ use {
     solana_sdk::{
         account::AccountSharedData,
         borsh1::get_instance_packed_len,
-        instruction::InstructionError,
+        instruction::{AccountMeta, InstructionError},
         pubkey::Pubkey,
         signature::Keypair,
         signer::Signer,
+        system_instruction, system_program,
         transaction::{Transaction, TransactionError},
     },
 };
 
 #[tokio::test]
-async fn fail_stake_authority_not_signer() {
-    let stake_authority = Keypair::new();
-    let proposal_address = Pubkey::new_unique();
-
-    let proposal_transaction_address =
-        get_proposal_transaction_address(&proposal_address, &paladin_governance_program::id());
-
-    let instruction_index = 0u32;
-
-    let mut context = setup().start_with_context().await;
-
-    let mut instruction = remove_instruction(
-        &stake_authority.pubkey(),
-        &proposal_address,
-        &proposal_transaction_address,
-        instruction_index,
-    );
-    instruction.accounts[0].is_signer = false; // Stake authority not signer.
-
-    let transaction = Transaction::new_signed_with_payer(
-        &[instruction],
-        Some(&context.payer.pubkey()),
-        &[&context.payer], // Missing stake authority.
-        context.last_blockhash,
-    );
-
-    let err = context
-        .banks_client
-        .process_transaction(transaction)
-        .await
-        .unwrap_err()
-        .unwrap();
-
-    assert_eq!(
-        err,
-        TransactionError::InstructionError(0, InstructionError::MissingRequiredSignature)
-    );
-}
-
-#[tokio::test]
 async fn fail_proposal_incorrect_owner() {
-    let stake_authority = Keypair::new();
     let proposal_address = Pubkey::new_unique();
-
     let proposal_transaction_address =
         get_proposal_transaction_address(&proposal_address, &paladin_governance_program::id());
 
@@ -87,17 +46,17 @@ async fn fail_proposal_incorrect_owner() {
         );
     }
 
-    let instruction = remove_instruction(
-        &stake_authority.pubkey(),
+    let instruction = process_instruction(
         &proposal_address,
         &proposal_transaction_address,
+        &[],
         instruction_index,
     );
 
     let transaction = Transaction::new_signed_with_payer(
         &[instruction],
         Some(&context.payer.pubkey()),
-        &[&context.payer, &stake_authority],
+        &[&context.payer],
         context.last_blockhash,
     );
 
@@ -116,9 +75,7 @@ async fn fail_proposal_incorrect_owner() {
 
 #[tokio::test]
 async fn fail_proposal_not_initialized() {
-    let stake_authority = Keypair::new();
     let proposal_address = Pubkey::new_unique();
-
     let proposal_transaction_address =
         get_proposal_transaction_address(&proposal_address, &paladin_governance_program::id());
 
@@ -137,17 +94,17 @@ async fn fail_proposal_not_initialized() {
         );
     }
 
-    let instruction = remove_instruction(
-        &stake_authority.pubkey(),
+    let instruction = process_instruction(
         &proposal_address,
         &proposal_transaction_address,
+        &[],
         instruction_index,
     );
 
     let transaction = Transaction::new_signed_with_payer(
         &[instruction],
         Some(&context.payer.pubkey()),
-        &[&context.payer, &stake_authority],
+        &[&context.payer],
         context.last_blockhash,
     );
 
@@ -165,10 +122,8 @@ async fn fail_proposal_not_initialized() {
 }
 
 #[tokio::test]
-async fn fail_stake_authority_not_author() {
-    let stake_authority = Keypair::new();
+async fn fail_proposal_not_accepted() {
     let proposal_address = Pubkey::new_unique();
-
     let proposal_transaction_address =
         get_proposal_transaction_address(&proposal_address, &paladin_governance_program::id());
 
@@ -178,72 +133,24 @@ async fn fail_stake_authority_not_author() {
     setup_proposal(
         &mut context,
         &proposal_address,
-        &Pubkey::new_unique(), // Stake authority not author.
+        &Pubkey::new_unique(),
         0,
         Config::default(),
-        ProposalStatus::Draft,
+        ProposalStatus::Voting, // Not accepted.
     )
     .await;
 
-    let instruction = remove_instruction(
-        &stake_authority.pubkey(),
+    let instruction = process_instruction(
         &proposal_address,
         &proposal_transaction_address,
+        &[],
         instruction_index,
     );
 
     let transaction = Transaction::new_signed_with_payer(
         &[instruction],
         Some(&context.payer.pubkey()),
-        &[&context.payer, &stake_authority],
-        context.last_blockhash,
-    );
-
-    let err = context
-        .banks_client
-        .process_transaction(transaction)
-        .await
-        .unwrap_err()
-        .unwrap();
-
-    assert_eq!(
-        err,
-        TransactionError::InstructionError(0, InstructionError::IncorrectAuthority)
-    );
-}
-
-#[tokio::test]
-async fn fail_proposal_not_in_draft_stage() {
-    let stake_authority = Keypair::new();
-    let proposal_address = Pubkey::new_unique();
-
-    let proposal_transaction_address =
-        get_proposal_transaction_address(&proposal_address, &paladin_governance_program::id());
-
-    let instruction_index = 0u32;
-
-    let mut context = setup().start_with_context().await;
-    setup_proposal(
-        &mut context,
-        &proposal_address,
-        &stake_authority.pubkey(),
-        0,
-        Config::default(),
-        ProposalStatus::Voting, // Not in draft stage.
-    )
-    .await;
-
-    let instruction = remove_instruction(
-        &stake_authority.pubkey(),
-        &proposal_address,
-        &proposal_transaction_address,
-        instruction_index,
-    );
-
-    let transaction = Transaction::new_signed_with_payer(
-        &[instruction],
-        Some(&context.payer.pubkey()),
-        &[&context.payer, &stake_authority],
+        &[&context.payer],
         context.last_blockhash,
     );
 
@@ -258,16 +165,14 @@ async fn fail_proposal_not_in_draft_stage() {
         err,
         TransactionError::InstructionError(
             0,
-            InstructionError::Custom(PaladinGovernanceError::ProposalIsImmutable as u32)
+            InstructionError::Custom(PaladinGovernanceError::ProposalNotAccepted as u32)
         )
     );
 }
 
 #[tokio::test]
 async fn fail_proposal_transaction_incorrect_address() {
-    let stake_authority = Keypair::new();
     let proposal_address = Pubkey::new_unique();
-
     let proposal_transaction_address = Pubkey::new_unique(); // Incorrect proposal transaction address.
 
     let instruction_index = 0u32;
@@ -276,24 +181,24 @@ async fn fail_proposal_transaction_incorrect_address() {
     setup_proposal(
         &mut context,
         &proposal_address,
-        &stake_authority.pubkey(),
+        &Pubkey::new_unique(),
         0,
         Config::default(),
-        ProposalStatus::Draft,
+        ProposalStatus::Accepted,
     )
     .await;
 
-    let instruction = remove_instruction(
-        &stake_authority.pubkey(),
+    let instruction = process_instruction(
         &proposal_address,
         &proposal_transaction_address,
+        &[],
         instruction_index,
     );
 
     let transaction = Transaction::new_signed_with_payer(
         &[instruction],
         Some(&context.payer.pubkey()),
-        &[&context.payer, &stake_authority],
+        &[&context.payer],
         context.last_blockhash,
     );
 
@@ -317,9 +222,7 @@ async fn fail_proposal_transaction_incorrect_address() {
 
 #[tokio::test]
 async fn fail_proposal_transaction_incorrect_owner() {
-    let stake_authority = Keypair::new();
     let proposal_address = Pubkey::new_unique();
-
     let proposal_transaction_address =
         get_proposal_transaction_address(&proposal_address, &paladin_governance_program::id());
 
@@ -329,10 +232,10 @@ async fn fail_proposal_transaction_incorrect_owner() {
     setup_proposal(
         &mut context,
         &proposal_address,
-        &stake_authority.pubkey(),
+        &Pubkey::new_unique(),
         0,
         Config::default(),
-        ProposalStatus::Draft,
+        ProposalStatus::Accepted,
     )
     .await;
 
@@ -347,17 +250,17 @@ async fn fail_proposal_transaction_incorrect_owner() {
         );
     }
 
-    let instruction = remove_instruction(
-        &stake_authority.pubkey(),
+    let instruction = process_instruction(
         &proposal_address,
         &proposal_transaction_address,
+        &[],
         instruction_index,
     );
 
     let transaction = Transaction::new_signed_with_payer(
         &[instruction],
         Some(&context.payer.pubkey()),
-        &[&context.payer, &stake_authority],
+        &[&context.payer],
         context.last_blockhash,
     );
 
@@ -376,9 +279,7 @@ async fn fail_proposal_transaction_incorrect_owner() {
 
 #[tokio::test]
 async fn fail_proposal_transaction_not_initialized() {
-    let stake_authority = Keypair::new();
     let proposal_address = Pubkey::new_unique();
-
     let proposal_transaction_address =
         get_proposal_transaction_address(&proposal_address, &paladin_governance_program::id());
 
@@ -388,10 +289,10 @@ async fn fail_proposal_transaction_not_initialized() {
     setup_proposal(
         &mut context,
         &proposal_address,
-        &stake_authority.pubkey(),
+        &Pubkey::new_unique(),
         0,
         Config::default(),
-        ProposalStatus::Draft,
+        ProposalStatus::Accepted,
     )
     .await;
 
@@ -406,17 +307,17 @@ async fn fail_proposal_transaction_not_initialized() {
         );
     }
 
-    let instruction = remove_instruction(
-        &stake_authority.pubkey(),
+    let instruction = process_instruction(
         &proposal_address,
         &proposal_transaction_address,
+        &[],
         instruction_index,
     );
 
     let transaction = Transaction::new_signed_with_payer(
         &[instruction],
         Some(&context.payer.pubkey()),
-        &[&context.payer, &stake_authority],
+        &[&context.payer],
         context.last_blockhash,
     );
 
@@ -435,9 +336,7 @@ async fn fail_proposal_transaction_not_initialized() {
 
 #[tokio::test]
 async fn fail_invalid_instruction_index() {
-    let stake_authority = Keypair::new();
     let proposal_address = Pubkey::new_unique();
-
     let proposal_transaction_address =
         get_proposal_transaction_address(&proposal_address, &paladin_governance_program::id());
 
@@ -450,10 +349,10 @@ async fn fail_invalid_instruction_index() {
     setup_proposal(
         &mut context,
         &proposal_address,
-        &stake_authority.pubkey(),
+        &Pubkey::new_unique(),
         0,
         Config::default(),
-        ProposalStatus::Draft,
+        ProposalStatus::Accepted,
     )
     .await;
     setup_proposal_transaction(
@@ -463,17 +362,17 @@ async fn fail_invalid_instruction_index() {
     )
     .await;
 
-    let instruction = remove_instruction(
-        &stake_authority.pubkey(),
+    let instruction = process_instruction(
         &proposal_address,
         &proposal_transaction_address,
+        &[],
         instruction_index,
     );
 
     let transaction = Transaction::new_signed_with_payer(
         &[instruction],
         Some(&context.payer.pubkey()),
-        &[&context.payer, &stake_authority],
+        &[&context.payer],
         context.last_blockhash,
     );
 
@@ -494,35 +393,24 @@ async fn fail_invalid_instruction_index() {
 }
 
 #[tokio::test]
-async fn success() {
-    let stake_authority = Keypair::new();
+async fn fail_instruction_already_executed() {
     let proposal_address = Pubkey::new_unique();
-
     let proposal_transaction_address =
         get_proposal_transaction_address(&proposal_address, &paladin_governance_program::id());
 
-    let instruction_program_id_0 = Pubkey::new_unique();
-    let instruction_program_id_1 = Pubkey::new_unique();
-    let instruction_program_id_2 = Pubkey::new_unique();
-    let instruction_program_id_3 = Pubkey::new_unique();
-    let instruction_program_id_4 = Pubkey::new_unique();
-
-    let proposal_transaction = create_mock_proposal_transaction(&[
-        &instruction_program_id_0,
-        &instruction_program_id_1,
-        &instruction_program_id_2,
-        &instruction_program_id_3,
-        &instruction_program_id_4,
-    ]);
+    let mut proposal_transaction =
+        create_mock_proposal_transaction(&[&Pubkey::new_unique(), &Pubkey::new_unique()]);
+    proposal_transaction.instructions[0].executed = true; // Instruction already executed.
+    let instruction_index = 0u32; // Instruction already executed.
 
     let mut context = setup().start_with_context().await;
     setup_proposal(
         &mut context,
         &proposal_address,
-        &stake_authority.pubkey(),
+        &Pubkey::new_unique(),
         0,
         Config::default(),
-        ProposalStatus::Draft,
+        ProposalStatus::Accepted,
     )
     .await;
     setup_proposal_transaction(
@@ -532,19 +420,177 @@ async fn success() {
     )
     .await;
 
-    // Remove instruction zero.
+    let instruction = process_instruction(
+        &proposal_address,
+        &proposal_transaction_address,
+        &[],
+        instruction_index,
+    );
+
+    let transaction = Transaction::new_signed_with_payer(
+        &[instruction],
+        Some(&context.payer.pubkey()),
+        &[&context.payer],
+        context.last_blockhash,
+    );
+
+    let err = context
+        .banks_client
+        .process_transaction(transaction)
+        .await
+        .unwrap_err()
+        .unwrap();
+
+    assert_eq!(
+        err,
+        TransactionError::InstructionError(
+            0,
+            InstructionError::Custom(PaladinGovernanceError::InstructionAlreadyExecuted as u32)
+        )
+    );
+}
+
+#[tokio::test]
+async fn fail_previous_instruction_not_executed() {
+    let proposal_address = Pubkey::new_unique();
+    let proposal_transaction_address =
+        get_proposal_transaction_address(&proposal_address, &paladin_governance_program::id());
+
+    let proposal_transaction =
+        create_mock_proposal_transaction(&[&Pubkey::new_unique(), &Pubkey::new_unique()]);
+    let instruction_index = 1u32; // Instruction 0 was not executed yet.
+
+    let mut context = setup().start_with_context().await;
+    setup_proposal(
+        &mut context,
+        &proposal_address,
+        &Pubkey::new_unique(),
+        0,
+        Config::default(),
+        ProposalStatus::Accepted,
+    )
+    .await;
+    setup_proposal_transaction(
+        &mut context,
+        &proposal_transaction_address,
+        proposal_transaction,
+    )
+    .await;
+
+    let instruction = process_instruction(
+        &proposal_address,
+        &proposal_transaction_address,
+        &[],
+        instruction_index,
+    );
+
+    let transaction = Transaction::new_signed_with_payer(
+        &[instruction],
+        Some(&context.payer.pubkey()),
+        &[&context.payer],
+        context.last_blockhash,
+    );
+
+    let err = context
+        .banks_client
+        .process_transaction(transaction)
+        .await
+        .unwrap_err()
+        .unwrap();
+
+    assert_eq!(
+        err,
+        TransactionError::InstructionError(
+            0,
+            InstructionError::Custom(
+                PaladinGovernanceError::PreviousInstructionHasNotBeenExecuted as u32
+            )
+        )
+    );
+}
+
+#[allow(clippy::arithmetic_side_effects)]
+#[tokio::test]
+async fn success() {
+    let proposal_address = Pubkey::new_unique();
+    let proposal_transaction_address =
+        get_proposal_transaction_address(&proposal_address, &paladin_governance_program::id());
+
+    let stake_config_address = Pubkey::new_unique();
+    let governance_config = Config::new(
+        /* cooldown_period_seconds */ 0,
+        /* proposal_acceptance_threshold */ 0,
+        /* proposal_rejection_threshold */ 0,
+        /* signer_bump_seed */ 0,
+        /* stake_config_address */ &stake_config_address,
+        /* voting_period_seconds */ 0,
+    );
+
+    let treasury = get_treasury_address(&stake_config_address, &paladin_governance_program::id());
+    let alice = Keypair::new();
+
+    let treasury_starting_lamports = 500_000_000;
+    let alice_starting_lamports = 350_000_000;
+
+    // Transfer amounts.
+    let treasury_to_alice_lamports = 100_000_000;
+    let alice_to_treasury_lamports = 50_000_000;
+
+    let proposal_transaction = ProposalTransaction {
+        instructions: vec![
+            (&system_instruction::transfer(&treasury, &alice.pubkey(), treasury_to_alice_lamports))
+                .into(),
+            (&system_instruction::transfer(&alice.pubkey(), &treasury, alice_to_treasury_lamports))
+                .into(),
+        ],
+    };
+
+    let mut context = setup().start_with_context().await;
+    setup_proposal(
+        &mut context,
+        &proposal_address,
+        &Pubkey::new_unique(),
+        0,
+        governance_config,
+        ProposalStatus::Accepted,
+    )
+    .await;
+    setup_proposal_transaction(
+        &mut context,
+        &proposal_transaction_address,
+        proposal_transaction,
+    )
+    .await;
+
+    // Set up treasury and alice with some lamports for transferring.
     {
-        let instruction = remove_instruction(
-            &stake_authority.pubkey(),
+        context.set_account(
+            &treasury,
+            &AccountSharedData::new(treasury_starting_lamports, 0, &system_program::id()), // System-owned.
+        );
+        context.set_account(
+            &alice.pubkey(),
+            &AccountSharedData::new(alice_starting_lamports, 0, &system_program::id()),
+        );
+    }
+
+    // Execute the first instruction.
+    {
+        let instruction = process_instruction(
             &proposal_address,
             &proposal_transaction_address,
-            0,
+            &[
+                AccountMeta::new(treasury, false),
+                AccountMeta::new(alice.pubkey(), false),
+                AccountMeta::new_readonly(system_program::id(), false),
+            ],
+            0, // First instruction.
         );
 
         let transaction = Transaction::new_signed_with_payer(
             &[instruction],
             Some(&context.payer.pubkey()),
-            &[&context.payer, &stake_authority],
+            &[&context.payer], // Note treasury not signer (PDA).
             context.last_blockhash,
         );
 
@@ -554,49 +600,48 @@ async fn success() {
             .await
             .unwrap();
 
-        // Assert the proposal transaction account was updated.
-        let proposal_transaction_account = context
-            .banks_client
-            .get_account(proposal_transaction_address)
-            .await
-            .unwrap()
-            .unwrap();
-        let proposal_transaction_state =
-            ProposalTransaction::try_from_slice(&proposal_transaction_account.data).unwrap();
-
-        assert_eq!(proposal_transaction_state.instructions.len(), 4);
-
-        // Assert program ID 0 was removed.
+        // Assert lamports were transferred from Alice to Bob.
         assert_eq!(
-            proposal_transaction_state
-                .instructions
-                .iter()
-                .map(|i| i.program_id)
-                .collect::<Vec<_>>(),
-            vec![
-                instruction_program_id_1,
-                instruction_program_id_2,
-                instruction_program_id_3,
-                instruction_program_id_4
-            ]
+            context
+                .banks_client
+                .get_account(treasury)
+                .await
+                .unwrap()
+                .unwrap()
+                .lamports,
+            treasury_starting_lamports - treasury_to_alice_lamports
+        );
+        assert_eq!(
+            context
+                .banks_client
+                .get_account(alice.pubkey())
+                .await
+                .unwrap()
+                .unwrap()
+                .lamports,
+            alice_starting_lamports + treasury_to_alice_lamports
         );
     }
 
-    // Remove instruction three.
+    // Execute the second instruction.
     {
-        let instruction = remove_instruction(
-            &stake_authority.pubkey(),
+        let blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
+
+        let instruction = process_instruction(
             &proposal_address,
             &proposal_transaction_address,
-            3,
+            &[
+                AccountMeta::new(alice.pubkey(), true),
+                AccountMeta::new(treasury, false),
+                AccountMeta::new_readonly(system_program::id(), false),
+            ],
+            1, // Second instruction.
         );
-
-        let blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
 
         let transaction = Transaction::new_signed_with_payer(
             &[instruction],
             Some(&context.payer.pubkey()),
-            &[&context.payer, &stake_authority],
+            &[&context.payer, &alice],
             blockhash,
         );
 
@@ -606,77 +651,26 @@ async fn success() {
             .await
             .unwrap();
 
-        // Assert the proposal transaction account was updated.
-        let proposal_transaction_account = context
-            .banks_client
-            .get_account(proposal_transaction_address)
-            .await
-            .unwrap()
-            .unwrap();
-        let proposal_transaction_state =
-            ProposalTransaction::try_from_slice(&proposal_transaction_account.data).unwrap();
-
-        assert_eq!(proposal_transaction_state.instructions.len(), 3);
-
-        // Assert program ID 4 was removed from index 3.
+        // Assert lamports were transferred from Bob to Alice.
         assert_eq!(
-            proposal_transaction_state
-                .instructions
-                .iter()
-                .map(|i| i.program_id)
-                .collect::<Vec<_>>(),
-            vec![
-                instruction_program_id_1,
-                instruction_program_id_2,
-                instruction_program_id_3
-            ]
+            context
+                .banks_client
+                .get_account(treasury)
+                .await
+                .unwrap()
+                .unwrap()
+                .lamports,
+            treasury_starting_lamports - treasury_to_alice_lamports + alice_to_treasury_lamports
         );
-    }
-
-    // Remove instruction zero again (different instruction now).
-    {
-        let instruction = remove_instruction(
-            &stake_authority.pubkey(),
-            &proposal_address,
-            &proposal_transaction_address,
-            0,
-        );
-
-        let blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
-
-        let transaction = Transaction::new_signed_with_payer(
-            &[instruction],
-            Some(&context.payer.pubkey()),
-            &[&context.payer, &stake_authority],
-            blockhash,
-        );
-
-        context
-            .banks_client
-            .process_transaction(transaction)
-            .await
-            .unwrap();
-
-        // Assert the proposal transaction account was updated.
-        let proposal_transaction_account = context
-            .banks_client
-            .get_account(proposal_transaction_address)
-            .await
-            .unwrap()
-            .unwrap();
-        let proposal_transaction_state =
-            ProposalTransaction::try_from_slice(&proposal_transaction_account.data).unwrap();
-
-        assert_eq!(proposal_transaction_state.instructions.len(), 2);
-
-        // Assert program ID 1 was removed from index 0.
         assert_eq!(
-            proposal_transaction_state
-                .instructions
-                .iter()
-                .map(|i| i.program_id)
-                .collect::<Vec<_>>(),
-            vec![instruction_program_id_2, instruction_program_id_3]
+            context
+                .banks_client
+                .get_account(alice.pubkey())
+                .await
+                .unwrap()
+                .unwrap()
+                .lamports,
+            alice_starting_lamports + treasury_to_alice_lamports - alice_to_treasury_lamports
         );
     }
 }
