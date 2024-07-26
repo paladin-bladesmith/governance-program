@@ -15,9 +15,11 @@ use {
     solana_sdk::{
         account::AccountSharedData,
         borsh1::get_instance_packed_len,
-        instruction::InstructionError,
+        instruction::{AccountMeta, InstructionError},
         pubkey::Pubkey,
+        signature::Keypair,
         signer::Signer,
+        system_instruction, system_program,
         transaction::{Transaction, TransactionError},
     },
 };
@@ -46,6 +48,7 @@ async fn fail_proposal_incorrect_owner() {
     let instruction = process_instruction(
         &proposal_address,
         &proposal_transaction_address,
+        &[],
         instruction_index,
     );
 
@@ -93,6 +96,7 @@ async fn fail_proposal_not_initialized() {
     let instruction = process_instruction(
         &proposal_address,
         &proposal_transaction_address,
+        &[],
         instruction_index,
     );
 
@@ -138,6 +142,7 @@ async fn fail_proposal_not_accepted() {
     let instruction = process_instruction(
         &proposal_address,
         &proposal_transaction_address,
+        &[],
         instruction_index,
     );
 
@@ -185,6 +190,7 @@ async fn fail_proposal_transaction_incorrect_address() {
     let instruction = process_instruction(
         &proposal_address,
         &proposal_transaction_address,
+        &[],
         instruction_index,
     );
 
@@ -246,6 +252,7 @@ async fn fail_proposal_transaction_incorrect_owner() {
     let instruction = process_instruction(
         &proposal_address,
         &proposal_transaction_address,
+        &[],
         instruction_index,
     );
 
@@ -302,6 +309,7 @@ async fn fail_proposal_transaction_not_initialized() {
     let instruction = process_instruction(
         &proposal_address,
         &proposal_transaction_address,
+        &[],
         instruction_index,
     );
 
@@ -356,6 +364,7 @@ async fn fail_invalid_instruction_index() {
     let instruction = process_instruction(
         &proposal_address,
         &proposal_transaction_address,
+        &[],
         instruction_index,
     );
 
@@ -413,6 +422,7 @@ async fn fail_instruction_already_executed() {
     let instruction = process_instruction(
         &proposal_address,
         &proposal_transaction_address,
+        &[],
         instruction_index,
     );
 
@@ -469,6 +479,7 @@ async fn fail_previous_instruction_not_executed() {
     let instruction = process_instruction(
         &proposal_address,
         &proposal_transaction_address,
+        &[],
         instruction_index,
     );
 
@@ -495,4 +506,160 @@ async fn fail_previous_instruction_not_executed() {
             )
         )
     );
+}
+
+#[allow(clippy::arithmetic_side_effects)]
+#[tokio::test]
+async fn success() {
+    let proposal_address = Pubkey::new_unique();
+    let proposal_transaction_address =
+        get_proposal_transaction_address(&proposal_address, &paladin_governance_program::id());
+
+    let alice = Keypair::new();
+    let bob = Keypair::new();
+
+    let alice_starting_lamports = 500_000_000;
+    let bob_starting_lamports = 350_000_000;
+
+    // Transfer amounts.
+    let alice_to_bob_lamports = 100_000_000;
+    let bob_to_alice_lamports = 50_000_000;
+
+    let proposal_transaction = ProposalTransaction {
+        instructions: vec![
+            (&system_instruction::transfer(&alice.pubkey(), &bob.pubkey(), alice_to_bob_lamports))
+                .into(),
+            (&system_instruction::transfer(&bob.pubkey(), &alice.pubkey(), bob_to_alice_lamports))
+                .into(),
+        ],
+    };
+
+    let mut context = setup().start_with_context().await;
+    setup_proposal(
+        &mut context,
+        &proposal_address,
+        &Pubkey::new_unique(),
+        0,
+        Config::default(),
+        ProposalStatus::Accepted,
+    )
+    .await;
+    setup_proposal_transaction(
+        &mut context,
+        &proposal_transaction_address,
+        proposal_transaction,
+    )
+    .await;
+
+    // Set up alice and bob with some lamports for transferring.
+    {
+        context.set_account(
+            &alice.pubkey(),
+            &AccountSharedData::new(alice_starting_lamports, 0, &system_program::id()),
+        );
+        context.set_account(
+            &bob.pubkey(),
+            &AccountSharedData::new(bob_starting_lamports, 0, &system_program::id()),
+        );
+    }
+
+    // Execute the first instruction.
+    {
+        let instruction = process_instruction(
+            &proposal_address,
+            &proposal_transaction_address,
+            &[
+                AccountMeta::new(alice.pubkey(), true),
+                AccountMeta::new(bob.pubkey(), false),
+                AccountMeta::new_readonly(system_program::id(), false),
+            ],
+            0, // First instruction.
+        );
+
+        let transaction = Transaction::new_signed_with_payer(
+            &[instruction],
+            Some(&context.payer.pubkey()),
+            &[&context.payer, &alice],
+            context.last_blockhash,
+        );
+
+        context
+            .banks_client
+            .process_transaction(transaction)
+            .await
+            .unwrap();
+
+        // Assert lamports were transferred from Alice to Bob.
+        assert_eq!(
+            context
+                .banks_client
+                .get_account(alice.pubkey())
+                .await
+                .unwrap()
+                .unwrap()
+                .lamports,
+            alice_starting_lamports - alice_to_bob_lamports
+        );
+        assert_eq!(
+            context
+                .banks_client
+                .get_account(bob.pubkey())
+                .await
+                .unwrap()
+                .unwrap()
+                .lamports,
+            bob_starting_lamports + alice_to_bob_lamports
+        );
+    }
+
+    // Execute the second instruction.
+    {
+        let blockhash = context.banks_client.get_latest_blockhash().await.unwrap();
+
+        let instruction = process_instruction(
+            &proposal_address,
+            &proposal_transaction_address,
+            &[
+                AccountMeta::new(bob.pubkey(), true),
+                AccountMeta::new(alice.pubkey(), false),
+                AccountMeta::new_readonly(system_program::id(), false),
+            ],
+            1, // Second instruction.
+        );
+
+        let transaction = Transaction::new_signed_with_payer(
+            &[instruction],
+            Some(&context.payer.pubkey()),
+            &[&context.payer, &bob],
+            blockhash,
+        );
+
+        context
+            .banks_client
+            .process_transaction(transaction)
+            .await
+            .unwrap();
+
+        // Assert lamports were transferred from Bob to Alice.
+        assert_eq!(
+            context
+                .banks_client
+                .get_account(alice.pubkey())
+                .await
+                .unwrap()
+                .unwrap()
+                .lamports,
+            alice_starting_lamports - alice_to_bob_lamports + bob_to_alice_lamports
+        );
+        assert_eq!(
+            context
+                .banks_client
+                .get_account(bob.pubkey())
+                .await
+                .unwrap()
+                .unwrap()
+                .lamports,
+            bob_starting_lamports + alice_to_bob_lamports - bob_to_alice_lamports
+        );
+    }
 }

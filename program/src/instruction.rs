@@ -474,12 +474,14 @@ pub fn switch_vote(
 pub fn process_instruction(
     proposal_address: &Pubkey,
     proposal_transaction_address: &Pubkey,
+    account_metas: &[AccountMeta],
     instruction_index: u32,
 ) -> Instruction {
-    let accounts = vec![
+    let mut accounts = vec![
         AccountMeta::new_readonly(*proposal_address, false),
         AccountMeta::new(*proposal_transaction_address, false),
     ];
+    accounts.extend_from_slice(account_metas);
     let data = PaladinGovernanceInstruction::ProcessInstruction { instruction_index }.pack();
     Instruction::new_with_bytes(crate::id(), &data, accounts)
 }

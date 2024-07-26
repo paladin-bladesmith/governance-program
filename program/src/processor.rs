@@ -20,6 +20,7 @@ use {
         borsh1::get_instance_packed_len,
         clock::Clock,
         entrypoint::ProgramResult,
+        instruction::Instruction,
         msg,
         program::invoke_signed,
         program_error::ProgramError,
@@ -864,8 +865,10 @@ fn process_process_instruction(
         return Err(PaladinGovernanceError::InvalidTransactionIndex.into());
     }
 
+    let instruction = &proposal_transaction_state.instructions[instruction_index];
+
     // Ensure the instruction has not already been executed.
-    if proposal_transaction_state.instructions[instruction_index].executed {
+    if instruction.executed {
         return Err(PaladinGovernanceError::InstructionAlreadyExecuted.into());
     }
 
@@ -877,7 +880,23 @@ fn process_process_instruction(
     }
 
     // Execute the instruction.
-    // ...
+    {
+        let (_governance_address, signer_bump_seed) = get_governance_address_and_bump_seed(
+            &proposal_state.governance_config.stake_config_address,
+            program_id,
+        );
+        let bump_seed = [signer_bump_seed];
+        let governance_signer_seeds = collect_governance_signer_seeds(
+            &proposal_state.governance_config.stake_config_address,
+            &bump_seed,
+        );
+
+        invoke_signed(
+            &Instruction::from(instruction),
+            accounts_iter.as_slice(),
+            &[&governance_signer_seeds],
+        )?;
+    }
 
     // Mark the instruction as executed.
     proposal_transaction_state.instructions[instruction_index].executed = true;

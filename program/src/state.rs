@@ -8,6 +8,7 @@ use {
     solana_program::{
         clock::{Clock, UnixTimestamp},
         entrypoint::ProgramResult,
+        instruction::{AccountMeta, Instruction},
         program_error::ProgramError,
         pubkey::Pubkey,
     },
@@ -227,6 +228,26 @@ pub struct ProposalAccountMeta {
     pub is_writable: bool,
 }
 
+impl From<&ProposalAccountMeta> for AccountMeta {
+    fn from(meta: &ProposalAccountMeta) -> Self {
+        Self {
+            pubkey: meta.pubkey,
+            is_signer: meta.is_signer,
+            is_writable: meta.is_writable,
+        }
+    }
+}
+
+impl From<&AccountMeta> for ProposalAccountMeta {
+    fn from(meta: &AccountMeta) -> Self {
+        Self {
+            pubkey: meta.pubkey,
+            is_signer: meta.is_signer,
+            is_writable: meta.is_writable,
+        }
+    }
+}
+
 /// An instruction to be executed by a governance proposal.
 #[derive(BorshDeserialize, BorshSerialize, Clone, Debug, Default, PartialEq)]
 pub struct ProposalInstruction {
@@ -246,6 +267,27 @@ impl ProposalInstruction {
             program_id: *program_id,
             accounts,
             data,
+            executed: false,
+        }
+    }
+}
+
+impl From<&ProposalInstruction> for Instruction {
+    fn from(instruction: &ProposalInstruction) -> Self {
+        Self {
+            program_id: instruction.program_id,
+            accounts: instruction.accounts.iter().map(Into::into).collect(),
+            data: instruction.data.clone(),
+        }
+    }
+}
+
+impl From<&Instruction> for ProposalInstruction {
+    fn from(instruction: &Instruction) -> Self {
+        Self {
+            program_id: instruction.program_id,
+            accounts: instruction.accounts.iter().map(Into::into).collect(),
+            data: instruction.data.clone(),
             executed: false,
         }
     }
