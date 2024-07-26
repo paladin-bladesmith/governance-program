@@ -52,6 +52,17 @@ pub(crate) fn collect_treasury_seeds(stake_config_address: &Pubkey) -> [&[u8]; 2
     [SEED_PREFIX_TREASURY, stake_config_address.as_ref()]
 }
 
+pub(crate) fn collect_treasury_signer_seeds<'a>(
+    stake_config_address: &'a Pubkey,
+    bump_seed: &'a [u8],
+) -> [&'a [u8]; 3] {
+    [
+        SEED_PREFIX_TREASURY,
+        stake_config_address.as_ref(),
+        bump_seed,
+    ]
+}
+
 /// Derive the address of the governance config account.
 pub fn get_governance_address(stake_config_address: &Pubkey, program_id: &Pubkey) -> Pubkey {
     get_governance_address_and_bump_seed(stake_config_address, program_id).0

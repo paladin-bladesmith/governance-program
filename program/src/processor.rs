@@ -6,11 +6,12 @@ use {
         instruction::PaladinGovernanceInstruction,
         state::{
             collect_governance_signer_seeds, collect_proposal_transaction_signer_seeds,
-            collect_proposal_vote_signer_seeds, get_governance_address_and_bump_seed,
-            get_proposal_transaction_address, get_proposal_transaction_address_and_bump_seed,
-            get_proposal_vote_address, get_proposal_vote_address_and_bump_seed, Config, Proposal,
-            ProposalAccountMeta, ProposalInstruction, ProposalStatus, ProposalTransaction,
-            ProposalVote, ProposalVoteElection,
+            collect_proposal_vote_signer_seeds, collect_treasury_signer_seeds,
+            get_governance_address_and_bump_seed, get_proposal_transaction_address,
+            get_proposal_transaction_address_and_bump_seed, get_proposal_vote_address,
+            get_proposal_vote_address_and_bump_seed, get_treasury_address_and_bump_seed, Config,
+            Proposal, ProposalAccountMeta, ProposalInstruction, ProposalStatus,
+            ProposalTransaction, ProposalVote, ProposalVoteElection,
         },
     },
     borsh::BorshDeserialize,
@@ -881,12 +882,12 @@ fn process_process_instruction(
 
     // Execute the instruction.
     {
-        let (_governance_address, signer_bump_seed) = get_governance_address_and_bump_seed(
+        let (_treasury_address, signer_bump_seed) = get_treasury_address_and_bump_seed(
             &proposal_state.governance_config.stake_config_address,
             program_id,
         );
         let bump_seed = [signer_bump_seed];
-        let governance_signer_seeds = collect_governance_signer_seeds(
+        let treasury_signer_seeds = collect_treasury_signer_seeds(
             &proposal_state.governance_config.stake_config_address,
             &bump_seed,
         );
@@ -894,7 +895,7 @@ fn process_process_instruction(
         invoke_signed(
             &Instruction::from(instruction),
             accounts_iter.as_slice(),
-            &[&governance_signer_seeds],
+            &[&treasury_signer_seeds],
         )?;
     }
 
