@@ -821,14 +821,72 @@ fn process_switch_vote(
 /// [ProcessInstruction](enum.PaladinGovernanceInstruction.html)
 /// instruction.
 fn process_process_instruction(
-    _program_id: &Pubkey,
+    program_id: &Pubkey,
     accounts: &[AccountInfo],
-    _nstruction_index: u32,
+    instruction_index: u32,
 ) -> ProgramResult {
     let accounts_iter = &mut accounts.iter();
 
-    let _proposal_info = next_account_info(accounts_iter)?;
-    let _proposal_transaction_info = next_account_info(accounts_iter)?;
+    let proposal_info = next_account_info(accounts_iter)?;
+    let proposal_transaction_info = next_account_info(accounts_iter)?;
+
+    check_proposal_exists(program_id, proposal_info)?;
+
+    let mut proposal_data = proposal_info.try_borrow_mut_data()?;
+    let proposal_state = bytemuck::try_from_bytes_mut::<Proposal>(&mut proposal_data)
+        .map_err(|_| ProgramError::InvalidAccountData)?;
+
+    // Ensure the proposal was accepted.
+    if proposal_state.status != ProposalStatus::Accepted {
+        return Err(PaladinGovernanceError::ProposalNotAccepted.into());
+    }
+
+    // Ensure the provided proposal transaction account has the correct address
+    // derived from the proposal.
+    if !proposal_transaction_info
+        .key
+        .eq(&get_proposal_transaction_address(
+            proposal_info.key,
+            program_id,
+        ))
+    {
+        return Err(PaladinGovernanceError::IncorrectProposalTransactionAddress.into());
+    }
+
+    check_proposal_transaction_exists(program_id, proposal_transaction_info)?;
+
+    let mut proposal_transaction_state =
+        ProposalTransaction::try_from_slice(&proposal_transaction_info.try_borrow_data()?)?;
+
+    // Ensure the index is valid.
+    let instruction_index = instruction_index as usize;
+    if instruction_index >= proposal_transaction_state.instructions.len() {
+        return Err(PaladinGovernanceError::InvalidTransactionIndex.into());
+    }
+
+    // Ensure the instruction has not already been executed.
+    if proposal_transaction_state.instructions[instruction_index].executed {
+        return Err(PaladinGovernanceError::InstructionAlreadyExecuted.into());
+    }
+
+    // Ensure the previous instruction has been executed.
+    if instruction_index > 0
+        && !proposal_transaction_state.instructions[instruction_index.saturating_sub(1)].executed
+    {
+        return Err(PaladinGovernanceError::PreviousInstructionHasNotBeenExecuted.into());
+    }
+
+    // Execute the instruction.
+    // ...
+
+    // Mark the instruction as executed.
+    proposal_transaction_state.instructions[instruction_index].executed = true;
+
+    // Write the data (no reallocation necessary).
+    borsh::to_writer(
+        &mut proposal_transaction_info.data.borrow_mut()[..],
+        &proposal_transaction_state,
+    )?;
 
     Ok(())
 }

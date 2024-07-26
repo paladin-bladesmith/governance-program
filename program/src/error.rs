@@ -32,4 +32,10 @@ pub enum PaladinGovernanceError {
     /// Invalid transaction index.
     #[error("Invalid transaction index.")]
     InvalidTransactionIndex,
+    /// Instruction already executed.
+    #[error("Instruction already executed.")]
+    InstructionAlreadyExecuted,
+    /// Previous instruction has not been executed.
+    #[error("Previous instruction has not been executed.")]
+    PreviousInstructionHasNotBeenExecuted,
 }
