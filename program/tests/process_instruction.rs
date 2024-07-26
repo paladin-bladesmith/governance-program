@@ -7,7 +7,8 @@ use {
         error::PaladinGovernanceError,
         instruction::process_instruction,
         state::{
-            get_proposal_transaction_address, Config, Proposal, ProposalStatus, ProposalTransaction,
+            get_proposal_transaction_address, get_treasury_address, Config, Proposal,
+            ProposalStatus, ProposalTransaction,
         },
     },
     setup::{create_mock_proposal_transaction, setup, setup_proposal, setup_proposal_transaction},
@@ -515,21 +516,31 @@ async fn success() {
     let proposal_transaction_address =
         get_proposal_transaction_address(&proposal_address, &paladin_governance_program::id());
 
-    let alice = Keypair::new();
-    let bob = Keypair::new();
+    let stake_config_address = Pubkey::new_unique();
+    let governance_config = Config::new(
+        /* cooldown_period_seconds */ 0,
+        /* proposal_acceptance_threshold */ 0,
+        /* proposal_rejection_threshold */ 0,
+        /* signer_bump_seed */ 0,
+        /* stake_config_address */ &stake_config_address,
+        /* voting_period_seconds */ 0,
+    );
 
-    let alice_starting_lamports = 500_000_000;
-    let bob_starting_lamports = 350_000_000;
+    let treasury = get_treasury_address(&stake_config_address, &paladin_governance_program::id());
+    let alice = Keypair::new();
+
+    let treasury_starting_lamports = 500_000_000;
+    let alice_starting_lamports = 350_000_000;
 
     // Transfer amounts.
-    let alice_to_bob_lamports = 100_000_000;
-    let bob_to_alice_lamports = 50_000_000;
+    let treasury_to_alice_lamports = 100_000_000;
+    let alice_to_treasury_lamports = 50_000_000;
 
     let proposal_transaction = ProposalTransaction {
         instructions: vec![
-            (&system_instruction::transfer(&alice.pubkey(), &bob.pubkey(), alice_to_bob_lamports))
+            (&system_instruction::transfer(&treasury, &alice.pubkey(), treasury_to_alice_lamports))
                 .into(),
-            (&system_instruction::transfer(&bob.pubkey(), &alice.pubkey(), bob_to_alice_lamports))
+            (&system_instruction::transfer(&alice.pubkey(), &treasury, alice_to_treasury_lamports))
                 .into(),
         ],
     };
@@ -540,7 +551,7 @@ async fn success() {
         &proposal_address,
         &Pubkey::new_unique(),
         0,
-        Config::default(),
+        governance_config,
         ProposalStatus::Accepted,
     )
     .await;
@@ -551,15 +562,15 @@ async fn success() {
     )
     .await;
 
-    // Set up alice and bob with some lamports for transferring.
+    // Set up treasury and alice with some lamports for transferring.
     {
+        context.set_account(
+            &treasury,
+            &AccountSharedData::new(treasury_starting_lamports, 0, &system_program::id()), // System-owned.
+        );
         context.set_account(
             &alice.pubkey(),
             &AccountSharedData::new(alice_starting_lamports, 0, &system_program::id()),
-        );
-        context.set_account(
-            &bob.pubkey(),
-            &AccountSharedData::new(bob_starting_lamports, 0, &system_program::id()),
         );
     }
 
@@ -569,8 +580,8 @@ async fn success() {
             &proposal_address,
             &proposal_transaction_address,
             &[
-                AccountMeta::new(alice.pubkey(), true),
-                AccountMeta::new(bob.pubkey(), false),
+                AccountMeta::new(treasury, false),
+                AccountMeta::new(alice.pubkey(), false),
                 AccountMeta::new_readonly(system_program::id(), false),
             ],
             0, // First instruction.
@@ -579,7 +590,7 @@ async fn success() {
         let transaction = Transaction::new_signed_with_payer(
             &[instruction],
             Some(&context.payer.pubkey()),
-            &[&context.payer, &alice],
+            &[&context.payer], // Note treasury not signer (PDA).
             context.last_blockhash,
         );
 
@@ -593,22 +604,22 @@ async fn success() {
         assert_eq!(
             context
                 .banks_client
+                .get_account(treasury)
+                .await
+                .unwrap()
+                .unwrap()
+                .lamports,
+            treasury_starting_lamports - treasury_to_alice_lamports
+        );
+        assert_eq!(
+            context
+                .banks_client
                 .get_account(alice.pubkey())
                 .await
                 .unwrap()
                 .unwrap()
                 .lamports,
-            alice_starting_lamports - alice_to_bob_lamports
-        );
-        assert_eq!(
-            context
-                .banks_client
-                .get_account(bob.pubkey())
-                .await
-                .unwrap()
-                .unwrap()
-                .lamports,
-            bob_starting_lamports + alice_to_bob_lamports
+            alice_starting_lamports + treasury_to_alice_lamports
         );
     }
 
@@ -620,8 +631,8 @@ async fn success() {
             &proposal_address,
             &proposal_transaction_address,
             &[
-                AccountMeta::new(bob.pubkey(), true),
-                AccountMeta::new(alice.pubkey(), false),
+                AccountMeta::new(alice.pubkey(), true),
+                AccountMeta::new(treasury, false),
                 AccountMeta::new_readonly(system_program::id(), false),
             ],
             1, // Second instruction.
@@ -630,7 +641,7 @@ async fn success() {
         let transaction = Transaction::new_signed_with_payer(
             &[instruction],
             Some(&context.payer.pubkey()),
-            &[&context.payer, &bob],
+            &[&context.payer, &alice],
             blockhash,
         );
 
@@ -644,22 +655,22 @@ async fn success() {
         assert_eq!(
             context
                 .banks_client
+                .get_account(treasury)
+                .await
+                .unwrap()
+                .unwrap()
+                .lamports,
+            treasury_starting_lamports - treasury_to_alice_lamports + alice_to_treasury_lamports
+        );
+        assert_eq!(
+            context
+                .banks_client
                 .get_account(alice.pubkey())
                 .await
                 .unwrap()
                 .unwrap()
                 .lamports,
-            alice_starting_lamports - alice_to_bob_lamports + bob_to_alice_lamports
-        );
-        assert_eq!(
-            context
-                .banks_client
-                .get_account(bob.pubkey())
-                .await
-                .unwrap()
-                .unwrap()
-                .lamports,
-            bob_starting_lamports + alice_to_bob_lamports - bob_to_alice_lamports
+            alice_starting_lamports + treasury_to_alice_lamports - alice_to_treasury_lamports
         );
     }
 }
