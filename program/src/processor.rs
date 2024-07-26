@@ -6,9 +6,10 @@ use {
         instruction::PaladinGovernanceInstruction,
         state::{
             collect_governance_signer_seeds, collect_proposal_transaction_signer_seeds,
-            collect_proposal_vote_signer_seeds, get_governance_address_and_bump_seed,
-            get_proposal_transaction_address, get_proposal_transaction_address_and_bump_seed,
-            get_proposal_vote_address, get_proposal_vote_address_and_bump_seed, Config, Proposal,
+            collect_proposal_vote_signer_seeds, get_governance_address,
+            get_governance_address_and_bump_seed, get_proposal_transaction_address,
+            get_proposal_transaction_address_and_bump_seed, get_proposal_vote_address,
+            get_proposal_vote_address_and_bump_seed, get_treasury_address, Config, Proposal,
             ProposalAccountMeta, ProposalInstruction, ProposalStatus, ProposalTransaction,
             ProposalVote, ProposalVoteElection,
         },
@@ -1030,10 +1031,57 @@ fn process_update_governance(
 /// [TransferFromTreasury](enum.PaladinGovernanceInstruction.html)
 /// instruction.
 fn process_transfer_from_treasury(
-    _program_id: &Pubkey,
-    _accounts: &[AccountInfo],
-    _amount: u64,
+    program_id: &Pubkey,
+    accounts: &[AccountInfo],
+    amount: u64,
 ) -> ProgramResult {
+    let accounts_iter = &mut accounts.iter();
+
+    let governance_info = next_account_info(accounts_iter)?;
+    let treasury_info = next_account_info(accounts_iter)?;
+    let destination_info = next_account_info(accounts_iter)?;
+
+    // Ensure the governance config is a signer.
+    if !governance_info.is_signer {
+        return Err(ProgramError::MissingRequiredSignature);
+    }
+
+    check_governance_exists(program_id, governance_info)?;
+
+    let mut governance_data = governance_info.try_borrow_mut_data()?;
+    let governance_state = bytemuck::try_from_bytes_mut::<Config>(&mut governance_data)
+        .map_err(|_| ProgramError::InvalidAccountData)?;
+
+    let stake_config_address = governance_state.stake_config_address;
+
+    // Ensure the governance config has the correct address derived from the
+    // stake config address.
+    if !governance_info
+        .key
+        .eq(&get_governance_address(&stake_config_address, program_id))
+    {
+        return Err(PaladinGovernanceError::IncorrectGovernanceConfigAddress.into());
+    }
+
+    // Ensure the provided treasury address is the correct address derived
+    // from the stake config address.
+    if !treasury_info
+        .key
+        .eq(&get_treasury_address(&stake_config_address, program_id))
+    {
+        return Err(PaladinGovernanceError::IncorrectTreasuryAddress.into());
+    }
+
+    **treasury_info.try_borrow_mut_lamports()? = treasury_info
+        .lamports()
+        .checked_sub(amount)
+        .ok_or(ProgramError::InsufficientFunds)?;
+
+    **destination_info.try_borrow_mut_lamports()? = destination_info
+        .lamports()
+        .checked_add(amount)
+        .ok_or(ProgramError::ArithmeticOverflow)?;
+
     Ok(())
 }
 
