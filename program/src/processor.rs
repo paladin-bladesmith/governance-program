@@ -34,7 +34,7 @@ use {
     std::num::NonZeroU64,
 };
 
-const THRESHOLD_SCALING_FACTOR: u64 = 1_000_000_000; // 1e9
+const THRESHOLD_SCALING_FACTOR: u128 = 1_000_000_000; // 1e9
 
 fn calculate_proposal_vote_threshold(stake: u64, total_stake: u64) -> Result<u32, ProgramError> {
     if total_stake == 0 {
@@ -43,9 +43,9 @@ fn calculate_proposal_vote_threshold(stake: u64, total_stake: u64) -> Result<u32
     // Calculation: stake / total_stake
     //
     // Scaled by 1e9 to store 9 decimal places of precision.
-    stake
+    (stake as u128)
         .checked_mul(THRESHOLD_SCALING_FACTOR)
-        .and_then(|product| product.checked_div(total_stake))
+        .and_then(|product| product.checked_div(total_stake as u128))
         .and_then(|result| u32::try_from(result).ok())
         .ok_or(ProgramError::ArithmeticOverflow)
 }
@@ -1115,6 +1115,54 @@ pub fn process(program_id: &Pubkey, accounts: &[AccountInfo], input: &[u8]) -> P
                 proposal_rejection_threshold,
                 voting_period_seconds,
             )
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use {super::*, proptest::prelude::*};
+
+    proptest! {
+        #[test]
+        fn test_calculate_proposal_vote_threshold(
+            stake in 0u64..,
+            total_stake in 0u64..,
+        ) {
+            // Calculate.
+            let result = calculate_proposal_vote_threshold(stake, total_stake);
+            // Evaluate.
+            if total_stake == 0 {
+                prop_assert_eq!(result, Ok(0));
+            } else {
+                // The scaling multiplication should always succeed.
+                let scaled_stake = (stake as u128)
+                    .checked_mul(THRESHOLD_SCALING_FACTOR)
+                    .unwrap();
+
+                // Now try to divide the scaled stake by the total stake.
+                let scaled_stake_ratio = scaled_stake.checked_div(total_stake as u128);
+                if scaled_stake_ratio.is_none() {
+                    // If the division failed, the result should be an error.
+                    prop_assert_eq!(result, Err(ProgramError::ArithmeticOverflow));
+                    return Ok(());
+                }
+
+                let expected = u32::try_from(scaled_stake_ratio.unwrap());
+                if expected.is_err() {
+                    // If the conversion failed, the result should be an error.
+                    //
+                    // Note: This is only possible in the situation where stake
+                    // is greater than total_stake, which is not possible on
+                    // Solana.
+                    prop_assert_eq!(result, Err(ProgramError::ArithmeticOverflow));
+                    return Ok(());
+                } else {
+                    // If the conversion succeeded, the result should be the
+                    // expected value.
+                    prop_assert_eq!(result, Ok(expected.unwrap()));
+                }
+            }
         }
     }
 }
