@@ -121,8 +121,8 @@ pub enum PaladinGovernanceInstruction {
     ///
     /// Given an accepted proposal and one of its instructions, executes it.
     /// If the proposal has been accepted, executes the instruction via CPI
-    /// and applies the governance PDA signature, then marks the instruction as
-    /// executed.
+    /// and applies the governance treasury PDA signature, then marks the
+    /// instruction as executed.
     ///
     /// Note: Returns an error if the previous instruction in this proposal has
     /// not been executed.
@@ -130,8 +130,8 @@ pub enum PaladinGovernanceInstruction {
     /// Accounts expected by this instruction:
     ///
     /// 0. `[ ]` Proposal account.
-    /// 2. `[w]` Proposal transaction account.
-    /// 3..N.    Instruction accounts.
+    /// 1. `[w]` Proposal transaction account.
+    /// 2..N.    Instruction accounts.
     ProcessInstruction {
         /// The index of the instruction to execute.
         instruction_index: u32,
