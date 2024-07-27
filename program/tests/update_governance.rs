@@ -5,28 +5,134 @@ mod setup;
 use {
     paladin_governance_program::{
         error::PaladinGovernanceError,
-        instruction::update_governance,
-        state::{Config, Proposal, ProposalStatus},
+        instruction::{process_instruction, update_governance},
+        state::{
+            get_governance_address, get_proposal_transaction_address, get_treasury_address, Config,
+            ProposalStatus, ProposalTransaction,
+        },
     },
-    setup::{setup, setup_governance, setup_proposal_with_stake_and_cooldown},
+    setup::{setup, setup_governance, setup_proposal, setup_proposal_transaction},
     solana_program_test::*,
     solana_sdk::{
         account::AccountSharedData,
-        clock::Clock,
-        instruction::InstructionError,
+        instruction::{AccountMeta, InstructionError},
         pubkey::Pubkey,
         signer::Signer,
         transaction::{Transaction, TransactionError},
     },
-    std::num::NonZeroU64,
 };
+
+fn proposal_transaction_with_update_governance_instruction(
+    treasury_address: &Pubkey,
+    governance_config_address: &Pubkey,
+    cooldown_period_seconds: u64,
+    proposal_acceptance_threshold: u32,
+    proposal_rejection_threshold: u32,
+    voting_period_seconds: u64,
+) -> ProposalTransaction {
+    ProposalTransaction {
+        instructions: vec![(&update_governance(
+            treasury_address,
+            governance_config_address,
+            cooldown_period_seconds,
+            proposal_acceptance_threshold,
+            proposal_rejection_threshold,
+            voting_period_seconds,
+        ))
+            .into()],
+    }
+}
+
+#[tokio::test]
+async fn fail_treasury_not_signer() {
+    let stake_config_address = Pubkey::new_unique();
+
+    let treasury = get_treasury_address(&stake_config_address, &paladin_governance_program::id());
+    let governance =
+        get_governance_address(&stake_config_address, &paladin_governance_program::id());
+
+    let mut context = setup().start_with_context().await;
+
+    // Try just invoking the instruction directly.
+    let mut instruction = update_governance(
+        &treasury,
+        &governance,
+        /* cooldown_period_seconds */ 0,
+        /* proposal_acceptance_threshold */ 0,
+        /* proposal_rejection_threshold */ 0,
+        /* voting_period_seconds */ 0,
+    );
+    instruction.accounts[0].is_signer = false; // Treasury not signer.
+
+    let transaction = Transaction::new_signed_with_payer(
+        &[instruction],
+        Some(&context.payer.pubkey()),
+        &[&context.payer],
+        context.last_blockhash,
+    );
+
+    let err = context
+        .banks_client
+        .process_transaction(transaction)
+        .await
+        .unwrap_err()
+        .unwrap();
+
+    assert_eq!(
+        err,
+        TransactionError::InstructionError(0, InstructionError::MissingRequiredSignature)
+    );
+}
 
 #[tokio::test]
 async fn fail_governance_incorrect_owner() {
-    let proposal = Pubkey::new_unique();
-    let governance = Pubkey::new_unique(); // PDA doesn't matter here.
+    let stake_config_address = Pubkey::new_unique();
+
+    let treasury = get_treasury_address(&stake_config_address, &paladin_governance_program::id());
+    let governance =
+        get_governance_address(&stake_config_address, &paladin_governance_program::id());
+
+    let proposal_address = Pubkey::new_unique();
+    let proposal_transaction_address =
+        get_proposal_transaction_address(&proposal_address, &paladin_governance_program::id());
+
+    let original_governance_config = Config::new(
+        /* cooldown_period_seconds */ 0,
+        /* proposal_acceptance_threshold */ 0,
+        /* proposal_rejection_threshold */ 0,
+        /* signer_bump_seed */ 0,
+        /* stake_config_address */ &stake_config_address,
+        /* voting_period_seconds */ 0,
+    );
+
+    let new_cooldown_period_seconds = 1;
+    let new_proposal_acceptance_threshold = 2;
+    let new_proposal_rejection_threshold = 3;
+    let new_voting_period_seconds = 4;
 
     let mut context = setup().start_with_context().await;
+    setup_proposal(
+        &mut context,
+        &proposal_address,
+        &Pubkey::new_unique(),
+        0,
+        original_governance_config,
+        ProposalStatus::Accepted,
+    )
+    .await;
+    setup_proposal_transaction(
+        &mut context,
+        &proposal_transaction_address,
+        proposal_transaction_with_update_governance_instruction(
+            &treasury,
+            &governance,
+            new_cooldown_period_seconds,
+            new_proposal_acceptance_threshold,
+            new_proposal_rejection_threshold,
+            new_voting_period_seconds,
+        ),
+    )
+    .await;
 
     // Set up a governance account with an incorrect owner.
     {
@@ -39,13 +145,15 @@ async fn fail_governance_incorrect_owner() {
         );
     }
 
-    let instruction = update_governance(
-        &governance,
-        &proposal,
-        /* cooldown_period_seconds */ 0,
-        /* proposal_acceptance_threshold */ 0,
-        /* proposal_rejection_threshold */ 0,
-        /* voting_period_seconds */ 0,
+    let instruction = process_instruction(
+        &proposal_address,
+        &proposal_transaction_address,
+        &[
+            AccountMeta::new(treasury, false),
+            AccountMeta::new(governance, false),
+            AccountMeta::new_readonly(paladin_governance_program::id(), false),
+        ],
+        0,
     );
 
     let transaction = Transaction::new_signed_with_payer(
@@ -70,10 +178,53 @@ async fn fail_governance_incorrect_owner() {
 
 #[tokio::test]
 async fn fail_governance_not_initialized() {
-    let proposal = Pubkey::new_unique();
-    let governance = Pubkey::new_unique(); // PDA doesn't matter here.
+    let stake_config_address = Pubkey::new_unique();
+
+    let treasury = get_treasury_address(&stake_config_address, &paladin_governance_program::id());
+    let governance =
+        get_governance_address(&stake_config_address, &paladin_governance_program::id());
+
+    let proposal_address = Pubkey::new_unique();
+    let proposal_transaction_address =
+        get_proposal_transaction_address(&proposal_address, &paladin_governance_program::id());
+
+    let original_governance_config = Config::new(
+        /* cooldown_period_seconds */ 0,
+        /* proposal_acceptance_threshold */ 0,
+        /* proposal_rejection_threshold */ 0,
+        /* signer_bump_seed */ 0,
+        /* stake_config_address */ &stake_config_address,
+        /* voting_period_seconds */ 0,
+    );
+
+    let new_cooldown_period_seconds = 1;
+    let new_proposal_acceptance_threshold = 2;
+    let new_proposal_rejection_threshold = 3;
+    let new_voting_period_seconds = 4;
 
     let mut context = setup().start_with_context().await;
+    setup_proposal(
+        &mut context,
+        &proposal_address,
+        &Pubkey::new_unique(),
+        0,
+        original_governance_config,
+        ProposalStatus::Accepted,
+    )
+    .await;
+    setup_proposal_transaction(
+        &mut context,
+        &proposal_transaction_address,
+        proposal_transaction_with_update_governance_instruction(
+            &treasury,
+            &governance,
+            new_cooldown_period_seconds,
+            new_proposal_acceptance_threshold,
+            new_proposal_rejection_threshold,
+            new_voting_period_seconds,
+        ),
+    )
+    .await;
 
     // Set up an uninitialized governance account.
     {
@@ -85,13 +236,15 @@ async fn fail_governance_not_initialized() {
         );
     }
 
-    let instruction = update_governance(
-        &governance,
-        &proposal,
-        /* cooldown_period_seconds */ 0,
-        /* proposal_acceptance_threshold */ 0,
-        /* proposal_rejection_threshold */ 0,
-        /* voting_period_seconds */ 0,
+    let instruction = process_instruction(
+        &proposal_address,
+        &proposal_transaction_address,
+        &[
+            AccountMeta::new(treasury, false),
+            AccountMeta::new(governance, false),
+            AccountMeta::new_readonly(paladin_governance_program::id(), false),
+        ],
+        0,
     );
 
     let transaction = Transaction::new_signed_with_payer(
@@ -115,171 +268,164 @@ async fn fail_governance_not_initialized() {
 }
 
 #[tokio::test]
-async fn fail_proposal_incorrect_owner() {
-    let proposal = Pubkey::new_unique();
-    let governance = Pubkey::new_unique(); // PDA doesn't matter here.
+async fn fail_treasury_incorrect_address() {
+    let stake_config_address = Pubkey::new_unique();
 
-    let mut context = setup().start_with_context().await;
-    setup_governance(
-        &mut context,
-        &governance,
-        0,
-        0,
-        0,
-        /* stake_config_address */ &Pubkey::new_unique(),
-        0,
-    )
-    .await;
+    let treasury = Pubkey::new_unique(); // Incorrect address.
+    let governance =
+        get_governance_address(&stake_config_address, &paladin_governance_program::id());
 
-    // Set up the proposal account with the incorrect owner.
-    {
-        let rent = context.banks_client.get_rent().await.unwrap();
-        let space = std::mem::size_of::<Proposal>();
-        let lamports = rent.minimum_balance(space);
-        context.set_account(
-            &proposal,
-            &AccountSharedData::new(lamports, space, &Pubkey::new_unique()), // Incorrect owner.
-        );
-    }
+    let proposal_address = Pubkey::new_unique();
+    let proposal_transaction_address =
+        get_proposal_transaction_address(&proposal_address, &paladin_governance_program::id());
 
-    let instruction = update_governance(
-        &governance,
-        &proposal,
+    let original_governance_config = Config::new(
         /* cooldown_period_seconds */ 0,
-        /* proposal_acceptance_threshold */ 0,
-        /* proposal_rejection_threshold */ 0,
-        /* voting_period_seconds */ 0,
-    );
-
-    let transaction = Transaction::new_signed_with_payer(
-        &[instruction],
-        Some(&context.payer.pubkey()),
-        &[&context.payer],
-        context.last_blockhash,
-    );
-
-    let err = context
-        .banks_client
-        .process_transaction(transaction)
-        .await
-        .unwrap_err()
-        .unwrap();
-
-    assert_eq!(
-        err,
-        TransactionError::InstructionError(0, InstructionError::InvalidAccountOwner)
-    );
-}
-
-#[tokio::test]
-async fn fail_proposal_not_initialized() {
-    let proposal = Pubkey::new_unique();
-    let governance = Pubkey::new_unique(); // PDA doesn't matter here.
-
-    let mut context = setup().start_with_context().await;
-    setup_governance(
-        &mut context,
-        &governance,
-        0,
-        0,
-        0,
-        /* stake_config_address */ &Pubkey::new_unique(),
-        0,
-    )
-    .await;
-
-    // Set up the proposal account uninitialized.
-    {
-        let rent = context.banks_client.get_rent().await.unwrap();
-        let space = std::mem::size_of::<Proposal>();
-        let lamports = rent.minimum_balance(space);
-        context.set_account(
-            &proposal,
-            &AccountSharedData::new(lamports, space, &paladin_governance_program::id()),
-        );
-    }
-
-    let instruction = update_governance(
-        &governance,
-        &proposal,
-        /* cooldown_period_seconds */ 0,
-        /* proposal_acceptance_threshold */ 0,
-        /* proposal_rejection_threshold */ 0,
-        /* voting_period_seconds */ 0,
-    );
-
-    let transaction = Transaction::new_signed_with_payer(
-        &[instruction],
-        Some(&context.payer.pubkey()),
-        &[&context.payer],
-        context.last_blockhash,
-    );
-
-    let err = context
-        .banks_client
-        .process_transaction(transaction)
-        .await
-        .unwrap_err()
-        .unwrap();
-
-    assert_eq!(
-        err,
-        TransactionError::InstructionError(0, InstructionError::UninitializedAccount)
-    );
-}
-
-#[tokio::test]
-async fn fail_proposal_cooldown_still_active() {
-    let proposal = Pubkey::new_unique();
-    let governance = Pubkey::new_unique(); // PDA doesn't matter here.
-
-    let governance_config = Config::new(
-        /* cooldown_period_seconds */ 100_000_000,
         /* proposal_acceptance_threshold */ 0,
         /* proposal_rejection_threshold */ 0,
         /* signer_bump_seed */ 0,
-        /* stake_config_address */ &Pubkey::new_unique(), // Doesn't matter here.
+        /* stake_config_address */ &stake_config_address,
         /* voting_period_seconds */ 0,
     );
 
-    let mut context = setup().start_with_context().await;
-    let clock = context.banks_client.get_sysvar::<Clock>().await.unwrap();
+    let new_cooldown_period_seconds = 1;
+    let new_proposal_acceptance_threshold = 2;
+    let new_proposal_rejection_threshold = 3;
+    let new_voting_period_seconds = 4;
 
-    // Set up an unaccepted proposal.
-    // Simply set the cooldown timestamp to the current clock timestamp,
-    // and require more than 0 seconds for cooldown.
+    let mut context = setup().start_with_context().await;
     setup_governance(
         &mut context,
         &governance,
-        governance_config.cooldown_period_seconds,
-        governance_config.proposal_acceptance_threshold,
-        governance_config.proposal_rejection_threshold,
-        &governance_config.stake_config_address,
-        governance_config.voting_period_seconds,
+        original_governance_config.cooldown_period_seconds,
+        original_governance_config.proposal_acceptance_threshold,
+        original_governance_config.proposal_rejection_threshold,
+        &original_governance_config.stake_config_address,
+        original_governance_config.voting_period_seconds,
     )
     .await;
-    setup_proposal_with_stake_and_cooldown(
+    setup_proposal(
         &mut context,
-        &proposal,
+        &proposal_address,
         &Pubkey::new_unique(),
         0,
-        governance_config,
-        0,
-        0,
-        0,
+        original_governance_config,
         ProposalStatus::Accepted,
-        /* voting_start_timestamp */ NonZeroU64::new(clock.unix_timestamp as u64),
-        /* voting_start_timestamp */ NonZeroU64::new(clock.unix_timestamp as u64),
+    )
+    .await;
+    setup_proposal_transaction(
+        &mut context,
+        &proposal_transaction_address,
+        proposal_transaction_with_update_governance_instruction(
+            &treasury,
+            &governance,
+            new_cooldown_period_seconds,
+            new_proposal_acceptance_threshold,
+            new_proposal_rejection_threshold,
+            new_voting_period_seconds,
+        ),
     )
     .await;
 
-    let instruction = update_governance(
-        &governance,
-        &proposal,
+    let instruction = process_instruction(
+        &proposal_address,
+        &proposal_transaction_address,
+        &[
+            AccountMeta::new(treasury, false),
+            AccountMeta::new(governance, false),
+            AccountMeta::new_readonly(paladin_governance_program::id(), false),
+        ],
+        0,
+    );
+
+    let transaction = Transaction::new_signed_with_payer(
+        &[instruction],
+        Some(&context.payer.pubkey()),
+        &[&context.payer],
+        context.last_blockhash,
+    );
+
+    let err = context
+        .banks_client
+        .process_transaction(transaction)
+        .await
+        .unwrap_err()
+        .unwrap();
+
+    assert_eq!(
+        err,
+        TransactionError::InstructionError(0, InstructionError::PrivilegeEscalation) /* Can't form the treasury PDA signature with the wrong address. */
+    );
+}
+
+#[tokio::test]
+async fn fail_governance_incorrect_address() {
+    let stake_config_address = Pubkey::new_unique();
+
+    let treasury = get_treasury_address(&stake_config_address, &paladin_governance_program::id());
+    let governance = Pubkey::new_unique(); // Incorrect address.
+
+    let proposal_address = Pubkey::new_unique();
+    let proposal_transaction_address =
+        get_proposal_transaction_address(&proposal_address, &paladin_governance_program::id());
+
+    let original_governance_config = Config::new(
         /* cooldown_period_seconds */ 0,
         /* proposal_acceptance_threshold */ 0,
         /* proposal_rejection_threshold */ 0,
+        /* signer_bump_seed */ 0,
+        /* stake_config_address */ &stake_config_address,
         /* voting_period_seconds */ 0,
+    );
+
+    let new_cooldown_period_seconds = 1;
+    let new_proposal_acceptance_threshold = 2;
+    let new_proposal_rejection_threshold = 3;
+    let new_voting_period_seconds = 4;
+
+    let mut context = setup().start_with_context().await;
+    setup_governance(
+        &mut context,
+        &governance,
+        original_governance_config.cooldown_period_seconds,
+        original_governance_config.proposal_acceptance_threshold,
+        original_governance_config.proposal_rejection_threshold,
+        &original_governance_config.stake_config_address,
+        original_governance_config.voting_period_seconds,
+    )
+    .await;
+    setup_proposal(
+        &mut context,
+        &proposal_address,
+        &Pubkey::new_unique(),
+        0,
+        original_governance_config,
+        ProposalStatus::Accepted,
+    )
+    .await;
+    setup_proposal_transaction(
+        &mut context,
+        &proposal_transaction_address,
+        proposal_transaction_with_update_governance_instruction(
+            &treasury,
+            &governance,
+            new_cooldown_period_seconds,
+            new_proposal_acceptance_threshold,
+            new_proposal_rejection_threshold,
+            new_voting_period_seconds,
+        ),
+    )
+    .await;
+
+    let instruction = process_instruction(
+        &proposal_address,
+        &proposal_transaction_address,
+        &[
+            AccountMeta::new(treasury, false),
+            AccountMeta::new(governance, false),
+            AccountMeta::new_readonly(paladin_governance_program::id(), false),
+        ],
+        0,
     );
 
     let transaction = Transaction::new_signed_with_payer(
@@ -300,19 +446,26 @@ async fn fail_proposal_cooldown_still_active() {
         err,
         TransactionError::InstructionError(
             0,
-            InstructionError::Custom(PaladinGovernanceError::ProposalNotAccepted as u32)
+            InstructionError::Custom(
+                PaladinGovernanceError::IncorrectGovernanceConfigAddress as u32
+            )
         )
     );
 }
 
 #[tokio::test]
 async fn success() {
-    let proposal = Pubkey::new_unique();
-    let governance = Pubkey::new_unique(); // PDA doesn't matter here.
-
     let stake_config_address = Pubkey::new_unique();
 
-    let governance_config = Config::new(
+    let treasury = get_treasury_address(&stake_config_address, &paladin_governance_program::id());
+    let governance =
+        get_governance_address(&stake_config_address, &paladin_governance_program::id());
+
+    let proposal_address = Pubkey::new_unique();
+    let proposal_transaction_address =
+        get_proposal_transaction_address(&proposal_address, &paladin_governance_program::id());
+
+    let original_governance_config = Config::new(
         /* cooldown_period_seconds */ 0,
         /* proposal_acceptance_threshold */ 0,
         /* proposal_rejection_threshold */ 0,
@@ -321,41 +474,54 @@ async fn success() {
         /* voting_period_seconds */ 0,
     );
 
-    let mut context = setup().start_with_context().await;
-    let clock = context.banks_client.get_sysvar::<Clock>().await.unwrap();
+    let new_cooldown_period_seconds = 1;
+    let new_proposal_acceptance_threshold = 2;
+    let new_proposal_rejection_threshold = 3;
+    let new_voting_period_seconds = 4;
 
+    let mut context = setup().start_with_context().await;
     setup_governance(
         &mut context,
         &governance,
-        governance_config.cooldown_period_seconds,
-        governance_config.proposal_acceptance_threshold,
-        governance_config.proposal_rejection_threshold,
-        &governance_config.stake_config_address,
-        governance_config.voting_period_seconds,
+        original_governance_config.cooldown_period_seconds,
+        original_governance_config.proposal_acceptance_threshold,
+        original_governance_config.proposal_rejection_threshold,
+        &original_governance_config.stake_config_address,
+        original_governance_config.voting_period_seconds,
     )
     .await;
-    setup_proposal_with_stake_and_cooldown(
+    setup_proposal(
         &mut context,
-        &proposal,
+        &proposal_address,
         &Pubkey::new_unique(),
         0,
-        governance_config,
-        0,
-        0,
-        0,
+        original_governance_config,
         ProposalStatus::Accepted,
-        /* voting_start_timestamp */ NonZeroU64::new(clock.unix_timestamp as u64),
-        /* voting_start_timestamp */ NonZeroU64::new(clock.unix_timestamp as u64),
+    )
+    .await;
+    setup_proposal_transaction(
+        &mut context,
+        &proposal_transaction_address,
+        proposal_transaction_with_update_governance_instruction(
+            &treasury,
+            &governance,
+            new_cooldown_period_seconds,
+            new_proposal_acceptance_threshold,
+            new_proposal_rejection_threshold,
+            new_voting_period_seconds,
+        ),
     )
     .await;
 
-    let instruction = update_governance(
-        &governance,
-        &proposal,
-        /* cooldown_period_seconds */ 1,
-        /* proposal_acceptance_threshold */ 2,
-        /* proposal_rejection_threshold */ 3,
-        /* voting_period_seconds */ 4,
+    let instruction = process_instruction(
+        &proposal_address,
+        &proposal_transaction_address,
+        &[
+            AccountMeta::new(treasury, false),
+            AccountMeta::new(governance, false),
+            AccountMeta::new_readonly(paladin_governance_program::id(), false),
+        ],
+        0,
     );
 
     let transaction = Transaction::new_signed_with_payer(
@@ -371,7 +537,7 @@ async fn success() {
         .await
         .unwrap();
 
-    // Assert the governance account was updated.
+    // Assert the governance config was updated.
     let governance_account = context
         .banks_client
         .get_account(governance)
@@ -379,8 +545,20 @@ async fn success() {
         .unwrap()
         .unwrap();
     let governance_state = bytemuck::from_bytes::<Config>(&governance_account.data);
-    assert_eq!(governance_state.cooldown_period_seconds, 1);
-    assert_eq!(governance_state.proposal_acceptance_threshold, 2);
-    assert_eq!(governance_state.proposal_rejection_threshold, 3);
-    assert_eq!(governance_state.stake_config_address, stake_config_address);
+    assert_eq!(
+        governance_state.cooldown_period_seconds,
+        new_cooldown_period_seconds
+    );
+    assert_eq!(
+        governance_state.proposal_acceptance_threshold,
+        new_proposal_acceptance_threshold
+    );
+    assert_eq!(
+        governance_state.proposal_rejection_threshold,
+        new_proposal_rejection_threshold
+    );
+    assert_eq!(
+        governance_state.voting_period_seconds,
+        new_voting_period_seconds
+    );
 }

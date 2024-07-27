@@ -172,12 +172,13 @@ pub enum PaladinGovernanceInstruction {
     /// * The cooldown period for proposal execution.
     /// * Minimum required majority threshold.
     ///
-    /// This instruction can only be executed from an accepted proposal.
+    /// This instruction can only be executed from an accepted proposal, thus
+    /// it requires the PDA signature of the treasury.
     ///
     /// Accounts expected by this instruction:
     ///
+    /// 0. `[s]` Treasury account.
     /// 0. `[w]` Governance config account.
-    /// 1. `[ ]` Proposal account.
     UpdateGovernance {
         /// The cooldown period that begins when a proposal reaches the
         /// `proposal_acceptance_threshold` and upon its conclusion will execute
@@ -516,16 +517,16 @@ pub fn initialize_governance(
 /// [UpdateGovernance](enum.PaladinGovernanceInstruction.html)
 /// instruction.
 pub fn update_governance(
+    treasury_address: &Pubkey,
     governance_config_address: &Pubkey,
-    proposal_address: &Pubkey,
     cooldown_period_seconds: u64,
     proposal_acceptance_threshold: u32,
     proposal_rejection_threshold: u32,
     voting_period_seconds: u64,
 ) -> Instruction {
     let accounts = vec![
+        AccountMeta::new_readonly(*treasury_address, true),
         AccountMeta::new(*governance_config_address, false),
-        AccountMeta::new_readonly(*proposal_address, false),
     ];
     let data = PaladinGovernanceInstruction::UpdateGovernance {
         cooldown_period_seconds,

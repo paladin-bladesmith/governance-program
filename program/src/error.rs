@@ -20,6 +20,9 @@ pub enum PaladinGovernanceError {
     /// Incorrect governance config address.
     #[error("Incorrect governance config address.")]
     IncorrectGovernanceConfigAddress,
+    /// Incorrect treasury address.
+    #[error("Incorrect treasury address.")]
+    IncorrectTreasuryAddress,
     /// Proposal not in voting stage.
     #[error("Proposal not in voting stage.")]
     ProposalNotInVotingStage,
