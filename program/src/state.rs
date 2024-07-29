@@ -5,6 +5,7 @@ use {
     borsh::{BorshDeserialize, BorshSerialize},
     bytemuck::{Pod, Zeroable},
     num_enum::{IntoPrimitive, TryFromPrimitive},
+    shank::{ShankAccount, ShankType},
     solana_program::{
         clock::{Clock, UnixTimestamp},
         entrypoint::ProgramResult,
@@ -168,7 +169,7 @@ pub(crate) fn collect_proposal_vote_signer_seeds<'a>(
 }
 
 /// Governance configuration account.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Pod, Zeroable)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Pod, ShankAccount, ShankType, Zeroable)]
 #[repr(C)]
 pub struct GovernanceConfig {
     /// The cooldown period that begins when a proposal reaches the
@@ -229,7 +230,7 @@ impl GovernanceConfig {
 }
 
 /// An account metadata for a proposal instruction.
-#[derive(BorshDeserialize, BorshSerialize, Clone, Debug, Default, PartialEq)]
+#[derive(BorshDeserialize, BorshSerialize, Clone, Debug, Default, PartialEq, ShankType)]
 pub struct ProposalAccountMeta {
     /// The pubkey of the account.
     pub pubkey: Pubkey,
@@ -260,7 +261,7 @@ impl From<&AccountMeta> for ProposalAccountMeta {
 }
 
 /// An instruction to be executed by a governance proposal.
-#[derive(BorshDeserialize, BorshSerialize, Clone, Debug, Default, PartialEq)]
+#[derive(BorshDeserialize, BorshSerialize, Clone, Debug, Default, PartialEq, ShankType)]
 pub struct ProposalInstruction {
     /// The program ID to invoke.
     pub program_id: Pubkey,
@@ -305,14 +306,14 @@ impl From<&Instruction> for ProposalInstruction {
 }
 
 /// Governance proposal transaction account.
-#[derive(BorshDeserialize, BorshSerialize, Clone, Debug, Default, PartialEq)]
+#[derive(BorshDeserialize, BorshSerialize, Clone, Debug, Default, PartialEq, ShankType)]
 pub struct ProposalTransaction {
     /// The instructions to execute.
     pub instructions: Vec<ProposalInstruction>,
 }
 
 /// The status of a governance proposal.
-#[derive(Clone, Copy, Debug, PartialEq, IntoPrimitive, TryFromPrimitive)]
+#[derive(Clone, Copy, Debug, PartialEq, IntoPrimitive, ShankType, TryFromPrimitive)]
 #[repr(u8)]
 pub enum ProposalStatus {
     /// The proposal is in the draft stage.
@@ -333,7 +334,7 @@ unsafe impl Pod for ProposalStatus {}
 unsafe impl Zeroable for ProposalStatus {}
 
 /// Governance proposal account.
-#[derive(Clone, Copy, Debug, PartialEq, Pod, SplDiscriminate, Zeroable)]
+#[derive(Clone, Copy, Debug, PartialEq, Pod, ShankAccount, SplDiscriminate, Zeroable)]
 #[discriminator_hash_input("governance::state::proposal")]
 #[repr(C)]
 pub struct Proposal {
@@ -419,7 +420,7 @@ impl Proposal {
 }
 
 /// Proposal vote election.
-#[derive(Clone, Copy, Debug, IntoPrimitive, PartialEq, TryFromPrimitive)]
+#[derive(Clone, Copy, Debug, IntoPrimitive, PartialEq, ShankType, TryFromPrimitive)]
 #[repr(u8)]
 pub enum ProposalVoteElection {
     /// Validator did not vote.
@@ -434,7 +435,7 @@ unsafe impl Pod for ProposalVoteElection {}
 unsafe impl Zeroable for ProposalVoteElection {}
 
 /// Proposal vote account.
-#[derive(Clone, Copy, Debug, PartialEq, Pod, Zeroable)]
+#[derive(Clone, Copy, Debug, PartialEq, Pod, ShankAccount, Zeroable)]
 #[repr(C)]
 pub struct ProposalVote {
     /// Proposal address.

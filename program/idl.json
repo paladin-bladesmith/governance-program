@@ -1,0 +1,722 @@
+{
+  "version": "0.1.0",
+  "name": "paladin_governance_program",
+  "instructions": [
+    {
+      "name": "CreateProposal",
+      "accounts": [
+        {
+          "name": "stakeAuthority",
+          "isMut": false,
+          "isSigner": true,
+          "docs": [
+            "Paladin stake authority account"
+          ]
+        },
+        {
+          "name": "stake",
+          "isMut": false,
+          "isSigner": false,
+          "docs": [
+            "Paladin stake account"
+          ]
+        },
+        {
+          "name": "proposal",
+          "isMut": true,
+          "isSigner": false,
+          "docs": [
+            "Proposal account"
+          ]
+        },
+        {
+          "name": "proposalTransaction",
+          "isMut": true,
+          "isSigner": false,
+          "docs": [
+            "Proposal transaction account"
+          ]
+        },
+        {
+          "name": "governanceConfig",
+          "isMut": false,
+          "isSigner": false,
+          "docs": [
+            "Governance config account"
+          ]
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false,
+          "docs": [
+            "System program"
+          ]
+        }
+      ],
+      "args": [],
+      "discriminant": {
+        "type": "u8",
+        "value": 0
+      }
+    },
+    {
+      "name": "PushInstruction",
+      "accounts": [
+        {
+          "name": "stakeAuthority",
+          "isMut": false,
+          "isSigner": true,
+          "docs": [
+            "Paladin stake authority account"
+          ]
+        },
+        {
+          "name": "proposal",
+          "isMut": false,
+          "isSigner": false,
+          "docs": [
+            "Proposal account"
+          ]
+        },
+        {
+          "name": "proposalTransaction",
+          "isMut": true,
+          "isSigner": false,
+          "docs": [
+            "Proposal transaction account"
+          ]
+        }
+      ],
+      "args": [
+        {
+          "name": "instructionProgramId",
+          "type": "publicKey"
+        },
+        {
+          "name": "instructionAccountMetas",
+          "type": {
+            "vec": {
+              "defined": "ProposalAccountMeta"
+            }
+          }
+        },
+        {
+          "name": "instructionData",
+          "type": "bytes"
+        }
+      ],
+      "discriminant": {
+        "type": "u8",
+        "value": 1
+      }
+    },
+    {
+      "name": "RemoveInstruction",
+      "accounts": [
+        {
+          "name": "stakeAuthority",
+          "isMut": false,
+          "isSigner": true,
+          "docs": [
+            "Paladin stake authority account"
+          ]
+        },
+        {
+          "name": "proposal",
+          "isMut": false,
+          "isSigner": false,
+          "docs": [
+            "Proposal account"
+          ]
+        },
+        {
+          "name": "proposalTransaction",
+          "isMut": true,
+          "isSigner": false,
+          "docs": [
+            "Proposal transaction account"
+          ]
+        }
+      ],
+      "args": [
+        {
+          "name": "instructionIndex",
+          "type": "u32"
+        }
+      ],
+      "discriminant": {
+        "type": "u8",
+        "value": 2
+      }
+    },
+    {
+      "name": "CancelProposal",
+      "accounts": [
+        {
+          "name": "stakeAuthority",
+          "isMut": false,
+          "isSigner": true,
+          "docs": [
+            "Paladin stake authority account"
+          ]
+        },
+        {
+          "name": "proposal",
+          "isMut": true,
+          "isSigner": false,
+          "docs": [
+            "Proposal account"
+          ]
+        }
+      ],
+      "args": [],
+      "discriminant": {
+        "type": "u8",
+        "value": 3
+      }
+    },
+    {
+      "name": "BeginVoting",
+      "accounts": [
+        {
+          "name": "stakeAuthority",
+          "isMut": false,
+          "isSigner": true,
+          "docs": [
+            "Paladin stake authority account"
+          ]
+        },
+        {
+          "name": "proposal",
+          "isMut": true,
+          "isSigner": false,
+          "docs": [
+            "Proposal account"
+          ]
+        }
+      ],
+      "args": [],
+      "discriminant": {
+        "type": "u8",
+        "value": 4
+      }
+    },
+    {
+      "name": "Vote",
+      "accounts": [
+        {
+          "name": "stakeAuthority",
+          "isMut": false,
+          "isSigner": true,
+          "docs": [
+            "Paladin stake authority account"
+          ]
+        },
+        {
+          "name": "stake",
+          "isMut": false,
+          "isSigner": false,
+          "docs": [
+            "Paladin stake account"
+          ]
+        },
+        {
+          "name": "stakeConfig",
+          "isMut": false,
+          "isSigner": false,
+          "docs": [
+            "Paladin stake config account"
+          ]
+        },
+        {
+          "name": "vote",
+          "isMut": true,
+          "isSigner": false,
+          "docs": [
+            "Proposal vote account"
+          ]
+        },
+        {
+          "name": "proposal",
+          "isMut": true,
+          "isSigner": false,
+          "docs": [
+            "Proposal account"
+          ]
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false,
+          "docs": [
+            "System program"
+          ]
+        }
+      ],
+      "args": [
+        {
+          "name": "election",
+          "type": {
+            "defined": "ProposalVoteElection"
+          }
+        }
+      ],
+      "discriminant": {
+        "type": "u8",
+        "value": 5
+      }
+    },
+    {
+      "name": "SwitchVote",
+      "accounts": [
+        {
+          "name": "stakeAuthority",
+          "isMut": false,
+          "isSigner": true,
+          "docs": [
+            "Paladin stake authority account"
+          ]
+        },
+        {
+          "name": "stake",
+          "isMut": false,
+          "isSigner": false,
+          "docs": [
+            "Paladin stake account"
+          ]
+        },
+        {
+          "name": "stakeConfig",
+          "isMut": false,
+          "isSigner": false,
+          "docs": [
+            "Paladin stake config account"
+          ]
+        },
+        {
+          "name": "vote",
+          "isMut": true,
+          "isSigner": false,
+          "docs": [
+            "Proposal vote account"
+          ]
+        },
+        {
+          "name": "proposal",
+          "isMut": true,
+          "isSigner": false,
+          "docs": [
+            "Proposal account"
+          ]
+        }
+      ],
+      "args": [
+        {
+          "name": "newElection",
+          "type": {
+            "defined": "ProposalVoteElection"
+          }
+        }
+      ],
+      "discriminant": {
+        "type": "u8",
+        "value": 6
+      }
+    },
+    {
+      "name": "ProcessInstruction",
+      "accounts": [
+        {
+          "name": "proposal",
+          "isMut": false,
+          "isSigner": false,
+          "docs": [
+            "Proposal account"
+          ]
+        },
+        {
+          "name": "proposalTransaction",
+          "isMut": true,
+          "isSigner": false,
+          "docs": [
+            "Proposal transaction account"
+          ]
+        }
+      ],
+      "args": [
+        {
+          "name": "instructionIndex",
+          "type": "u32"
+        }
+      ],
+      "discriminant": {
+        "type": "u8",
+        "value": 7
+      }
+    },
+    {
+      "name": "InitializeGovernance",
+      "accounts": [
+        {
+          "name": "governanceConfig",
+          "isMut": true,
+          "isSigner": false,
+          "docs": [
+            "Governance config account"
+          ]
+        },
+        {
+          "name": "stakeConfig",
+          "isMut": false,
+          "isSigner": false,
+          "docs": [
+            "Paladin stake config account"
+          ]
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false,
+          "docs": [
+            "System program"
+          ]
+        }
+      ],
+      "args": [
+        {
+          "name": "cooldownPeriodSeconds",
+          "type": "u64"
+        },
+        {
+          "name": "proposalAcceptanceThreshold",
+          "type": "u32"
+        },
+        {
+          "name": "proposalRejectionThreshold",
+          "type": "u32"
+        },
+        {
+          "name": "votingPeriodSeconds",
+          "type": "u64"
+        }
+      ],
+      "discriminant": {
+        "type": "u8",
+        "value": 8
+      }
+    },
+    {
+      "name": "UpdateGovernance",
+      "accounts": [
+        {
+          "name": "treasury",
+          "isMut": false,
+          "isSigner": true,
+          "docs": [
+            "Treasury account"
+          ]
+        },
+        {
+          "name": "governanceConfig",
+          "isMut": false,
+          "isSigner": false,
+          "docs": [
+            "Governance config account"
+          ]
+        }
+      ],
+      "args": [
+        {
+          "name": "cooldownPeriodSeconds",
+          "type": "u64"
+        },
+        {
+          "name": "proposalAcceptanceThreshold",
+          "type": "u32"
+        },
+        {
+          "name": "proposalRejectionThreshold",
+          "type": "u32"
+        },
+        {
+          "name": "votingPeriodSeconds",
+          "type": "u64"
+        }
+      ],
+      "discriminant": {
+        "type": "u8",
+        "value": 9
+      }
+    }
+  ],
+  "accounts": [
+    {
+      "name": "GovernanceConfig",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "cooldownPeriodSeconds",
+            "type": "u64"
+          },
+          {
+            "name": "proposalAcceptanceThreshold",
+            "type": "u32"
+          },
+          {
+            "name": "proposalRejectionThreshold",
+            "type": "u32"
+          },
+          {
+            "name": "signerBumpSeed",
+            "type": "u8"
+          },
+          {
+            "name": "padding",
+            "type": {
+              "array": [
+                "u8",
+                7
+              ]
+            }
+          },
+          {
+            "name": "stakeConfigAddress",
+            "type": "publicKey"
+          },
+          {
+            "name": "votingPeriodSeconds",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Proposal",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "discriminator",
+            "type": {
+              "array": [
+                "u8",
+                8
+              ]
+            }
+          },
+          {
+            "name": "author",
+            "type": "publicKey"
+          },
+          {
+            "name": "cooldownTimestamp",
+            "type": {
+              "option": {
+                "defined": "NonZeroU64"
+              }
+            }
+          },
+          {
+            "name": "creationTimestamp",
+            "type": {
+              "defined": "UnixTimestamp"
+            }
+          },
+          {
+            "name": "governanceConfig",
+            "type": {
+              "defined": "GovernanceConfig"
+            }
+          },
+          {
+            "name": "stakeAbstained",
+            "type": "u64"
+          },
+          {
+            "name": "stakeAgainst",
+            "type": "u64"
+          },
+          {
+            "name": "stakeFor",
+            "type": "u64"
+          },
+          {
+            "name": "status",
+            "type": {
+              "defined": "ProposalStatus"
+            }
+          },
+          {
+            "name": "padding",
+            "type": {
+              "array": [
+                "u8",
+                7
+              ]
+            }
+          },
+          {
+            "name": "votingStartTimestamp",
+            "type": {
+              "option": {
+                "defined": "NonZeroU64"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "ProposalVote",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "proposalAddress",
+            "type": "publicKey"
+          },
+          {
+            "name": "stake",
+            "type": "u64"
+          },
+          {
+            "name": "stakeAddress",
+            "type": "publicKey"
+          },
+          {
+            "name": "election",
+            "type": {
+              "defined": "ProposalVoteElection"
+            }
+          },
+          {
+            "name": "padding",
+            "type": {
+              "array": [
+                "u8",
+                7
+              ]
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "types": [
+    {
+      "name": "ProposalAccountMeta",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "pubkey",
+            "type": "publicKey"
+          },
+          {
+            "name": "isSigner",
+            "type": "bool"
+          },
+          {
+            "name": "isWritable",
+            "type": "bool"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ProposalInstruction",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "programId",
+            "type": "publicKey"
+          },
+          {
+            "name": "accounts",
+            "type": {
+              "vec": {
+                "defined": "ProposalAccountMeta"
+              }
+            }
+          },
+          {
+            "name": "data",
+            "type": "bytes"
+          },
+          {
+            "name": "executed",
+            "type": "bool"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ProposalTransaction",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "instructions",
+            "type": {
+              "vec": {
+                "defined": "ProposalInstruction"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "ProposalStatus",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Draft"
+          },
+          {
+            "name": "Voting"
+          },
+          {
+            "name": "Cancelled"
+          },
+          {
+            "name": "Accepted"
+          },
+          {
+            "name": "Rejected"
+          },
+          {
+            "name": "Processed"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ProposalVoteElection",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "DidNotVote"
+          },
+          {
+            "name": "For"
+          },
+          {
+            "name": "Against"
+          }
+        ]
+      }
+    }
+  ],
+  "metadata": {
+    "origin": "shank",
+    "address": "8vDzKeincu9R9u6Yzuh7TQ5VqPXCcZtfYh6mh82XscQj",
+    "binaryVersion": "0.4.2",
+    "libVersion": "0.4.2"
+  }
+}

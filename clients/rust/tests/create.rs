@@ -1,15 +1,19 @@
 #![cfg(feature = "test-sbf")]
 
-use paladin_governance_program_client::{accounts::Counter, instructions::CreateBuilder};
 use borsh::BorshDeserialize;
+use paladin_governance_program_client::{accounts::Counter, instructions::CreateBuilder};
 use solana_program_test::{tokio, ProgramTest};
 use solana_sdk::{signature::Signer, transaction::Transaction};
 
 #[tokio::test]
 async fn create() {
-    let mut context = ProgramTest::new("solana_program_governance", paladin_governance_program_client::ID, None)
-        .start_with_context()
-        .await;
+    let mut context = ProgramTest::new(
+        "solana_program_governance",
+        paladin_governance_program_client::ID,
+        None,
+    )
+    .start_with_context()
+    .await;
 
     // Given a PDA derived from the payer's public key.
 

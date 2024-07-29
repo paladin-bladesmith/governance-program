@@ -4,19 +4,49 @@ import * as k from "kinobi";
 import { rootNodeFromAnchor } from "@kinobi-so/nodes-from-anchor";
 import { renderVisitor as renderJavaScriptVisitor } from "@kinobi-so/renderers-js";
 import { renderVisitor as renderRustVisitor } from "@kinobi-so/renderers-rust";
-import { getAllProgramIdls, getRustfmtToolchain, getToolchainArg } from "./utils.mjs";
+import { getAllProgramIdls, getToolchainArgument } from "./utils.mjs";
 
 // Instanciate Kinobi.
 const [idl, ...additionalIdls] = getAllProgramIdls().map(idl => rootNodeFromAnchor(require(idl)))
 const kinobi = k.createFromRoot(idl, additionalIdls);
 
-const ciDir = path.join(__dirname, "..", "ci");
-
-// Update programs.
+// Add missing types from the IDL.
 kinobi.update(
-  k.updateProgramsVisitor({
-    "featureGateProgram": { name: "featureGate" },
-  })
+  k.bottomUpTransformerVisitor([
+    {
+      // Option<NonZeroU64> -> NullableU64
+      select: "[structFieldTypeNode]cooldownTimestamp",
+      transform: (node) => {
+        k.assertIsNode(node, "structFieldTypeNode");
+        return {
+          ...node,
+          type: k.definedTypeLinkNode("nullableU64", "hooked"),
+        };
+      },
+    },
+    {
+      // Option<NonZeroU64> -> NullableU64
+      select: "[structFieldTypeNode]votingStartTimestamp",
+      transform: (node) => {
+        k.assertIsNode(node, "structFieldTypeNode");
+        return {
+          ...node,
+          type: k.definedTypeLinkNode("nullableU64", "hooked"),
+        };
+      },
+    },
+    {
+      // UnixTimestamp -> i64
+      select: "[structFieldTypeNode]creationTimestamp",
+      transform: (node) => {
+        k.assertIsNode(node, "structFieldTypeNode");
+        return {
+          ...node,
+          type: k.numberTypeNode("i64"),
+        };
+      },
+    },
+  ])
 );
 
 // Render JavaScript.
@@ -33,6 +63,6 @@ kinobi.accept(
   renderRustVisitor(path.join(rustClient, "src", "generated"), {
     formatCode: true,
     crateFolder: rustClient,
-    toolchain: getToolchainArg(getRustfmtToolchain())
+    toolchain: getToolchainArgument('format')
   })
 );
