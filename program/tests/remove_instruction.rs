@@ -8,7 +8,8 @@ use {
         error::PaladinGovernanceError,
         instruction::remove_instruction,
         state::{
-            get_proposal_transaction_address, Config, Proposal, ProposalStatus, ProposalTransaction,
+            get_proposal_transaction_address, GovernanceConfig, Proposal, ProposalStatus,
+            ProposalTransaction,
         },
     },
     setup::{create_mock_proposal_transaction, setup, setup_proposal, setup_proposal_transaction},
@@ -180,7 +181,7 @@ async fn fail_stake_authority_not_author() {
         &proposal_address,
         &Pubkey::new_unique(), // Stake authority not author.
         0,
-        Config::default(),
+        GovernanceConfig::default(),
         ProposalStatus::Draft,
     )
     .await;
@@ -228,7 +229,7 @@ async fn fail_proposal_not_in_draft_stage() {
         &proposal_address,
         &stake_authority.pubkey(),
         0,
-        Config::default(),
+        GovernanceConfig::default(),
         ProposalStatus::Voting, // Not in draft stage.
     )
     .await;
@@ -278,7 +279,7 @@ async fn fail_proposal_transaction_incorrect_address() {
         &proposal_address,
         &stake_authority.pubkey(),
         0,
-        Config::default(),
+        GovernanceConfig::default(),
         ProposalStatus::Draft,
     )
     .await;
@@ -331,7 +332,7 @@ async fn fail_proposal_transaction_incorrect_owner() {
         &proposal_address,
         &stake_authority.pubkey(),
         0,
-        Config::default(),
+        GovernanceConfig::default(),
         ProposalStatus::Draft,
     )
     .await;
@@ -390,7 +391,7 @@ async fn fail_proposal_transaction_not_initialized() {
         &proposal_address,
         &stake_authority.pubkey(),
         0,
-        Config::default(),
+        GovernanceConfig::default(),
         ProposalStatus::Draft,
     )
     .await;
@@ -452,7 +453,7 @@ async fn fail_invalid_instruction_index() {
         &proposal_address,
         &stake_authority.pubkey(),
         0,
-        Config::default(),
+        GovernanceConfig::default(),
         ProposalStatus::Draft,
     )
     .await;
@@ -521,7 +522,7 @@ async fn success() {
         &proposal_address,
         &stake_authority.pubkey(),
         0,
-        Config::default(),
+        GovernanceConfig::default(),
         ProposalStatus::Draft,
     )
     .await;

@@ -6,7 +6,7 @@ use {
     paladin_governance_program::{
         error::PaladinGovernanceError,
         state::{
-            get_proposal_vote_address, Config, Proposal, ProposalStatus, ProposalVote,
+            get_proposal_vote_address, GovernanceConfig, Proposal, ProposalStatus, ProposalVote,
             ProposalVoteElection,
         },
     },
@@ -256,7 +256,7 @@ async fn fail_stake_config_incorrect_owner() {
         &proposal,
         &stake_authority.pubkey(),
         0,
-        Config::default(),
+        GovernanceConfig::default(),
         ProposalStatus::Voting,
     )
     .await;
@@ -326,7 +326,7 @@ async fn fail_stake_config_not_initialized() {
         &proposal,
         &stake_authority.pubkey(),
         0,
-        Config::default(),
+        GovernanceConfig::default(),
         ProposalStatus::Voting,
     )
     .await;
@@ -506,7 +506,7 @@ async fn fail_proposal_not_voting() {
     let proposal_vote =
         get_proposal_vote_address(&stake, &proposal, &paladin_governance_program::id());
 
-    let governance_config = Config::new(
+    let governance_config = GovernanceConfig::new(
         /* cooldown_period_seconds */ 0,
         /* proposal_acceptance_threshold */ 0,
         /* proposal_rejection_threshold */ 0,
@@ -577,7 +577,7 @@ async fn fail_proposal_vote_incorrect_address() {
     let stake = find_stake_pda(&validator_vote, &stake_config, &paladin_stake_program::id()).0;
     let proposal_vote = Pubkey::new_unique(); // Incorrect proposal vote address.
 
-    let governance_config = Config::new(
+    let governance_config = GovernanceConfig::new(
         /* cooldown_period_seconds */ 0,
         /* proposal_acceptance_threshold */ 0,
         /* proposal_rejection_threshold */ 0,
@@ -649,7 +649,7 @@ async fn fail_proposal_vote_already_initialized() {
     let proposal_vote =
         get_proposal_vote_address(&stake, &proposal, &paladin_governance_program::id());
 
-    let governance_config = Config::new(
+    let governance_config = GovernanceConfig::new(
         /* cooldown_period_seconds */ 0,
         /* proposal_acceptance_threshold */ 0,
         /* proposal_rejection_threshold */ 0,
@@ -818,7 +818,7 @@ async fn success(vote: Vote, expect: Expect) {
     let proposal_vote =
         get_proposal_vote_address(&stake, &proposal, &paladin_governance_program::id());
 
-    let governance_config = Config::new(
+    let governance_config = GovernanceConfig::new(
         COOLDOWN_PERIOD_SECONDS,
         ACCEPTANCE_THRESHOLD,
         REJECTION_THRESHOLD,
@@ -946,7 +946,7 @@ async fn success_voting_closed() {
     let vote_stake = TOTAL_STAKE / 10;
     let election = ProposalVoteElection::Against;
 
-    let governance_config = Config::new(
+    let governance_config = GovernanceConfig::new(
         /* cooldown_period_seconds */ 10,
         ACCEPTANCE_THRESHOLD,
         REJECTION_THRESHOLD,
@@ -1055,7 +1055,7 @@ async fn success_voting_closed_but_cooldown_active() {
     let vote_stake = TOTAL_STAKE / 10;
     let election = ProposalVoteElection::Against;
 
-    let governance_config = Config::new(
+    let governance_config = GovernanceConfig::new(
         /* cooldown_period_seconds */ 1_000,
         ACCEPTANCE_THRESHOLD,
         REJECTION_THRESHOLD,
@@ -1167,7 +1167,7 @@ async fn success_cooldown_has_ended() {
     let vote_stake = TOTAL_STAKE / 10;
     let election = ProposalVoteElection::Against;
 
-    let governance_config = Config::new(
+    let governance_config = GovernanceConfig::new(
         /* cooldown_period_seconds */ 10,
         ACCEPTANCE_THRESHOLD,
         REJECTION_THRESHOLD,

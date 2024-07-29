@@ -10,7 +10,7 @@ use {
             get_governance_address, get_governance_address_and_bump_seed,
             get_proposal_transaction_address, get_proposal_transaction_address_and_bump_seed,
             get_proposal_vote_address, get_proposal_vote_address_and_bump_seed,
-            get_treasury_address, get_treasury_address_and_bump_seed, Config, Proposal,
+            get_treasury_address, get_treasury_address_and_bump_seed, GovernanceConfig, Proposal,
             ProposalAccountMeta, ProposalInstruction, ProposalStatus, ProposalTransaction,
             ProposalVote, ProposalVoteElection,
         },
@@ -121,7 +121,7 @@ fn check_governance_exists(program_id: &Pubkey, governance_info: &AccountInfo) -
     }
 
     // Ensure the governance account is initialized.
-    if governance_info.data_len() != std::mem::size_of::<Config>() {
+    if governance_info.data_len() != std::mem::size_of::<GovernanceConfig>() {
         return Err(ProgramError::UninitializedAccount);
     }
 
@@ -197,7 +197,7 @@ fn process_create_proposal(program_id: &Pubkey, accounts: &[AccountInfo]) -> Pro
 
     let governance_config = {
         let governance_data = governance_info.try_borrow_data()?;
-        *bytemuck::try_from_bytes::<Config>(&governance_data)
+        *bytemuck::try_from_bytes::<GovernanceConfig>(&governance_data)
             .map_err(|_| ProgramError::InvalidAccountData)?
     };
 
@@ -954,7 +954,7 @@ fn process_initialize_governance(
         invoke_signed(
             &system_instruction::allocate(
                 &governance_address,
-                std::mem::size_of::<Config>() as u64,
+                std::mem::size_of::<GovernanceConfig>() as u64,
             ),
             &[governance_info.clone()],
             &[&governance_signer_seeds],
@@ -968,7 +968,7 @@ fn process_initialize_governance(
         // Write the data.
         let mut data = governance_info.try_borrow_mut_data()?;
         *bytemuck::try_from_bytes_mut(&mut data).map_err(|_| ProgramError::InvalidAccountData)? =
-            Config::new(
+            GovernanceConfig::new(
                 cooldown_period_seconds,
                 proposal_acceptance_threshold,
                 proposal_rejection_threshold,
@@ -1005,7 +1005,7 @@ fn process_update_governance(
     check_governance_exists(program_id, governance_info)?;
 
     let mut data = governance_info.try_borrow_mut_data()?;
-    let state = bytemuck::try_from_bytes_mut::<Config>(&mut data)
+    let state = bytemuck::try_from_bytes_mut::<GovernanceConfig>(&mut data)
         .map_err(|_| ProgramError::InvalidAccountData)?;
 
     let stake_config_address = state.stake_config_address;

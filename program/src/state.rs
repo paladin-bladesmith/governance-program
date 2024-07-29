@@ -170,7 +170,7 @@ pub(crate) fn collect_proposal_vote_signer_seeds<'a>(
 /// Governance configuration account.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Pod, Zeroable)]
 #[repr(C)]
-pub struct Config {
+pub struct GovernanceConfig {
     /// The cooldown period that begins when a proposal reaches the
     /// `proposal_acceptance_threshold` and upon its conclusion will execute
     /// the proposal's instruction.
@@ -198,7 +198,7 @@ pub struct Config {
     pub voting_period_seconds: u64,
 }
 
-impl Config {
+impl GovernanceConfig {
     /// Create a new [Config](struct.Config.html).
     pub fn new(
         cooldown_period_seconds: u64,
@@ -347,7 +347,7 @@ pub struct Proposal {
     /// Timestamp for when proposal was created.
     pub creation_timestamp: UnixTimestamp,
     /// The governance config for this proposal.
-    pub governance_config: Config,
+    pub governance_config: GovernanceConfig,
     /// Amount of stake that did not vote.
     pub stake_abstained: u64,
     /// Amount of stake against the proposal.
@@ -366,7 +366,7 @@ impl Proposal {
     pub fn new(
         author: &Pubkey,
         creation_timestamp: UnixTimestamp,
-        governance_config: Config,
+        governance_config: GovernanceConfig,
     ) -> Self {
         Self {
             discriminator: Self::SPL_DISCRIMINATOR.into(),

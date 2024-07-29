@@ -7,8 +7,8 @@ use {
         error::PaladinGovernanceError,
         instruction::{process_instruction, update_governance},
         state::{
-            get_governance_address, get_proposal_transaction_address, get_treasury_address, Config,
-            ProposalStatus, ProposalTransaction,
+            get_governance_address, get_proposal_transaction_address, get_treasury_address,
+            GovernanceConfig, ProposalStatus, ProposalTransaction,
         },
     },
     setup::{setup, setup_governance, setup_proposal, setup_proposal_transaction},
@@ -96,7 +96,7 @@ async fn fail_governance_incorrect_owner() {
     let proposal_transaction_address =
         get_proposal_transaction_address(&proposal_address, &paladin_governance_program::id());
 
-    let original_governance_config = Config::new(
+    let original_governance_config = GovernanceConfig::new(
         /* cooldown_period_seconds */ 0,
         /* proposal_acceptance_threshold */ 0,
         /* proposal_rejection_threshold */ 0,
@@ -137,7 +137,7 @@ async fn fail_governance_incorrect_owner() {
     // Set up a governance account with an incorrect owner.
     {
         let rent = context.banks_client.get_rent().await.unwrap();
-        let space = std::mem::size_of::<Config>();
+        let space = std::mem::size_of::<GovernanceConfig>();
         let lamports = rent.minimum_balance(space);
         context.set_account(
             &governance,
@@ -188,7 +188,7 @@ async fn fail_governance_not_initialized() {
     let proposal_transaction_address =
         get_proposal_transaction_address(&proposal_address, &paladin_governance_program::id());
 
-    let original_governance_config = Config::new(
+    let original_governance_config = GovernanceConfig::new(
         /* cooldown_period_seconds */ 0,
         /* proposal_acceptance_threshold */ 0,
         /* proposal_rejection_threshold */ 0,
@@ -279,7 +279,7 @@ async fn fail_treasury_incorrect_address() {
     let proposal_transaction_address =
         get_proposal_transaction_address(&proposal_address, &paladin_governance_program::id());
 
-    let original_governance_config = Config::new(
+    let original_governance_config = GovernanceConfig::new(
         /* cooldown_period_seconds */ 0,
         /* proposal_acceptance_threshold */ 0,
         /* proposal_rejection_threshold */ 0,
@@ -369,7 +369,7 @@ async fn fail_governance_incorrect_address() {
     let proposal_transaction_address =
         get_proposal_transaction_address(&proposal_address, &paladin_governance_program::id());
 
-    let original_governance_config = Config::new(
+    let original_governance_config = GovernanceConfig::new(
         /* cooldown_period_seconds */ 0,
         /* proposal_acceptance_threshold */ 0,
         /* proposal_rejection_threshold */ 0,
@@ -465,7 +465,7 @@ async fn success() {
     let proposal_transaction_address =
         get_proposal_transaction_address(&proposal_address, &paladin_governance_program::id());
 
-    let original_governance_config = Config::new(
+    let original_governance_config = GovernanceConfig::new(
         /* cooldown_period_seconds */ 0,
         /* proposal_acceptance_threshold */ 0,
         /* proposal_rejection_threshold */ 0,
@@ -544,7 +544,7 @@ async fn success() {
         .await
         .unwrap()
         .unwrap();
-    let governance_state = bytemuck::from_bytes::<Config>(&governance_account.data);
+    let governance_state = bytemuck::from_bytes::<GovernanceConfig>(&governance_account.data);
     assert_eq!(
         governance_state.cooldown_period_seconds,
         new_cooldown_period_seconds

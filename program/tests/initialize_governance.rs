@@ -6,7 +6,7 @@ use {
     paladin_governance_program::{
         error::PaladinGovernanceError,
         instruction::initialize_governance,
-        state::{get_governance_address, Config},
+        state::{get_governance_address, GovernanceConfig},
     },
     paladin_stake_program::state::Config as StakeConfig,
     setup::{setup, setup_governance, setup_stake_config},
@@ -208,7 +208,7 @@ async fn success() {
     // Fund the governance account.
     {
         let rent = context.banks_client.get_rent().await.unwrap();
-        let lamports = rent.minimum_balance(std::mem::size_of::<Config>());
+        let lamports = rent.minimum_balance(std::mem::size_of::<GovernanceConfig>());
         context.set_account(
             &governance,
             &AccountSharedData::new(lamports, 0, &system_program::id()),
@@ -244,7 +244,7 @@ async fn success() {
         .await
         .unwrap()
         .unwrap();
-    let governance_state = bytemuck::from_bytes::<Config>(&governance_account.data);
+    let governance_state = bytemuck::from_bytes::<GovernanceConfig>(&governance_account.data);
     assert_eq!(governance_state.cooldown_period_seconds, 0);
     assert_eq!(governance_state.proposal_acceptance_threshold, 0);
     assert_eq!(governance_state.proposal_rejection_threshold, 0);

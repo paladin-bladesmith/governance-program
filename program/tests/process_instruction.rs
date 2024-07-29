@@ -7,7 +7,7 @@ use {
         error::PaladinGovernanceError,
         instruction::process_instruction,
         state::{
-            get_proposal_transaction_address, get_treasury_address, Config, Proposal,
+            get_proposal_transaction_address, get_treasury_address, GovernanceConfig, Proposal,
             ProposalStatus, ProposalTransaction,
         },
     },
@@ -135,7 +135,7 @@ async fn fail_proposal_not_accepted() {
         &proposal_address,
         &Pubkey::new_unique(),
         0,
-        Config::default(),
+        GovernanceConfig::default(),
         ProposalStatus::Voting, // Not accepted.
     )
     .await;
@@ -183,7 +183,7 @@ async fn fail_proposal_transaction_incorrect_address() {
         &proposal_address,
         &Pubkey::new_unique(),
         0,
-        Config::default(),
+        GovernanceConfig::default(),
         ProposalStatus::Accepted,
     )
     .await;
@@ -234,7 +234,7 @@ async fn fail_proposal_transaction_incorrect_owner() {
         &proposal_address,
         &Pubkey::new_unique(),
         0,
-        Config::default(),
+        GovernanceConfig::default(),
         ProposalStatus::Accepted,
     )
     .await;
@@ -291,7 +291,7 @@ async fn fail_proposal_transaction_not_initialized() {
         &proposal_address,
         &Pubkey::new_unique(),
         0,
-        Config::default(),
+        GovernanceConfig::default(),
         ProposalStatus::Accepted,
     )
     .await;
@@ -351,7 +351,7 @@ async fn fail_invalid_instruction_index() {
         &proposal_address,
         &Pubkey::new_unique(),
         0,
-        Config::default(),
+        GovernanceConfig::default(),
         ProposalStatus::Accepted,
     )
     .await;
@@ -409,7 +409,7 @@ async fn fail_instruction_already_executed() {
         &proposal_address,
         &Pubkey::new_unique(),
         0,
-        Config::default(),
+        GovernanceConfig::default(),
         ProposalStatus::Accepted,
     )
     .await;
@@ -466,7 +466,7 @@ async fn fail_previous_instruction_not_executed() {
         &proposal_address,
         &Pubkey::new_unique(),
         0,
-        Config::default(),
+        GovernanceConfig::default(),
         ProposalStatus::Accepted,
     )
     .await;
@@ -517,7 +517,7 @@ async fn success() {
         get_proposal_transaction_address(&proposal_address, &paladin_governance_program::id());
 
     let stake_config_address = Pubkey::new_unique();
-    let governance_config = Config::new(
+    let governance_config = GovernanceConfig::new(
         /* cooldown_period_seconds */ 0,
         /* proposal_acceptance_threshold */ 0,
         /* proposal_rejection_threshold */ 0,

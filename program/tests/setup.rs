@@ -4,7 +4,7 @@
 use {
     borsh::BorshSerialize,
     paladin_governance_program::state::{
-        Config, Proposal, ProposalAccountMeta, ProposalInstruction, ProposalStatus,
+        GovernanceConfig, Proposal, ProposalAccountMeta, ProposalInstruction, ProposalStatus,
         ProposalTransaction, ProposalVote, ProposalVoteElection,
     },
     paladin_stake_program::state::{Config as StakeConfig, Stake},
@@ -86,7 +86,7 @@ pub async fn setup_governance(
     stake_config_address: &Pubkey,
     voting_period_seconds: u64,
 ) {
-    let state = Config::new(
+    let state = GovernanceConfig::new(
         cooldown_period_seconds,
         proposal_acceptance_threshold,
         proposal_rejection_threshold,
@@ -116,7 +116,7 @@ async fn _setup_proposal_inner(
     proposal_address: &Pubkey,
     author: &Pubkey,
     creation_timestamp: UnixTimestamp,
-    governance_config: Config,
+    governance_config: GovernanceConfig,
     stake_for: u64,
     stake_against: u64,
     stake_abstained: u64,
@@ -154,7 +154,7 @@ pub async fn setup_proposal_with_stake_and_cooldown(
     proposal_address: &Pubkey,
     author: &Pubkey,
     creation_timestamp: UnixTimestamp,
-    governance_config: Config,
+    governance_config: GovernanceConfig,
     stake_for: u64,
     stake_against: u64,
     stake_abstained: u64,
@@ -184,7 +184,7 @@ pub async fn setup_proposal_with_stake(
     proposal_address: &Pubkey,
     author: &Pubkey,
     creation_timestamp: UnixTimestamp,
-    governance_config: Config,
+    governance_config: GovernanceConfig,
     stake_for: u64,
     stake_against: u64,
     stake_abstained: u64,
@@ -212,7 +212,7 @@ pub async fn setup_proposal(
     proposal_address: &Pubkey,
     author: &Pubkey,
     creation_timestamp: UnixTimestamp,
-    governance_config: Config,
+    governance_config: GovernanceConfig,
     status: ProposalStatus,
 ) {
     setup_proposal_with_stake(

@@ -6,7 +6,7 @@ use {
     paladin_governance_program::{
         error::PaladinGovernanceError,
         instruction::cancel_proposal,
-        state::{Config, Proposal, ProposalStatus},
+        state::{GovernanceConfig, Proposal, ProposalStatus},
     },
     setup::{setup, setup_proposal},
     solana_program_test::*,
@@ -141,7 +141,7 @@ async fn fail_stake_authority_not_author() {
         &proposal,
         &Pubkey::new_unique(), // Stake authority not author.
         0,
-        Config::default(),
+        GovernanceConfig::default(),
         ProposalStatus::Draft,
     )
     .await;
@@ -179,7 +179,7 @@ async fn fail_proposal_immutable() {
         &proposal,
         &stake_authority.pubkey(),
         0,
-        Config::default(),
+        GovernanceConfig::default(),
         ProposalStatus::Accepted, // Proposal is immutable.
     )
     .await;
@@ -220,7 +220,7 @@ async fn success() {
         &proposal,
         &stake_authority.pubkey(),
         0,
-        Config::default(),
+        GovernanceConfig::default(),
         ProposalStatus::Draft,
     )
     .await;

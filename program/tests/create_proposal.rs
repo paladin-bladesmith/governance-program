@@ -8,7 +8,8 @@ use {
         error::PaladinGovernanceError,
         instruction::create_proposal,
         state::{
-            get_proposal_transaction_address, Config, Proposal, ProposalStatus, ProposalTransaction,
+            get_proposal_transaction_address, GovernanceConfig, Proposal, ProposalStatus,
+            ProposalTransaction,
         },
     },
     paladin_stake_program::state::Stake,
@@ -238,7 +239,7 @@ async fn fail_governance_incorrect_owner() {
     // Set up the governance account with the incorrect owner.
     {
         let rent = context.banks_client.get_rent().await.unwrap();
-        let space = std::mem::size_of::<Config>();
+        let space = std::mem::size_of::<GovernanceConfig>();
         let lamports = rent.minimum_balance(space);
         context.set_account(
             &governance,
@@ -296,7 +297,7 @@ async fn fail_governance_not_initialized() {
     // Set up the governance account uninitialized.
     {
         let rent = context.banks_client.get_rent().await.unwrap();
-        let lamports = rent.minimum_balance(std::mem::size_of::<Config>());
+        let lamports = rent.minimum_balance(std::mem::size_of::<GovernanceConfig>());
         context.set_account(
             &governance,
             &AccountSharedData::new(lamports, 0, &paladin_governance_program::id()),
@@ -502,7 +503,7 @@ async fn fail_proposal_already_initialized() {
         &proposal,
         &stake_authority.pubkey(),
         0,
-        Config::default(),
+        GovernanceConfig::default(),
         ProposalStatus::Draft,
     )
     .await;
@@ -543,7 +544,7 @@ async fn fail_proposal_transaction_incorrect_address() {
     let proposal_transaction = Pubkey::new_unique(); // Incorrect address.
     let governance = Pubkey::new_unique(); // PDA doesn't matter here.
 
-    let governance_config = Config::new(
+    let governance_config = GovernanceConfig::new(
         /* cooldown_period_seconds */ 100_000_000,
         /* proposal_acceptance_threshold */ 500_000_000, // 50%
         /* proposal_rejection_threshold */ 500_000_000, // 50%
@@ -626,7 +627,7 @@ async fn fail_proposal_transaction_already_initialized() {
         get_proposal_transaction_address(&proposal, &paladin_governance_program::id());
     let governance = Pubkey::new_unique(); // PDA doesn't matter here.
 
-    let governance_config = Config::new(
+    let governance_config = GovernanceConfig::new(
         /* cooldown_period_seconds */ 100_000_000,
         /* proposal_acceptance_threshold */ 500_000_000, // 50%
         /* proposal_rejection_threshold */ 500_000_000, // 50%
@@ -712,7 +713,7 @@ async fn success() {
         get_proposal_transaction_address(&proposal, &paladin_governance_program::id());
     let governance = Pubkey::new_unique(); // PDA doesn't matter here.
 
-    let governance_config = Config::new(
+    let governance_config = GovernanceConfig::new(
         /* cooldown_period_seconds */ 100_000_000,
         /* proposal_acceptance_threshold */ 500_000_000, // 50%
         /* proposal_rejection_threshold */ 500_000_000, // 50%
