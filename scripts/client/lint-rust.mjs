@@ -1,7 +1,28 @@
 #!/usr/bin/env zx
 import 'zx/globals';
-import { getClippyToolchain, getToolchainArg, workingDirectory } from '../utils.mjs';
+import {
+  cliArguments,
+  getToolchainArgument,
+  popArgument,
+  workingDirectory,
+} from '../utils.mjs';
+
+// Configure additional arguments here, e.g.:
+// ['--arg1', '--arg2', ...cliArguments()]
+const lintArgs = cliArguments();
+
+const fix = popArgument(lintArgs, '--fix');
+const toolchain = getToolchainArgument('format');
+const manifestPath = path.join(
+  workingDirectory,
+  'clients',
+  'rust',
+  'Cargo.toml'
+);
 
 // Check the client using Clippy.
-const manifestPath = path.join(workingDirectory, 'clients', 'rust', 'Cargo.toml');
-await $`cargo ${getToolchainArg(getClippyToolchain())} clippy --manifest-path ${manifestPath} ${process.argv.slice(3)}`;
+if (fix) {
+  await $`cargo ${toolchain} clippy --manifest-path ${manifestPath} --fix ${lintArgs}`;
+} else {
+  await $`cargo ${toolchain} clippy --manifest-path ${manifestPath} ${lintArgs}`;
+}
