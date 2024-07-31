@@ -43,12 +43,12 @@ import {
   type NullableU64Args,
 } from '../../hooked';
 import {
-  getGovernanceConfigDecoder,
-  getGovernanceConfigEncoder,
+  getConfigDecoder,
+  getConfigEncoder,
   getProposalStatusDecoder,
   getProposalStatusEncoder,
-  type GovernanceConfig,
-  type GovernanceConfigArgs,
+  type Config,
+  type ConfigArgs,
   type ProposalStatus,
   type ProposalStatusArgs,
 } from '../types';
@@ -58,7 +58,7 @@ export type Proposal = {
   author: Address;
   cooldownTimestamp: NullableU64;
   creationTimestamp: bigint;
-  governanceConfig: GovernanceConfig;
+  governanceConfig: Config;
   stakeAbstained: bigint;
   stakeAgainst: bigint;
   stakeFor: bigint;
@@ -72,7 +72,7 @@ export type ProposalArgs = {
   author: Address;
   cooldownTimestamp: NullableU64Args;
   creationTimestamp: number | bigint;
-  governanceConfig: GovernanceConfigArgs;
+  governanceConfig: ConfigArgs;
   stakeAbstained: number | bigint;
   stakeAgainst: number | bigint;
   stakeFor: number | bigint;
@@ -87,7 +87,7 @@ export function getProposalEncoder(): Encoder<ProposalArgs> {
     ['author', getAddressEncoder()],
     ['cooldownTimestamp', getNullableU64Encoder()],
     ['creationTimestamp', getI64Encoder()],
-    ['governanceConfig', getGovernanceConfigEncoder()],
+    ['governanceConfig', getConfigEncoder()],
     ['stakeAbstained', getU64Encoder()],
     ['stakeAgainst', getU64Encoder()],
     ['stakeFor', getU64Encoder()],
@@ -103,7 +103,7 @@ export function getProposalDecoder(): Decoder<Proposal> {
     ['author', getAddressDecoder()],
     ['cooldownTimestamp', getNullableU64Decoder()],
     ['creationTimestamp', getI64Decoder()],
-    ['governanceConfig', getGovernanceConfigDecoder()],
+    ['governanceConfig', getConfigDecoder()],
     ['stakeAbstained', getU64Decoder()],
     ['stakeAgainst', getU64Decoder()],
     ['stakeFor', getU64Decoder()],

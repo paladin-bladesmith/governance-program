@@ -14,6 +14,66 @@ const kinobi = k.createFromRoot(idl, additionalIdls);
 kinobi.update(
   k.bottomUpTransformerVisitor([
     {
+      select: "[programNode]paladinGovernanceProgram",
+      transform: (node) => {
+        k.assertIsNode(node, "programNode");
+        return {
+          ...node,
+          definedTypes: [
+            ...node.definedTypes,
+            // GovernanceConfig redefined for use in Proposal account state.
+            k.definedTypeNode({
+              name: "config",
+              type: k.structTypeNode([
+                k.structFieldTypeNode({
+                  name: "cooldownPeriodSeconds",
+                  type: k.numberTypeNode("u64"),
+                }),
+                k.structFieldTypeNode({
+                  name: "proposalAcceptanceThreshold",
+                  type: k.numberTypeNode("u32"),
+                }),
+                k.structFieldTypeNode({
+                  name: "proposalRejectionThreshold",
+                  type: k.numberTypeNode("u32"),
+                }),
+                k.structFieldTypeNode({
+                  name: "signerBumpSeed",
+                  type: k.numberTypeNode("u8"),
+                }),
+                k.structFieldTypeNode({
+                  name: "_padding",
+                  type: k.arrayTypeNode(
+                    k.numberTypeNode("u8"),
+                    k.fixedCountNode(7),
+                  ),
+                }),
+                k.structFieldTypeNode({
+                  name: "stakeConfigAddress",
+                  type: k.publicKeyTypeNode(),
+                }),
+                k.structFieldTypeNode({
+                  name: "votingPeriodSeconds",
+                  type: k.numberTypeNode("u64"),
+                }),
+              ]),
+            }),
+          ],
+        }
+      }
+    },
+    {
+      // GovernanceConfig -> Config
+      select: "[structFieldTypeNode]governanceConfig",
+      transform: (node) => {
+        k.assertIsNode(node, "structFieldTypeNode");
+        return {
+          ...node,
+          type: k.definedTypeLinkNode("config"),
+        };
+      },
+    },
+    {
       // Option<NonZeroU64> -> NullableU64
       select: "[structFieldTypeNode]cooldownTimestamp",
       transform: (node) => {

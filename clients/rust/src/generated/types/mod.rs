@@ -5,12 +5,14 @@
 //! <https://github.com/kinobi-so/kinobi>
 //!
 
+pub(crate) mod r#config;
 pub(crate) mod r#proposal_account_meta;
 pub(crate) mod r#proposal_instruction;
 pub(crate) mod r#proposal_status;
 pub(crate) mod r#proposal_transaction;
 pub(crate) mod r#proposal_vote_election;
 
+pub use self::r#config::*;
 pub use self::r#proposal_account_meta::*;
 pub use self::r#proposal_instruction::*;
 pub use self::r#proposal_status::*;

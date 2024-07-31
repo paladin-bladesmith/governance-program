@@ -6,6 +6,7 @@
  * @see https://github.com/kinobi-so/kinobi
  */
 
+export * from './config';
 export * from './proposalAccountMeta';
 export * from './proposalInstruction';
 export * from './proposalStatus';

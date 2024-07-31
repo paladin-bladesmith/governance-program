@@ -5,7 +5,7 @@
 //! <https://github.com/kinobi-so/kinobi>
 //!
 
-use crate::generated::types::GovernanceConfig;
+use crate::generated::types::Config;
 use crate::generated::types::ProposalStatus;
 use crate::hooked::NullableU64;
 use borsh::BorshDeserialize;
@@ -23,7 +23,7 @@ pub struct Proposal {
     pub author: Pubkey,
     pub cooldown_timestamp: NullableU64,
     pub creation_timestamp: i64,
-    pub governance_config: GovernanceConfig,
+    pub governance_config: Config,
     pub stake_abstained: u64,
     pub stake_against: u64,
     pub stake_for: u64,
