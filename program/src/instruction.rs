@@ -3,6 +3,7 @@
 use {
     crate::state::{ProposalAccountMeta, ProposalVoteElection},
     borsh::{BorshDeserialize, BorshSerialize},
+    shank::ShankInstruction,
     solana_program::{
         instruction::{AccountMeta, Instruction},
         program_error::ProgramError,
@@ -12,7 +13,8 @@ use {
 };
 
 /// Instructions supported by the Paladin Governance program.
-#[derive(Clone, Debug, PartialEq)]
+#[rustfmt::skip]
+#[derive(Clone, Debug, PartialEq, ShankInstruction)]
 pub enum PaladinGovernanceInstruction {
     /// Create a new governance proposal.
     ///
@@ -28,6 +30,39 @@ pub enum PaladinGovernanceInstruction {
     /// 3. `[w]` Proposal transaction account.
     /// 4. `[ ]` Governance config account.
     /// 5. `[ ]` System program.
+    #[account(
+        0,
+        signer,
+        name = "stake_authority",
+        description = "Paladin stake authority account"
+    )]
+    #[account(
+        1,
+        name = "stake",
+        description = "Paladin stake account"
+    )]
+    #[account(
+        2,
+        writable,
+        name = "proposal",
+        description = "Proposal account"
+    )]
+    #[account(
+        3,
+        writable,
+        name = "proposal_transaction",
+        description = "Proposal transaction account"
+    )]
+    #[account(
+        4,
+        name = "governance_config",
+        description = "Governance config account"
+    )]
+    #[account(
+        5,
+        name = "system_program",
+        description = "System program"
+    )]
     CreateProposal,
     /// Insert an instruction into a governance proposal.
     ///
@@ -40,6 +75,23 @@ pub enum PaladinGovernanceInstruction {
     /// 0. `[s]` Paladin stake authority account.
     /// 1. `[ ]` Proposal account.
     /// 2. `[w]` Proposal transaction account.
+    #[account(
+        0,
+        signer,
+        name = "stake_authority",
+        description = "Paladin stake authority account"
+    )]
+    #[account(
+        1,
+        name = "proposal",
+        description = "Proposal account"
+    )]
+    #[account(
+        2,
+        writable,
+        name = "proposal_transaction",
+        description = "Proposal transaction account"
+    )]
     PushInstruction {
         /// The program ID to invoke.
         instruction_program_id: Pubkey,
@@ -57,6 +109,23 @@ pub enum PaladinGovernanceInstruction {
     /// 0. `[s]` Paladin stake authority account.
     /// 1. `[ ]` Proposal account.
     /// 2. `[w]` Proposal transaction account.
+    #[account(
+        0,
+        signer,
+        name = "stake_authority",
+        description = "Paladin stake authority account"
+    )]
+    #[account(
+        1,
+        name = "proposal",
+        description = "Proposal account"
+    )]
+    #[account(
+        2,
+        writable,
+        name = "proposal_transaction",
+        description = "Proposal transaction account"
+    )]
     RemoveInstruction {
         /// The index of the instruction to remove.
         instruction_index: u32,
@@ -69,6 +138,18 @@ pub enum PaladinGovernanceInstruction {
     ///
     /// 0. `[s]` Paladin stake authority account.
     /// 1. `[w]` Proposal account.
+    #[account(
+        0,
+        signer,
+        name = "stake_authority",
+        description = "Paladin stake authority account"
+    )]
+    #[account(
+        1,
+        writable,
+        name = "proposal",
+        description = "Proposal account"
+    )]
     CancelProposal,
     /// Finalize a draft governance proposal and begin voting.
     ///
@@ -78,6 +159,18 @@ pub enum PaladinGovernanceInstruction {
     ///
     /// 0. `[s]` Paladin stake authority account.
     /// 1. `[w]` Proposal account.
+    #[account(
+        0,
+        signer,
+        name = "stake_authority",
+        description = "Paladin stake authority account"
+    )]
+    #[account(
+        1,
+        writable,
+        name = "proposal",
+        description = "Proposal account"
+    )]
     BeginVoting,
     /// Vote on a governance proposal.
     ///
@@ -91,7 +184,40 @@ pub enum PaladinGovernanceInstruction {
     /// 2. `[ ]` Paladin stake config account.
     /// 3. `[w]` Proposal vote account.
     /// 4. `[w]` Proposal account.
-    /// 6. `[ ]` System program.
+    /// 5. `[ ]` System program.
+    #[account(
+        0,
+        signer,
+        name = "stake_authority",
+        description = "Paladin stake authority account"
+    )]
+    #[account(
+        1,
+        name = "stake",
+        description = "Paladin stake account"
+    )]
+    #[account(
+        2,
+        name = "stake_config",
+        description = "Paladin stake config account"
+    )]
+    #[account(
+        3,
+        writable,
+        name = "vote",
+        description = "Proposal vote account"
+    )]
+    #[account(
+        4,
+        writable,
+        name = "proposal",
+        description = "Proposal account"
+    )]
+    #[account(
+        5,
+        name = "system_program",
+        description = "System program"
+    )]
     Vote {
         /// Proposal vote election.
         election: ProposalVoteElection,
@@ -113,6 +239,34 @@ pub enum PaladinGovernanceInstruction {
     /// 2. `[ ]` Paladin stake config account.
     /// 3. `[w]` Proposal vote account.
     /// 4. `[w]` Proposal account.
+    #[account(
+        0,
+        signer,
+        name = "stake_authority",
+        description = "Paladin stake authority account"
+    )]
+    #[account(
+        1,
+        name = "stake",
+        description = "Paladin stake account"
+    )]
+    #[account(
+        2,
+        name = "stake_config",
+        description = "Paladin stake config account"
+    )]
+    #[account(
+        3,
+        writable,
+        name = "vote",
+        description = "Proposal vote account"
+    )]
+    #[account(
+        4,
+        writable,
+        name = "proposal",
+        description = "Proposal account"
+    )]
     SwitchVote {
         /// New proposal vote election.
         new_election: ProposalVoteElection,
@@ -132,6 +286,17 @@ pub enum PaladinGovernanceInstruction {
     /// 0. `[ ]` Proposal account.
     /// 1. `[w]` Proposal transaction account.
     /// 2..N.    Instruction accounts.
+    #[account(
+        0,
+        name = "proposal",
+        description = "Proposal account"
+    )]
+    #[account(
+        1,
+        writable,
+        name = "proposal_transaction",
+        description = "Proposal transaction account"
+    )]
     ProcessInstruction {
         /// The index of the instruction to execute.
         instruction_index: u32,
@@ -151,6 +316,22 @@ pub enum PaladinGovernanceInstruction {
     /// 0. `[w]` Governance config account.
     /// 1. `[ ]` Paladin stake config account.
     /// 2. `[ ]` System program.
+    #[account(
+        0,
+        writable,
+        name = "governance_config",
+        description = "Governance config account"
+    )]
+    #[account(
+        1,
+        name = "stake_config",
+        description = "Paladin stake config account"
+    )]
+    #[account(
+        2,
+        name = "system_program",
+        description = "System program"
+    )]
     InitializeGovernance {
         /// The cooldown period that begins when a proposal reaches the
         /// `proposal_acceptance_threshold` and upon its conclusion will execute
@@ -178,7 +359,18 @@ pub enum PaladinGovernanceInstruction {
     /// Accounts expected by this instruction:
     ///
     /// 0. `[s]` Treasury account.
-    /// 0. `[w]` Governance config account.
+    /// 1. `[w]` Governance config account.
+    #[account(
+        0,
+        signer,
+        name = "treasury",
+        description = "Treasury account"
+    )]
+    #[account(
+        1,
+        name = "governance_config",
+        description = "Governance config account"
+    )]
     UpdateGovernance {
         /// The cooldown period that begins when a proposal reaches the
         /// `proposal_acceptance_threshold` and upon its conclusion will execute
