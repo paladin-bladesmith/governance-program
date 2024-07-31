@@ -3,12 +3,12 @@
 //! to add features, then rerun kinobi to update it.
 //!
 //! <https://github.com/kinobi-so/kinobi>
-//!
 
-use crate::generated::types::ProposalVoteElection;
-use borsh::BorshDeserialize;
-use borsh::BorshSerialize;
-use solana_program::pubkey::Pubkey;
+use {
+    crate::generated::types::ProposalVoteElection,
+    borsh::{BorshDeserialize, BorshSerialize},
+    solana_program::pubkey::Pubkey,
+};
 
 #[derive(BorshSerialize, BorshDeserialize, Clone, Debug, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]

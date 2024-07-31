@@ -3,14 +3,15 @@
 //! to add features, then rerun kinobi to update it.
 //!
 //! <https://github.com/kinobi-so/kinobi>
-//!
 
-use crate::generated::types::Config;
-use crate::generated::types::ProposalStatus;
-use crate::hooked::NullableU64;
-use borsh::BorshDeserialize;
-use borsh::BorshSerialize;
-use solana_program::pubkey::Pubkey;
+use {
+    crate::{
+        generated::types::{Config, ProposalStatus},
+        hooked::NullableU64,
+    },
+    borsh::{BorshDeserialize, BorshSerialize},
+    solana_program::pubkey::Pubkey,
+};
 
 #[derive(BorshSerialize, BorshDeserialize, Clone, Debug, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]

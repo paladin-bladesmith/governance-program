@@ -2,7 +2,7 @@
 name = "paladin-governance-program"
 version = "0.1.0"
 description = "Paladin Governance Program"
-readme = "./README.md"
+readme = "../README.md"
 edition = "2021"
 
 [lib]

@@ -1,6 +1,6 @@
 {
   "name": "@paladin-bladesmith/governance",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "description": "JavaScript client for the Governance program",
   "sideEffects": false,
   "module": "./dist/src/index.mjs",
