@@ -34,7 +34,7 @@ use {
     std::num::NonZeroU64,
 };
 
-const THRESHOLD_SCALING_FACTOR: u64 = 1_000_000_000; // 1e9
+const THRESHOLD_SCALING_FACTOR: u128 = 1_000_000_000; // 1e9
 
 fn calculate_proposal_vote_threshold(stake: u64, total_stake: u64) -> Result<u32, ProgramError> {
     if total_stake == 0 {
@@ -43,9 +43,9 @@ fn calculate_proposal_vote_threshold(stake: u64, total_stake: u64) -> Result<u32
     // Calculation: stake / total_stake
     //
     // Scaled by 1e9 to store 9 decimal places of precision.
-    stake
+    (stake as u128)
         .checked_mul(THRESHOLD_SCALING_FACTOR)
-        .and_then(|product| product.checked_div(total_stake))
+        .and_then(|product| product.checked_div(total_stake as u128))
         .and_then(|result| u32::try_from(result).ok())
         .ok_or(ProgramError::ArithmeticOverflow)
 }
@@ -1115,6 +1115,53 @@ pub fn process(program_id: &Pubkey, accounts: &[AccountInfo], input: &[u8]) -> P
                 proposal_rejection_threshold,
                 voting_period_seconds,
             )
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use {super::*, proptest::prelude::*};
+
+    // Ensures the (intermediate) stake value is never greater than the total
+    // stake value, within the range 0 to the max value provided.
+    prop_compose! {
+        fn total_and_intermediate(max_value: u64)(total in 0..=max_value)
+                        (intermediate in 0..=total, total in Just(total))
+                        -> (u64, u64) {
+           (intermediate, total)
+       }
+    }
+
+    proptest! {
+        #[test]
+        fn test_calculate_proposal_vote_threshold(
+            (stake, total_stake) in total_and_intermediate(u64::MAX)
+        ) {
+            // Calculate.
+            //
+            // Since we've configured limits on the input values, we can safely
+            // unwrap the result.
+            let result = calculate_proposal_vote_threshold(stake, total_stake).unwrap();
+            // Evaluate.
+            if total_stake == 0 {
+                prop_assert_eq!(result, 0);
+            } else {
+                // The scaling multiplication and subsequent division should
+                // always succeed, thanks to the limits on the input values.
+                let scaled_stake_ratio = (stake as u128)
+                    .checked_mul(THRESHOLD_SCALING_FACTOR)
+                    .and_then(|scaled_stake| scaled_stake.checked_div(total_stake as u128))
+                    .unwrap();
+
+                // Since a failure to convert to `u32` can only occur if the
+                // stake is greater than the total stake, which is not possible
+                // thanks to our inputs, we can safely unwrap here.
+                let expected = u32::try_from(scaled_stake_ratio).unwrap();
+
+                // The result should be the expected value.
+                prop_assert_eq!(result, expected);
+            }
         }
     }
 }
