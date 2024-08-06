@@ -1123,45 +1123,44 @@ pub fn process(program_id: &Pubkey, accounts: &[AccountInfo], input: &[u8]) -> P
 mod tests {
     use {super::*, proptest::prelude::*};
 
+    // Ensures the (intermediate) stake value is never greater than the total
+    // stake value, within the range 0 to the max value provided.
+    prop_compose! {
+        fn total_and_intermediate(max_value: u64)(total in 0..=max_value)
+                        (intermediate in 0..=total, total in Just(total))
+                        -> (u64, u64) {
+           (intermediate, total)
+       }
+    }
+
     proptest! {
         #[test]
         fn test_calculate_proposal_vote_threshold(
-            stake in 0u64..,
-            total_stake in 0u64..,
+            (stake, total_stake) in total_and_intermediate(u64::MAX)
         ) {
             // Calculate.
-            let result = calculate_proposal_vote_threshold(stake, total_stake);
+            //
+            // Since we've configured limits on the input values, we can safely
+            // unwrap the result.
+            let result = calculate_proposal_vote_threshold(stake, total_stake).unwrap();
             // Evaluate.
             if total_stake == 0 {
-                prop_assert_eq!(result, Ok(0));
+                prop_assert_eq!(result, 0);
             } else {
-                // The scaling multiplication should always succeed.
-                let scaled_stake = (stake as u128)
+                // The scaling multiplication and subsequent division should
+                // always succeed, thanks to the limits on the input values.
+                let scaled_stake_ratio = (stake as u128)
                     .checked_mul(THRESHOLD_SCALING_FACTOR)
+                    .and_then(|scaled_stake| scaled_stake.checked_div(total_stake as u128))
                     .unwrap();
 
-                // Now try to divide the scaled stake by the total stake.
-                let scaled_stake_ratio = scaled_stake.checked_div(total_stake as u128);
-                if scaled_stake_ratio.is_none() {
-                    // If the division failed, the result should be an error.
-                    prop_assert_eq!(result, Err(ProgramError::ArithmeticOverflow));
-                    return Ok(());
-                }
+                // Since a failure to convert to `u32` can only occur if the
+                // stake is greater than the total stake, which is not possible
+                // thanks to our inputs, we can safely unwrap here.
+                let expected = u32::try_from(scaled_stake_ratio).unwrap();
 
-                let expected = u32::try_from(scaled_stake_ratio.unwrap());
-                if expected.is_err() {
-                    // If the conversion failed, the result should be an error.
-                    //
-                    // Note: This is only possible in the situation where stake
-                    // is greater than total_stake, which is not possible on
-                    // Solana.
-                    prop_assert_eq!(result, Err(ProgramError::ArithmeticOverflow));
-                    return Ok(());
-                } else {
-                    // If the conversion succeeded, the result should be the
-                    // expected value.
-                    prop_assert_eq!(result, Ok(expected.unwrap()));
-                }
+                // The result should be the expected value.
+                prop_assert_eq!(result, expected);
             }
         }
     }
