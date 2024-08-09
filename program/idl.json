@@ -334,6 +334,14 @@
           "docs": [
             "Proposal account"
           ]
+        },
+        {
+          "name": "stakeConfig",
+          "isMut": false,
+          "isSigner": false,
+          "docs": [
+            "Paladin stake config account"
+          ]
         }
       ],
       "args": [],

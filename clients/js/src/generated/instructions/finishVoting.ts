@@ -21,6 +21,7 @@ import {
   type IInstruction,
   type IInstructionWithAccounts,
   type IInstructionWithData,
+  type ReadonlyAccount,
   type WritableAccount,
 } from '@solana/web3.js';
 import { PALADIN_GOVERNANCE_PROGRAM_ADDRESS } from '../programs';
@@ -29,6 +30,7 @@ import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
 export type FinishVotingInstruction<
   TProgram extends string = typeof PALADIN_GOVERNANCE_PROGRAM_ADDRESS,
   TAccountProposal extends string | IAccountMeta<string> = string,
+  TAccountStakeConfig extends string | IAccountMeta<string> = string,
   TRemainingAccounts extends readonly IAccountMeta<string>[] = [],
 > = IInstruction<TProgram> &
   IInstructionWithData<Uint8Array> &
@@ -37,6 +39,9 @@ export type FinishVotingInstruction<
       TAccountProposal extends string
         ? WritableAccount<TAccountProposal>
         : TAccountProposal,
+      TAccountStakeConfig extends string
+        ? ReadonlyAccount<TAccountStakeConfig>
+        : TAccountStakeConfig,
       ...TRemainingAccounts,
     ]
   >;
@@ -66,16 +71,25 @@ export function getFinishVotingInstructionDataCodec(): Codec<
   );
 }
 
-export type FinishVotingInput<TAccountProposal extends string = string> = {
+export type FinishVotingInput<
+  TAccountProposal extends string = string,
+  TAccountStakeConfig extends string = string,
+> = {
   /** Proposal account */
   proposal: Address<TAccountProposal>;
+  /** Paladin stake config account */
+  stakeConfig: Address<TAccountStakeConfig>;
 };
 
-export function getFinishVotingInstruction<TAccountProposal extends string>(
-  input: FinishVotingInput<TAccountProposal>
+export function getFinishVotingInstruction<
+  TAccountProposal extends string,
+  TAccountStakeConfig extends string,
+>(
+  input: FinishVotingInput<TAccountProposal, TAccountStakeConfig>
 ): FinishVotingInstruction<
   typeof PALADIN_GOVERNANCE_PROGRAM_ADDRESS,
-  TAccountProposal
+  TAccountProposal,
+  TAccountStakeConfig
 > {
   // Program address.
   const programAddress = PALADIN_GOVERNANCE_PROGRAM_ADDRESS;
@@ -83,6 +97,7 @@ export function getFinishVotingInstruction<TAccountProposal extends string>(
   // Original accounts.
   const originalAccounts = {
     proposal: { value: input.proposal ?? null, isWritable: true },
+    stakeConfig: { value: input.stakeConfig ?? null, isWritable: false },
   };
   const accounts = originalAccounts as Record<
     keyof typeof originalAccounts,
@@ -91,12 +106,16 @@ export function getFinishVotingInstruction<TAccountProposal extends string>(
 
   const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
   const instruction = {
-    accounts: [getAccountMeta(accounts.proposal)],
+    accounts: [
+      getAccountMeta(accounts.proposal),
+      getAccountMeta(accounts.stakeConfig),
+    ],
     programAddress,
     data: getFinishVotingInstructionDataEncoder().encode({}),
   } as FinishVotingInstruction<
     typeof PALADIN_GOVERNANCE_PROGRAM_ADDRESS,
-    TAccountProposal
+    TAccountProposal,
+    TAccountStakeConfig
   >;
 
   return instruction;
@@ -110,6 +129,8 @@ export type ParsedFinishVotingInstruction<
   accounts: {
     /** Proposal account */
     proposal: TAccountMetas[0];
+    /** Paladin stake config account */
+    stakeConfig: TAccountMetas[1];
   };
   data: FinishVotingInstructionData;
 };
@@ -122,7 +143,7 @@ export function parseFinishVotingInstruction<
     IInstructionWithAccounts<TAccountMetas> &
     IInstructionWithData<Uint8Array>
 ): ParsedFinishVotingInstruction<TProgram, TAccountMetas> {
-  if (instruction.accounts.length < 1) {
+  if (instruction.accounts.length < 2) {
     // TODO: Coded error.
     throw new Error('Not enough accounts');
   }
@@ -136,6 +157,7 @@ export function parseFinishVotingInstruction<
     programAddress: instruction.programAddress,
     accounts: {
       proposal: getNextAccount(),
+      stakeConfig: getNextAccount(),
     },
     data: getFinishVotingInstructionDataDecoder().decode(instruction.data),
   };
