@@ -714,8 +714,18 @@ fn process_switch_vote(
 
     // If the proposal has an active cooldown period, ensure it has not ended.
     if proposal_state.cooldown_has_ended(&clock) {
-        // If the cooldown period has ended, the proposal is accepted.
-        proposal_state.status = ProposalStatus::Accepted;
+        // If the cooldown period has ended, the proposal is accepted
+        // only if it still meets the acceptance threshold.
+        // If not, the proposal is rejected.
+        if calculate_proposal_vote_threshold(proposal_state.stake_for, total_stake)?
+            >= proposal_state
+                .governance_config
+                .proposal_acceptance_threshold
+        {
+            proposal_state.status = ProposalStatus::Accepted;
+        } else {
+            proposal_state.status = ProposalStatus::Rejected;
+        }
         return Ok(());
     }
 
