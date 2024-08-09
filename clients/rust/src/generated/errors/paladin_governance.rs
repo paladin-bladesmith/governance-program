@@ -35,15 +35,18 @@ pub enum PaladinGovernanceError {
     /// 8 - Proposal not accepted.
     #[error("Proposal not accepted.")]
     ProposalNotAccepted = 0x8,
-    /// 9 - Invalid transaction index.
+    /// 9 - Proposal voting period still active.
+    #[error("Proposal voting period still active.")]
+    ProposalVotingPeriodStillActive = 0x9,
+    /// 10 - Invalid transaction index.
     #[error("Invalid transaction index.")]
-    InvalidTransactionIndex = 0x9,
-    /// 10 - Instruction already executed.
+    InvalidTransactionIndex = 0xA,
+    /// 11 - Instruction already executed.
     #[error("Instruction already executed.")]
-    InstructionAlreadyExecuted = 0xA,
-    /// 11 - Previous instruction has not been executed.
+    InstructionAlreadyExecuted = 0xB,
+    /// 12 - Previous instruction has not been executed.
     #[error("Previous instruction has not been executed.")]
-    PreviousInstructionHasNotBeenExecuted = 0xB,
+    PreviousInstructionHasNotBeenExecuted = 0xC,
 }
 
 impl solana_program::program_error::PrintProgramError for PaladinGovernanceError {

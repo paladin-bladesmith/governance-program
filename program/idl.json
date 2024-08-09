@@ -779,16 +779,21 @@
     },
     {
       "code": 9,
+      "name": "ProposalVotingPeriodStillActive",
+      "msg": "Proposal voting period still active."
+    },
+    {
+      "code": 10,
       "name": "InvalidTransactionIndex",
       "msg": "Invalid transaction index."
     },
     {
-      "code": 10,
+      "code": 11,
       "name": "InstructionAlreadyExecuted",
       "msg": "Instruction already executed."
     },
     {
-      "code": 11,
+      "code": 12,
       "name": "PreviousInstructionHasNotBeenExecuted",
       "msg": "Previous instruction has not been executed."
     }

@@ -32,12 +32,14 @@ export const PALADIN_GOVERNANCE_ERROR__PROPOSAL_NOT_IN_VOTING_STAGE = 0x6; // 6
 export const PALADIN_GOVERNANCE_ERROR__PROPOSAL_IS_IMMUTABLE = 0x7; // 7
 /** ProposalNotAccepted: Proposal not accepted. */
 export const PALADIN_GOVERNANCE_ERROR__PROPOSAL_NOT_ACCEPTED = 0x8; // 8
+/** ProposalVotingPeriodStillActive: Proposal voting period still active. */
+export const PALADIN_GOVERNANCE_ERROR__PROPOSAL_VOTING_PERIOD_STILL_ACTIVE = 0x9; // 9
 /** InvalidTransactionIndex: Invalid transaction index. */
-export const PALADIN_GOVERNANCE_ERROR__INVALID_TRANSACTION_INDEX = 0x9; // 9
+export const PALADIN_GOVERNANCE_ERROR__INVALID_TRANSACTION_INDEX = 0xa; // 10
 /** InstructionAlreadyExecuted: Instruction already executed. */
-export const PALADIN_GOVERNANCE_ERROR__INSTRUCTION_ALREADY_EXECUTED = 0xa; // 10
+export const PALADIN_GOVERNANCE_ERROR__INSTRUCTION_ALREADY_EXECUTED = 0xb; // 11
 /** PreviousInstructionHasNotBeenExecuted: Previous instruction has not been executed. */
-export const PALADIN_GOVERNANCE_ERROR__PREVIOUS_INSTRUCTION_HAS_NOT_BEEN_EXECUTED = 0xb; // 11
+export const PALADIN_GOVERNANCE_ERROR__PREVIOUS_INSTRUCTION_HAS_NOT_BEEN_EXECUTED = 0xc; // 12
 
 export type PaladinGovernanceError =
   | typeof PALADIN_GOVERNANCE_ERROR__INCORRECT_GOVERNANCE_CONFIG_ADDRESS
@@ -51,6 +53,7 @@ export type PaladinGovernanceError =
   | typeof PALADIN_GOVERNANCE_ERROR__PROPOSAL_IS_IMMUTABLE
   | typeof PALADIN_GOVERNANCE_ERROR__PROPOSAL_NOT_ACCEPTED
   | typeof PALADIN_GOVERNANCE_ERROR__PROPOSAL_NOT_IN_VOTING_STAGE
+  | typeof PALADIN_GOVERNANCE_ERROR__PROPOSAL_VOTING_PERIOD_STILL_ACTIVE
   | typeof PALADIN_GOVERNANCE_ERROR__STAKE_CONFIG_MISMATCH;
 
 let paladinGovernanceErrorMessages:
@@ -69,6 +72,7 @@ if (process.env.NODE_ENV !== 'production') {
     [PALADIN_GOVERNANCE_ERROR__PROPOSAL_IS_IMMUTABLE]: `Proposal is immutable.`,
     [PALADIN_GOVERNANCE_ERROR__PROPOSAL_NOT_ACCEPTED]: `Proposal not accepted.`,
     [PALADIN_GOVERNANCE_ERROR__PROPOSAL_NOT_IN_VOTING_STAGE]: `Proposal not in voting stage.`,
+    [PALADIN_GOVERNANCE_ERROR__PROPOSAL_VOTING_PERIOD_STILL_ACTIVE]: `Proposal voting period still active.`,
     [PALADIN_GOVERNANCE_ERROR__STAKE_CONFIG_MISMATCH]: `Stake config accounts mismatch.`,
   };
 }

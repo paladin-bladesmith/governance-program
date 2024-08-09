@@ -75,12 +75,15 @@ export function identifyPaladinGovernanceInstruction(
     return PaladinGovernanceInstruction.SwitchVote;
   }
   if (containsBytes(data, getU8Encoder().encode(7), 0)) {
-    return PaladinGovernanceInstruction.ProcessInstruction;
+    return PaladinGovernanceInstruction.FinishVoting;
   }
   if (containsBytes(data, getU8Encoder().encode(8), 0)) {
-    return PaladinGovernanceInstruction.InitializeGovernance;
+    return PaladinGovernanceInstruction.ProcessInstruction;
   }
   if (containsBytes(data, getU8Encoder().encode(9), 0)) {
+    return PaladinGovernanceInstruction.InitializeGovernance;
+  }
+  if (containsBytes(data, getU8Encoder().encode(10), 0)) {
     return PaladinGovernanceInstruction.UpdateGovernance;
   }
   throw new Error(
@@ -112,6 +115,9 @@ export type ParsedPaladinGovernanceInstruction<
   | ({
       instructionType: PaladinGovernanceInstruction.SwitchVote;
     } & ParsedSwitchVoteInstruction<TProgram>)
+  | ({
+      instructionType: PaladinGovernanceInstruction.FinishVoting;
+    } & ParsedFinishVotingInstruction<TProgram>)
   | ({
       instructionType: PaladinGovernanceInstruction.ProcessInstruction;
     } & ParsedProcessInstructionInstruction<TProgram>)
