@@ -7,14 +7,13 @@ use {
         GovernanceConfig, Proposal, ProposalAccountMeta, ProposalInstruction, ProposalStatus,
         ProposalTransaction, ProposalVote, ProposalVoteElection,
     },
-    paladin_stake_program::state::{Config as StakeConfig, Stake},
+    paladin_stake_program::state::{Config as StakeConfig, ValidatorStake},
     solana_program_test::*,
     solana_sdk::{
         account::{Account, AccountSharedData},
         clock::UnixTimestamp,
         pubkey::Pubkey,
     },
-    spl_discriminator::SplDiscriminate,
     std::num::NonZeroU64,
 };
 
@@ -33,8 +32,8 @@ pub async fn setup_stake(
     validator_vote_address: &Pubkey,
     amount: u64,
 ) {
-    let mut state = Stake::new(*authority_address, *validator_vote_address);
-    state.amount = amount;
+    let mut state = ValidatorStake::new(*authority_address, *validator_vote_address);
+    state.delegation.amount = amount;
     let data = bytemuck::bytes_of(&state).to_vec();
 
     let rent = context.banks_client.get_rent().await.unwrap();
@@ -56,11 +55,16 @@ pub async fn setup_stake_config(
     stake_config_address: &Pubkey,
     total_stake: u64,
 ) {
-    let state = StakeConfig {
-        discriminator: StakeConfig::SPL_DISCRIMINATOR.into(),
-        token_amount_delegated: total_stake,
-        ..Default::default()
-    };
+    let mut state = StakeConfig::new(
+        /* authority */ Some(Pubkey::new_unique()).try_into().unwrap(),
+        /* slash_authority */ Some(Pubkey::new_unique()).try_into().unwrap(),
+        /* vault */ Pubkey::new_unique(),
+        /* cooldown_time_seconds */ 0,
+        /* max_deactivation_basis_points */ 0,
+        /* vault_authority_bump */ 0,
+    );
+    state.token_amount_delegated = total_stake;
+
     let data = bytemuck::bytes_of(&state).to_vec();
 
     let rent = context.banks_client.get_rent().await.unwrap();

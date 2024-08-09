@@ -12,7 +12,7 @@ use {
             ProposalTransaction,
         },
     },
-    paladin_stake_program::state::Stake,
+    paladin_stake_program::state::ValidatorStake,
     setup::{setup, setup_governance, setup_proposal, setup_proposal_transaction, setup_stake},
     solana_program_test::*,
     solana_sdk::{
@@ -82,7 +82,7 @@ async fn fail_stake_incorrect_owner() {
     // Set up the stake account with the incorrect owner.
     {
         let rent = context.banks_client.get_rent().await.unwrap();
-        let space = std::mem::size_of::<Stake>();
+        let space = std::mem::size_of::<ValidatorStake>();
         let lamports = rent.minimum_balance(space);
         context.set_account(
             &stake,
@@ -132,7 +132,7 @@ async fn fail_stake_not_initialized() {
     // Set up an uninitialized stake account.
     {
         let rent = context.banks_client.get_rent().await.unwrap();
-        let space = std::mem::size_of::<Stake>();
+        let space = std::mem::size_of::<ValidatorStake>();
         let lamports = rent.minimum_balance(space);
         context.set_account(
             &stake,
