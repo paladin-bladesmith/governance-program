@@ -7,41 +7,27 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 
 /// Accounts.
-pub struct ProcessInstruction {
+pub struct FinishVoting {
     /// Proposal account
     pub proposal: solana_program::pubkey::Pubkey,
-    /// Proposal transaction account
-    pub proposal_transaction: solana_program::pubkey::Pubkey,
 }
 
-impl ProcessInstruction {
-    pub fn instruction(
-        &self,
-        args: ProcessInstructionInstructionArgs,
-    ) -> solana_program::instruction::Instruction {
-        self.instruction_with_remaining_accounts(args, &[])
+impl FinishVoting {
+    pub fn instruction(&self) -> solana_program::instruction::Instruction {
+        self.instruction_with_remaining_accounts(&[])
     }
     #[allow(clippy::vec_init_then_push)]
     pub fn instruction_with_remaining_accounts(
         &self,
-        args: ProcessInstructionInstructionArgs,
         remaining_accounts: &[solana_program::instruction::AccountMeta],
     ) -> solana_program::instruction::Instruction {
-        let mut accounts = Vec::with_capacity(2 + remaining_accounts.len());
-        accounts.push(solana_program::instruction::AccountMeta::new_readonly(
+        let mut accounts = Vec::with_capacity(1 + remaining_accounts.len());
+        accounts.push(solana_program::instruction::AccountMeta::new(
             self.proposal,
             false,
         ));
-        accounts.push(solana_program::instruction::AccountMeta::new(
-            self.proposal_transaction,
-            false,
-        ));
         accounts.extend_from_slice(remaining_accounts);
-        let mut data = ProcessInstructionInstructionData::new()
-            .try_to_vec()
-            .unwrap();
-        let mut args = args.try_to_vec().unwrap();
-        data.append(&mut args);
+        let data = FinishVotingInstructionData::new().try_to_vec().unwrap();
 
         solana_program::instruction::Instruction {
             program_id: crate::PALADIN_GOVERNANCE_ID,
@@ -52,43 +38,34 @@ impl ProcessInstruction {
 }
 
 #[derive(BorshDeserialize, BorshSerialize)]
-pub struct ProcessInstructionInstructionData {
+pub struct FinishVotingInstructionData {
     discriminator: u8,
 }
 
-impl ProcessInstructionInstructionData {
+impl FinishVotingInstructionData {
     pub fn new() -> Self {
-        Self { discriminator: 8 }
+        Self { discriminator: 7 }
     }
 }
 
-impl Default for ProcessInstructionInstructionData {
+impl Default for FinishVotingInstructionData {
     fn default() -> Self {
         Self::new()
     }
 }
 
-#[derive(BorshSerialize, BorshDeserialize, Clone, Debug, Eq, PartialEq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct ProcessInstructionInstructionArgs {
-    pub instruction_index: u32,
-}
-
-/// Instruction builder for `ProcessInstruction`.
+/// Instruction builder for `FinishVoting`.
 ///
 /// ### Accounts:
 ///
-///   0. `[]` proposal
-///   1. `[writable]` proposal_transaction
+///   0. `[writable]` proposal
 #[derive(Clone, Debug, Default)]
-pub struct ProcessInstructionBuilder {
+pub struct FinishVotingBuilder {
     proposal: Option<solana_program::pubkey::Pubkey>,
-    proposal_transaction: Option<solana_program::pubkey::Pubkey>,
-    instruction_index: Option<u32>,
     __remaining_accounts: Vec<solana_program::instruction::AccountMeta>,
 }
 
-impl ProcessInstructionBuilder {
+impl FinishVotingBuilder {
     pub fn new() -> Self {
         Self::default()
     }
@@ -96,20 +73,6 @@ impl ProcessInstructionBuilder {
     #[inline(always)]
     pub fn proposal(&mut self, proposal: solana_program::pubkey::Pubkey) -> &mut Self {
         self.proposal = Some(proposal);
-        self
-    }
-    /// Proposal transaction account
-    #[inline(always)]
-    pub fn proposal_transaction(
-        &mut self,
-        proposal_transaction: solana_program::pubkey::Pubkey,
-    ) -> &mut Self {
-        self.proposal_transaction = Some(proposal_transaction);
-        self
-    }
-    #[inline(always)]
-    pub fn instruction_index(&mut self, instruction_index: u32) -> &mut Self {
-        self.instruction_index = Some(instruction_index);
         self
     }
     /// Add an aditional account to the instruction.
@@ -132,54 +95,36 @@ impl ProcessInstructionBuilder {
     }
     #[allow(clippy::clone_on_copy)]
     pub fn instruction(&self) -> solana_program::instruction::Instruction {
-        let accounts = ProcessInstruction {
+        let accounts = FinishVoting {
             proposal: self.proposal.expect("proposal is not set"),
-            proposal_transaction: self
-                .proposal_transaction
-                .expect("proposal_transaction is not set"),
-        };
-        let args = ProcessInstructionInstructionArgs {
-            instruction_index: self
-                .instruction_index
-                .clone()
-                .expect("instruction_index is not set"),
         };
 
-        accounts.instruction_with_remaining_accounts(args, &self.__remaining_accounts)
+        accounts.instruction_with_remaining_accounts(&self.__remaining_accounts)
     }
 }
 
-/// `process_instruction` CPI accounts.
-pub struct ProcessInstructionCpiAccounts<'a, 'b> {
+/// `finish_voting` CPI accounts.
+pub struct FinishVotingCpiAccounts<'a, 'b> {
     /// Proposal account
     pub proposal: &'b solana_program::account_info::AccountInfo<'a>,
-    /// Proposal transaction account
-    pub proposal_transaction: &'b solana_program::account_info::AccountInfo<'a>,
 }
 
-/// `process_instruction` CPI instruction.
-pub struct ProcessInstructionCpi<'a, 'b> {
+/// `finish_voting` CPI instruction.
+pub struct FinishVotingCpi<'a, 'b> {
     /// The program to invoke.
     pub __program: &'b solana_program::account_info::AccountInfo<'a>,
     /// Proposal account
     pub proposal: &'b solana_program::account_info::AccountInfo<'a>,
-    /// Proposal transaction account
-    pub proposal_transaction: &'b solana_program::account_info::AccountInfo<'a>,
-    /// The arguments for the instruction.
-    pub __args: ProcessInstructionInstructionArgs,
 }
 
-impl<'a, 'b> ProcessInstructionCpi<'a, 'b> {
+impl<'a, 'b> FinishVotingCpi<'a, 'b> {
     pub fn new(
         program: &'b solana_program::account_info::AccountInfo<'a>,
-        accounts: ProcessInstructionCpiAccounts<'a, 'b>,
-        args: ProcessInstructionInstructionArgs,
+        accounts: FinishVotingCpiAccounts<'a, 'b>,
     ) -> Self {
         Self {
             __program: program,
             proposal: accounts.proposal,
-            proposal_transaction: accounts.proposal_transaction,
-            __args: args,
         }
     }
     #[inline(always)]
@@ -215,13 +160,9 @@ impl<'a, 'b> ProcessInstructionCpi<'a, 'b> {
             bool,
         )],
     ) -> solana_program::entrypoint::ProgramResult {
-        let mut accounts = Vec::with_capacity(2 + remaining_accounts.len());
-        accounts.push(solana_program::instruction::AccountMeta::new_readonly(
-            *self.proposal.key,
-            false,
-        ));
+        let mut accounts = Vec::with_capacity(1 + remaining_accounts.len());
         accounts.push(solana_program::instruction::AccountMeta::new(
-            *self.proposal_transaction.key,
+            *self.proposal.key,
             false,
         ));
         remaining_accounts.iter().for_each(|remaining_account| {
@@ -231,21 +172,16 @@ impl<'a, 'b> ProcessInstructionCpi<'a, 'b> {
                 is_writable: remaining_account.2,
             })
         });
-        let mut data = ProcessInstructionInstructionData::new()
-            .try_to_vec()
-            .unwrap();
-        let mut args = self.__args.try_to_vec().unwrap();
-        data.append(&mut args);
+        let data = FinishVotingInstructionData::new().try_to_vec().unwrap();
 
         let instruction = solana_program::instruction::Instruction {
             program_id: crate::PALADIN_GOVERNANCE_ID,
             accounts,
             data,
         };
-        let mut account_infos = Vec::with_capacity(2 + 1 + remaining_accounts.len());
+        let mut account_infos = Vec::with_capacity(1 + 1 + remaining_accounts.len());
         account_infos.push(self.__program.clone());
         account_infos.push(self.proposal.clone());
-        account_infos.push(self.proposal_transaction.clone());
         remaining_accounts
             .iter()
             .for_each(|remaining_account| account_infos.push(remaining_account.0.clone()));
@@ -258,24 +194,21 @@ impl<'a, 'b> ProcessInstructionCpi<'a, 'b> {
     }
 }
 
-/// Instruction builder for `ProcessInstruction` via CPI.
+/// Instruction builder for `FinishVoting` via CPI.
 ///
 /// ### Accounts:
 ///
-///   0. `[]` proposal
-///   1. `[writable]` proposal_transaction
+///   0. `[writable]` proposal
 #[derive(Clone, Debug)]
-pub struct ProcessInstructionCpiBuilder<'a, 'b> {
-    instruction: Box<ProcessInstructionCpiBuilderInstruction<'a, 'b>>,
+pub struct FinishVotingCpiBuilder<'a, 'b> {
+    instruction: Box<FinishVotingCpiBuilderInstruction<'a, 'b>>,
 }
 
-impl<'a, 'b> ProcessInstructionCpiBuilder<'a, 'b> {
+impl<'a, 'b> FinishVotingCpiBuilder<'a, 'b> {
     pub fn new(program: &'b solana_program::account_info::AccountInfo<'a>) -> Self {
-        let instruction = Box::new(ProcessInstructionCpiBuilderInstruction {
+        let instruction = Box::new(FinishVotingCpiBuilderInstruction {
             __program: program,
             proposal: None,
-            proposal_transaction: None,
-            instruction_index: None,
             __remaining_accounts: Vec::new(),
         });
         Self { instruction }
@@ -287,20 +220,6 @@ impl<'a, 'b> ProcessInstructionCpiBuilder<'a, 'b> {
         proposal: &'b solana_program::account_info::AccountInfo<'a>,
     ) -> &mut Self {
         self.instruction.proposal = Some(proposal);
-        self
-    }
-    /// Proposal transaction account
-    #[inline(always)]
-    pub fn proposal_transaction(
-        &mut self,
-        proposal_transaction: &'b solana_program::account_info::AccountInfo<'a>,
-    ) -> &mut Self {
-        self.instruction.proposal_transaction = Some(proposal_transaction);
-        self
-    }
-    #[inline(always)]
-    pub fn instruction_index(&mut self, instruction_index: u32) -> &mut Self {
-        self.instruction.instruction_index = Some(instruction_index);
         self
     }
     /// Add an additional account to the instruction.
@@ -345,23 +264,10 @@ impl<'a, 'b> ProcessInstructionCpiBuilder<'a, 'b> {
         &self,
         signers_seeds: &[&[&[u8]]],
     ) -> solana_program::entrypoint::ProgramResult {
-        let args = ProcessInstructionInstructionArgs {
-            instruction_index: self
-                .instruction
-                .instruction_index
-                .clone()
-                .expect("instruction_index is not set"),
-        };
-        let instruction = ProcessInstructionCpi {
+        let instruction = FinishVotingCpi {
             __program: self.instruction.__program,
 
             proposal: self.instruction.proposal.expect("proposal is not set"),
-
-            proposal_transaction: self
-                .instruction
-                .proposal_transaction
-                .expect("proposal_transaction is not set"),
-            __args: args,
         };
         instruction.invoke_signed_with_remaining_accounts(
             signers_seeds,
@@ -371,11 +277,9 @@ impl<'a, 'b> ProcessInstructionCpiBuilder<'a, 'b> {
 }
 
 #[derive(Clone, Debug)]
-struct ProcessInstructionCpiBuilderInstruction<'a, 'b> {
+struct FinishVotingCpiBuilderInstruction<'a, 'b> {
     __program: &'b solana_program::account_info::AccountInfo<'a>,
     proposal: Option<&'b solana_program::account_info::AccountInfo<'a>>,
-    proposal_transaction: Option<&'b solana_program::account_info::AccountInfo<'a>>,
-    instruction_index: Option<u32>,
     /// Additional instruction accounts `(AccountInfo, is_writable, is_signer)`.
     __remaining_accounts: Vec<(
         &'b solana_program::account_info::AccountInfo<'a>,

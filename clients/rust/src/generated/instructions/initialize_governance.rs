@@ -64,7 +64,7 @@ pub struct InitializeGovernanceInstructionData {
 
 impl InitializeGovernanceInstructionData {
     pub fn new() -> Self {
-        Self { discriminator: 8 }
+        Self { discriminator: 9 }
     }
 }
 

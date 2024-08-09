@@ -41,6 +41,9 @@ pub enum PaladinGovernanceError {
     /// Proposal not accepted.
     #[error("Proposal not accepted.")]
     ProposalNotAccepted,
+    /// Proposal voting period still active.
+    #[error("Proposal voting period still active.")]
+    ProposalVotingPeriodStillActive,
     /// Invalid transaction index.
     #[error("Invalid transaction index.")]
     InvalidTransactionIndex,

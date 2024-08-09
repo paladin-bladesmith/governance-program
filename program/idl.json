@@ -325,6 +325,24 @@
       }
     },
     {
+      "name": "FinishVoting",
+      "accounts": [
+        {
+          "name": "proposal",
+          "isMut": true,
+          "isSigner": false,
+          "docs": [
+            "Proposal account"
+          ]
+        }
+      ],
+      "args": [],
+      "discriminant": {
+        "type": "u8",
+        "value": 7
+      }
+    },
+    {
       "name": "ProcessInstruction",
       "accounts": [
         {
@@ -352,7 +370,7 @@
       ],
       "discriminant": {
         "type": "u8",
-        "value": 7
+        "value": 8
       }
     },
     {
@@ -403,7 +421,7 @@
       ],
       "discriminant": {
         "type": "u8",
-        "value": 8
+        "value": 9
       }
     },
     {
@@ -446,7 +464,7 @@
       ],
       "discriminant": {
         "type": "u8",
-        "value": 9
+        "value": 10
       }
     }
   ],
@@ -761,16 +779,21 @@
     },
     {
       "code": 9,
+      "name": "ProposalVotingPeriodStillActive",
+      "msg": "Proposal voting period still active."
+    },
+    {
+      "code": 10,
       "name": "InvalidTransactionIndex",
       "msg": "Invalid transaction index."
     },
     {
-      "code": 10,
+      "code": 11,
       "name": "InstructionAlreadyExecuted",
       "msg": "Instruction already executed."
     },
     {
-      "code": 11,
+      "code": 12,
       "name": "PreviousInstructionHasNotBeenExecuted",
       "msg": "Previous instruction has not been executed."
     }
