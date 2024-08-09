@@ -38,7 +38,7 @@ import {
   type TransactionSigner,
   type WritableAccount,
 } from '@solana/web3.js';
-import { PALADIN_GOVERNANCE_PROGRAM_PROGRAM_ADDRESS } from '../programs';
+import { PALADIN_GOVERNANCE_PROGRAM_ADDRESS } from '../programs';
 import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
 import {
   getProposalAccountMetaDecoder,
@@ -48,7 +48,7 @@ import {
 } from '../types';
 
 export type PushInstructionInstruction<
-  TProgram extends string = typeof PALADIN_GOVERNANCE_PROGRAM_PROGRAM_ADDRESS,
+  TProgram extends string = typeof PALADIN_GOVERNANCE_PROGRAM_ADDRESS,
   TAccountStakeAuthority extends string | IAccountMeta<string> = string,
   TAccountProposal extends string | IAccountMeta<string> = string,
   TAccountProposalTransaction extends string | IAccountMeta<string> = string,
@@ -154,13 +154,13 @@ export function getPushInstructionInstruction<
     TAccountProposalTransaction
   >
 ): PushInstructionInstruction<
-  typeof PALADIN_GOVERNANCE_PROGRAM_PROGRAM_ADDRESS,
+  typeof PALADIN_GOVERNANCE_PROGRAM_ADDRESS,
   TAccountStakeAuthority,
   TAccountProposal,
   TAccountProposalTransaction
 > {
   // Program address.
-  const programAddress = PALADIN_GOVERNANCE_PROGRAM_PROGRAM_ADDRESS;
+  const programAddress = PALADIN_GOVERNANCE_PROGRAM_ADDRESS;
 
   // Original accounts.
   const originalAccounts = {
@@ -191,7 +191,7 @@ export function getPushInstructionInstruction<
       args as PushInstructionInstructionDataArgs
     ),
   } as PushInstructionInstruction<
-    typeof PALADIN_GOVERNANCE_PROGRAM_PROGRAM_ADDRESS,
+    typeof PALADIN_GOVERNANCE_PROGRAM_ADDRESS,
     TAccountStakeAuthority,
     TAccountProposal,
     TAccountProposalTransaction
@@ -201,7 +201,7 @@ export function getPushInstructionInstruction<
 }
 
 export type ParsedPushInstructionInstruction<
-  TProgram extends string = typeof PALADIN_GOVERNANCE_PROGRAM_PROGRAM_ADDRESS,
+  TProgram extends string = typeof PALADIN_GOVERNANCE_PROGRAM_ADDRESS,
   TAccountMetas extends readonly IAccountMeta[] = readonly IAccountMeta[],
 > = {
   programAddress: Address<TProgram>;

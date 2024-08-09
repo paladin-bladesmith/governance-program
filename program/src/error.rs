@@ -1,9 +1,18 @@
 //! Program error types.
 
-use spl_program_error::*;
+use {
+    num_derive::FromPrimitive,
+    solana_program::{
+        decode_error::DecodeError,
+        msg,
+        program_error::{PrintProgramError, ProgramError},
+    },
+    thiserror::Error,
+};
 
 /// Errors that can be returned by the Paladin Governance program.
-#[spl_program_error]
+// Note: Shank does not export the type when we use `spl_program_error`.
+#[derive(Error, Clone, Debug, Eq, PartialEq, FromPrimitive)]
 pub enum PaladinGovernanceError {
     /// Stake config accounts mismatch.
     #[error("Stake config accounts mismatch.")]
@@ -41,4 +50,22 @@ pub enum PaladinGovernanceError {
     /// Previous instruction has not been executed.
     #[error("Previous instruction has not been executed.")]
     PreviousInstructionHasNotBeenExecuted,
+}
+
+impl PrintProgramError for PaladinGovernanceError {
+    fn print<E>(&self) {
+        msg!(&self.to_string());
+    }
+}
+
+impl From<PaladinGovernanceError> for ProgramError {
+    fn from(e: PaladinGovernanceError) -> Self {
+        ProgramError::Custom(e as u32)
+    }
+}
+
+impl<T> DecodeError<T> for PaladinGovernanceError {
+    fn type_of() -> &'static str {
+        "PaladinGovernanceError"
+    }
 }

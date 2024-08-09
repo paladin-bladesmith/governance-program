@@ -2419,10 +2419,12 @@ checksum = "e2355d85b9a3786f481747ced0e0ff2ba35213a1f9bd406ed906554d7af805a1"
 
 [[package]]
 name = "paladin-governance-program"
-version = "0.1.0"
+version = "0.0.1"
 dependencies = [
  "borsh 1.5.1",
  "bytemuck",
+ "num-derive 0.3.3",
+ "num-traits",
  "num_enum",
  "paladin-stake-program",
  "proptest",
@@ -2431,8 +2433,8 @@ dependencies = [
  "solana-program-test",
  "solana-sdk",
  "spl-discriminator",
- "spl-program-error",
  "test-case",
+ "thiserror",
 ]
 
 [[package]]

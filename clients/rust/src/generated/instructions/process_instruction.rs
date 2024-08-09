@@ -44,7 +44,7 @@ impl ProcessInstruction {
         data.append(&mut args);
 
         solana_program::instruction::Instruction {
-            program_id: crate::PALADIN_GOVERNANCE_PROGRAM_ID,
+            program_id: crate::PALADIN_GOVERNANCE_ID,
             accounts,
             data,
         }
@@ -238,7 +238,7 @@ impl<'a, 'b> ProcessInstructionCpi<'a, 'b> {
         data.append(&mut args);
 
         let instruction = solana_program::instruction::Instruction {
-            program_id: crate::PALADIN_GOVERNANCE_PROGRAM_ID,
+            program_id: crate::PALADIN_GOVERNANCE_ID,
             accounts,
             data,
         };

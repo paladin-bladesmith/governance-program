@@ -30,11 +30,11 @@ import {
   type ReadonlySignerAccount,
   type TransactionSigner,
 } from '@solana/web3.js';
-import { PALADIN_GOVERNANCE_PROGRAM_PROGRAM_ADDRESS } from '../programs';
+import { PALADIN_GOVERNANCE_PROGRAM_ADDRESS } from '../programs';
 import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
 
 export type UpdateGovernanceInstruction<
-  TProgram extends string = typeof PALADIN_GOVERNANCE_PROGRAM_PROGRAM_ADDRESS,
+  TProgram extends string = typeof PALADIN_GOVERNANCE_PROGRAM_ADDRESS,
   TAccountTreasury extends string | IAccountMeta<string> = string,
   TAccountGovernanceConfig extends string | IAccountMeta<string> = string,
   TRemainingAccounts extends readonly IAccountMeta<string>[] = [],
@@ -121,12 +121,12 @@ export function getUpdateGovernanceInstruction<
 >(
   input: UpdateGovernanceInput<TAccountTreasury, TAccountGovernanceConfig>
 ): UpdateGovernanceInstruction<
-  typeof PALADIN_GOVERNANCE_PROGRAM_PROGRAM_ADDRESS,
+  typeof PALADIN_GOVERNANCE_PROGRAM_ADDRESS,
   TAccountTreasury,
   TAccountGovernanceConfig
 > {
   // Program address.
-  const programAddress = PALADIN_GOVERNANCE_PROGRAM_PROGRAM_ADDRESS;
+  const programAddress = PALADIN_GOVERNANCE_PROGRAM_ADDRESS;
 
   // Original accounts.
   const originalAccounts = {
@@ -155,7 +155,7 @@ export function getUpdateGovernanceInstruction<
       args as UpdateGovernanceInstructionDataArgs
     ),
   } as UpdateGovernanceInstruction<
-    typeof PALADIN_GOVERNANCE_PROGRAM_PROGRAM_ADDRESS,
+    typeof PALADIN_GOVERNANCE_PROGRAM_ADDRESS,
     TAccountTreasury,
     TAccountGovernanceConfig
   >;
@@ -164,7 +164,7 @@ export function getUpdateGovernanceInstruction<
 }
 
 export type ParsedUpdateGovernanceInstruction<
-  TProgram extends string = typeof PALADIN_GOVERNANCE_PROGRAM_PROGRAM_ADDRESS,
+  TProgram extends string = typeof PALADIN_GOVERNANCE_PROGRAM_ADDRESS,
   TAccountMetas extends readonly IAccountMeta[] = readonly IAccountMeta[],
 > = {
   programAddress: Address<TProgram>;

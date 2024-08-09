@@ -1,6 +1,6 @@
 [package]
 name = "paladin-governance-program"
-version = "0.1.0"
+version = "0.0.1"
 description = "Paladin Governance Program"
 readme = "../README.md"
 edition = "2021"
@@ -12,11 +12,13 @@ crate-type = ["cdylib", "lib"]
 borsh = { version = "1.5.1", features = ["derive"] }
 bytemuck = { version = "1.16.1", features = ["derive"] }
 num_enum = "0.7.2"
+num-derive = "0.3"
+num-traits = "0.2"
 paladin-stake-program = { git = "https://github.com/paladin-bladesmith/stake-program.git" }
 shank = "0.4.2"
 solana-program = "2.0.2"
 spl-discriminator = "0.3.0"
-spl-program-error = "0.5.0"
+thiserror = "1.0"
 
 [dev-dependencies]
 proptest = "1.5.0"
@@ -29,4 +31,4 @@ bpf-entrypoint = []
 test-sbf = []
 
 [package.metadata.solana]
-program-id = "8vDzKeincu9R9u6Yzuh7TQ5VqPXCcZtfYh6mh82XscQj"
+program-id = "PGovernance11111111111111111111111111111111"

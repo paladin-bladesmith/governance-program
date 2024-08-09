@@ -59,7 +59,7 @@ impl anchor_lang::AccountSerialize for GovernanceConfig {}
 #[cfg(feature = "anchor")]
 impl anchor_lang::Owner for GovernanceConfig {
     fn owner() -> Pubkey {
-        crate::PALADIN_GOVERNANCE_PROGRAM_ID
+        crate::PALADIN_GOVERNANCE_ID
     }
 }
 

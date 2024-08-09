@@ -25,16 +25,16 @@ import {
   type ParsedVoteInstruction,
 } from '../instructions';
 
-export const PALADIN_GOVERNANCE_PROGRAM_PROGRAM_ADDRESS =
-  '8vDzKeincu9R9u6Yzuh7TQ5VqPXCcZtfYh6mh82XscQj' as Address<'8vDzKeincu9R9u6Yzuh7TQ5VqPXCcZtfYh6mh82XscQj'>;
+export const PALADIN_GOVERNANCE_PROGRAM_ADDRESS =
+  'PGovernance11111111111111111111111111111111' as Address<'PGovernance11111111111111111111111111111111'>;
 
-export enum PaladinGovernanceProgramAccount {
+export enum PaladinGovernanceAccount {
   GovernanceConfig,
   Proposal,
   ProposalVote,
 }
 
-export enum PaladinGovernanceProgramInstruction {
+export enum PaladinGovernanceInstruction {
   CreateProposal,
   PushInstruction,
   RemoveInstruction,
@@ -47,75 +47,75 @@ export enum PaladinGovernanceProgramInstruction {
   UpdateGovernance,
 }
 
-export function identifyPaladinGovernanceProgramInstruction(
+export function identifyPaladinGovernanceInstruction(
   instruction: { data: ReadonlyUint8Array } | ReadonlyUint8Array
-): PaladinGovernanceProgramInstruction {
+): PaladinGovernanceInstruction {
   const data = 'data' in instruction ? instruction.data : instruction;
   if (containsBytes(data, getU8Encoder().encode(0), 0)) {
-    return PaladinGovernanceProgramInstruction.CreateProposal;
+    return PaladinGovernanceInstruction.CreateProposal;
   }
   if (containsBytes(data, getU8Encoder().encode(1), 0)) {
-    return PaladinGovernanceProgramInstruction.PushInstruction;
+    return PaladinGovernanceInstruction.PushInstruction;
   }
   if (containsBytes(data, getU8Encoder().encode(2), 0)) {
-    return PaladinGovernanceProgramInstruction.RemoveInstruction;
+    return PaladinGovernanceInstruction.RemoveInstruction;
   }
   if (containsBytes(data, getU8Encoder().encode(3), 0)) {
-    return PaladinGovernanceProgramInstruction.CancelProposal;
+    return PaladinGovernanceInstruction.CancelProposal;
   }
   if (containsBytes(data, getU8Encoder().encode(4), 0)) {
-    return PaladinGovernanceProgramInstruction.BeginVoting;
+    return PaladinGovernanceInstruction.BeginVoting;
   }
   if (containsBytes(data, getU8Encoder().encode(5), 0)) {
-    return PaladinGovernanceProgramInstruction.Vote;
+    return PaladinGovernanceInstruction.Vote;
   }
   if (containsBytes(data, getU8Encoder().encode(6), 0)) {
-    return PaladinGovernanceProgramInstruction.SwitchVote;
+    return PaladinGovernanceInstruction.SwitchVote;
   }
   if (containsBytes(data, getU8Encoder().encode(7), 0)) {
-    return PaladinGovernanceProgramInstruction.ProcessInstruction;
+    return PaladinGovernanceInstruction.ProcessInstruction;
   }
   if (containsBytes(data, getU8Encoder().encode(8), 0)) {
-    return PaladinGovernanceProgramInstruction.InitializeGovernance;
+    return PaladinGovernanceInstruction.InitializeGovernance;
   }
   if (containsBytes(data, getU8Encoder().encode(9), 0)) {
-    return PaladinGovernanceProgramInstruction.UpdateGovernance;
+    return PaladinGovernanceInstruction.UpdateGovernance;
   }
   throw new Error(
-    'The provided instruction could not be identified as a paladinGovernanceProgram instruction.'
+    'The provided instruction could not be identified as a paladinGovernance instruction.'
   );
 }
 
-export type ParsedPaladinGovernanceProgramInstruction<
-  TProgram extends string = '8vDzKeincu9R9u6Yzuh7TQ5VqPXCcZtfYh6mh82XscQj',
+export type ParsedPaladinGovernanceInstruction<
+  TProgram extends string = 'PGovernance11111111111111111111111111111111',
 > =
   | ({
-      instructionType: PaladinGovernanceProgramInstruction.CreateProposal;
+      instructionType: PaladinGovernanceInstruction.CreateProposal;
     } & ParsedCreateProposalInstruction<TProgram>)
   | ({
-      instructionType: PaladinGovernanceProgramInstruction.PushInstruction;
+      instructionType: PaladinGovernanceInstruction.PushInstruction;
     } & ParsedPushInstructionInstruction<TProgram>)
   | ({
-      instructionType: PaladinGovernanceProgramInstruction.RemoveInstruction;
+      instructionType: PaladinGovernanceInstruction.RemoveInstruction;
     } & ParsedRemoveInstructionInstruction<TProgram>)
   | ({
-      instructionType: PaladinGovernanceProgramInstruction.CancelProposal;
+      instructionType: PaladinGovernanceInstruction.CancelProposal;
     } & ParsedCancelProposalInstruction<TProgram>)
   | ({
-      instructionType: PaladinGovernanceProgramInstruction.BeginVoting;
+      instructionType: PaladinGovernanceInstruction.BeginVoting;
     } & ParsedBeginVotingInstruction<TProgram>)
   | ({
-      instructionType: PaladinGovernanceProgramInstruction.Vote;
+      instructionType: PaladinGovernanceInstruction.Vote;
     } & ParsedVoteInstruction<TProgram>)
   | ({
-      instructionType: PaladinGovernanceProgramInstruction.SwitchVote;
+      instructionType: PaladinGovernanceInstruction.SwitchVote;
     } & ParsedSwitchVoteInstruction<TProgram>)
   | ({
-      instructionType: PaladinGovernanceProgramInstruction.ProcessInstruction;
+      instructionType: PaladinGovernanceInstruction.ProcessInstruction;
     } & ParsedProcessInstructionInstruction<TProgram>)
   | ({
-      instructionType: PaladinGovernanceProgramInstruction.InitializeGovernance;
+      instructionType: PaladinGovernanceInstruction.InitializeGovernance;
     } & ParsedInitializeGovernanceInstruction<TProgram>)
   | ({
-      instructionType: PaladinGovernanceProgramInstruction.UpdateGovernance;
+      instructionType: PaladinGovernanceInstruction.UpdateGovernance;
     } & ParsedUpdateGovernanceInstruction<TProgram>);

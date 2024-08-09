@@ -6,6 +6,5 @@
 
 use solana_program::{pubkey, pubkey::Pubkey};
 
-/// `paladin_governance_program` program ID.
-pub const PALADIN_GOVERNANCE_PROGRAM_ID: Pubkey =
-    pubkey!("8vDzKeincu9R9u6Yzuh7TQ5VqPXCcZtfYh6mh82XscQj");
+/// `paladin_governance` program ID.
+pub const PALADIN_GOVERNANCE_ID: Pubkey = pubkey!("PGovernance11111111111111111111111111111111");
