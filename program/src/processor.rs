@@ -823,6 +823,13 @@ fn process_switch_vote(
 }
 
 /// Processes a
+/// [FinishVoting](enum.PaladinGovernanceInstruction.html)
+/// instruction.
+fn process_finish_voting(_program_id: &Pubkey, _accounts: &[AccountInfo]) -> ProgramResult {
+    Ok(())
+}
+
+/// Processes a
 /// [ProcessInstruction](enum.PaladinGovernanceInstruction.html)
 /// instruction.
 fn process_process_instruction(
@@ -1081,6 +1088,10 @@ pub fn process(program_id: &Pubkey, accounts: &[AccountInfo], input: &[u8]) -> P
         PaladinGovernanceInstruction::SwitchVote { new_election } => {
             msg!("Instruction: SwitchVote");
             process_switch_vote(program_id, accounts, new_election)
+        }
+        PaladinGovernanceInstruction::FinishVoting => {
+            msg!("Instruction: FinishVoting");
+            process_finish_voting(program_id, accounts)
         }
         PaladinGovernanceInstruction::ProcessInstruction { instruction_index } => {
             msg!("Instruction: ProcessInstruction");
