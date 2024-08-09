@@ -10,7 +10,9 @@ use {
             ProposalVoteElection,
         },
     },
-    paladin_stake_program::state::{find_stake_pda, Config as StakeConfig, Stake},
+    paladin_stake_program::state::{
+        find_validator_stake_pda, Config as StakeConfig, ValidatorStake,
+    },
     setup::{
         setup, setup_proposal, setup_proposal_vote, setup_proposal_with_stake,
         setup_proposal_with_stake_and_cooldown, setup_stake, setup_stake_config,
@@ -37,7 +39,8 @@ async fn fail_stake_authority_not_signer() {
     let stake_config = Pubkey::new_unique();
     let proposal = Pubkey::new_unique();
 
-    let stake = find_stake_pda(&validator_vote, &stake_config, &paladin_stake_program::id()).0;
+    let stake =
+        find_validator_stake_pda(&validator_vote, &stake_config, &paladin_stake_program::id()).0;
     let proposal_vote =
         get_proposal_vote_address(&stake, &proposal, &paladin_governance_program::id());
 
@@ -80,7 +83,8 @@ async fn fail_stake_incorrect_owner() {
     let stake_config = Pubkey::new_unique();
     let proposal = Pubkey::new_unique();
 
-    let stake = find_stake_pda(&validator_vote, &stake_config, &paladin_stake_program::id()).0;
+    let stake =
+        find_validator_stake_pda(&validator_vote, &stake_config, &paladin_stake_program::id()).0;
     let proposal_vote =
         get_proposal_vote_address(&stake, &proposal, &paladin_governance_program::id());
 
@@ -89,7 +93,7 @@ async fn fail_stake_incorrect_owner() {
     // Set up the stake account with the incorrect owner.
     {
         let rent = context.banks_client.get_rent().await.unwrap();
-        let space = std::mem::size_of::<Stake>();
+        let space = std::mem::size_of::<ValidatorStake>();
         let lamports = rent.minimum_balance(space);
         context.set_account(
             &stake,
@@ -133,7 +137,8 @@ async fn fail_stake_not_initialized() {
     let stake_config = Pubkey::new_unique();
     let proposal = Pubkey::new_unique();
 
-    let stake = find_stake_pda(&validator_vote, &stake_config, &paladin_stake_program::id()).0;
+    let stake =
+        find_validator_stake_pda(&validator_vote, &stake_config, &paladin_stake_program::id()).0;
     let proposal_vote =
         get_proposal_vote_address(&stake, &proposal, &paladin_governance_program::id());
 
@@ -142,7 +147,7 @@ async fn fail_stake_not_initialized() {
     // Set up an uninitialized stake account.
     {
         let rent = context.banks_client.get_rent().await.unwrap();
-        let space = std::mem::size_of::<Stake>();
+        let space = std::mem::size_of::<ValidatorStake>();
         let lamports = rent.minimum_balance(space);
         context.set_account(
             &stake,
@@ -186,7 +191,8 @@ async fn fail_stake_incorrect_stake_authority() {
     let stake_config = Pubkey::new_unique();
     let proposal = Pubkey::new_unique();
 
-    let stake = find_stake_pda(&validator_vote, &stake_config, &paladin_stake_program::id()).0;
+    let stake =
+        find_validator_stake_pda(&validator_vote, &stake_config, &paladin_stake_program::id()).0;
     let proposal_vote =
         get_proposal_vote_address(&stake, &proposal, &paladin_governance_program::id());
 
@@ -238,7 +244,8 @@ async fn fail_stake_config_incorrect_owner() {
     let stake_config = Pubkey::new_unique();
     let proposal = Pubkey::new_unique();
 
-    let stake = find_stake_pda(&validator_vote, &stake_config, &paladin_stake_program::id()).0;
+    let stake =
+        find_validator_stake_pda(&validator_vote, &stake_config, &paladin_stake_program::id()).0;
     let proposal_vote =
         get_proposal_vote_address(&stake, &proposal, &paladin_governance_program::id());
 
@@ -308,7 +315,8 @@ async fn fail_stake_config_not_initialized() {
     let stake_config = Pubkey::new_unique();
     let proposal = Pubkey::new_unique();
 
-    let stake = find_stake_pda(&validator_vote, &stake_config, &paladin_stake_program::id()).0;
+    let stake =
+        find_validator_stake_pda(&validator_vote, &stake_config, &paladin_stake_program::id()).0;
     let proposal_vote =
         get_proposal_vote_address(&stake, &proposal, &paladin_governance_program::id());
 
@@ -378,7 +386,8 @@ async fn fail_proposal_incorrect_owner() {
     let stake_config = Pubkey::new_unique();
     let proposal = Pubkey::new_unique();
 
-    let stake = find_stake_pda(&validator_vote, &stake_config, &paladin_stake_program::id()).0;
+    let stake =
+        find_validator_stake_pda(&validator_vote, &stake_config, &paladin_stake_program::id()).0;
     let proposal_vote =
         get_proposal_vote_address(&stake, &proposal, &paladin_governance_program::id());
 
@@ -440,7 +449,8 @@ async fn fail_proposal_not_initialized() {
     let stake_config = Pubkey::new_unique();
     let proposal = Pubkey::new_unique();
 
-    let stake = find_stake_pda(&validator_vote, &stake_config, &paladin_stake_program::id()).0;
+    let stake =
+        find_validator_stake_pda(&validator_vote, &stake_config, &paladin_stake_program::id()).0;
     let proposal_vote =
         get_proposal_vote_address(&stake, &proposal, &paladin_governance_program::id());
 
@@ -502,7 +512,8 @@ async fn fail_proposal_not_voting() {
     let stake_config = Pubkey::new_unique();
     let proposal = Pubkey::new_unique();
 
-    let stake = find_stake_pda(&validator_vote, &stake_config, &paladin_stake_program::id()).0;
+    let stake =
+        find_validator_stake_pda(&validator_vote, &stake_config, &paladin_stake_program::id()).0;
     let proposal_vote =
         get_proposal_vote_address(&stake, &proposal, &paladin_governance_program::id());
 
@@ -574,7 +585,8 @@ async fn fail_proposal_vote_incorrect_address() {
     let stake_config = Pubkey::new_unique();
     let proposal = Pubkey::new_unique();
 
-    let stake = find_stake_pda(&validator_vote, &stake_config, &paladin_stake_program::id()).0;
+    let stake =
+        find_validator_stake_pda(&validator_vote, &stake_config, &paladin_stake_program::id()).0;
     let proposal_vote = Pubkey::new_unique(); // Incorrect proposal vote address.
 
     let governance_config = GovernanceConfig::new(
@@ -645,7 +657,8 @@ async fn fail_proposal_vote_already_initialized() {
     let stake_config = Pubkey::new_unique();
     let proposal = Pubkey::new_unique();
 
-    let stake = find_stake_pda(&validator_vote, &stake_config, &paladin_stake_program::id()).0;
+    let stake =
+        find_validator_stake_pda(&validator_vote, &stake_config, &paladin_stake_program::id()).0;
     let proposal_vote =
         get_proposal_vote_address(&stake, &proposal, &paladin_governance_program::id());
 
@@ -814,7 +827,8 @@ async fn success(vote: Vote, expect: Expect) {
     let stake_config = Pubkey::new_unique();
     let proposal = Pubkey::new_unique();
 
-    let stake = find_stake_pda(&validator_vote, &stake_config, &paladin_stake_program::id()).0;
+    let stake =
+        find_validator_stake_pda(&validator_vote, &stake_config, &paladin_stake_program::id()).0;
     let proposal_vote =
         get_proposal_vote_address(&stake, &proposal, &paladin_governance_program::id());
 
@@ -939,7 +953,8 @@ async fn success_voting_closed() {
     let stake_config = Pubkey::new_unique();
     let proposal = Pubkey::new_unique();
 
-    let stake = find_stake_pda(&validator_vote, &stake_config, &paladin_stake_program::id()).0;
+    let stake =
+        find_validator_stake_pda(&validator_vote, &stake_config, &paladin_stake_program::id()).0;
     let proposal_vote =
         get_proposal_vote_address(&stake, &proposal, &paladin_governance_program::id());
 
@@ -1048,7 +1063,8 @@ async fn success_voting_closed_but_cooldown_active() {
     let stake_config = Pubkey::new_unique();
     let proposal = Pubkey::new_unique();
 
-    let stake = find_stake_pda(&validator_vote, &stake_config, &paladin_stake_program::id()).0;
+    let stake =
+        find_validator_stake_pda(&validator_vote, &stake_config, &paladin_stake_program::id()).0;
     let proposal_vote =
         get_proposal_vote_address(&stake, &proposal, &paladin_governance_program::id());
 
@@ -1160,7 +1176,8 @@ async fn success_cooldown_has_ended() {
     let stake_config = Pubkey::new_unique();
     let proposal = Pubkey::new_unique();
 
-    let stake = find_stake_pda(&validator_vote, &stake_config, &paladin_stake_program::id()).0;
+    let stake =
+        find_validator_stake_pda(&validator_vote, &stake_config, &paladin_stake_program::id()).0;
     let proposal_vote =
         get_proposal_vote_address(&stake, &proposal, &paladin_governance_program::id());
 

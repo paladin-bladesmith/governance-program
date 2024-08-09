@@ -16,7 +16,9 @@ use {
         },
     },
     borsh::BorshDeserialize,
-    paladin_stake_program::state::{find_stake_pda, Config as StakeConfig, Stake},
+    paladin_stake_program::state::{
+        find_validator_stake_pda, Config as StakeConfig, ValidatorStake,
+    },
     solana_program::{
         account_info::{next_account_info, AccountInfo},
         borsh1::get_instance_packed_len,
@@ -58,19 +60,19 @@ fn get_stake_checked(
     check_stake_exists(stake_info)?;
 
     let data = stake_info.try_borrow_data()?;
-    let state =
-        bytemuck::try_from_bytes::<Stake>(&data).map_err(|_| ProgramError::InvalidAccountData)?;
+    let state = bytemuck::try_from_bytes::<ValidatorStake>(&data)
+        .map_err(|_| ProgramError::InvalidAccountData)?;
 
     // Ensure the stake account belongs to the authority.
-    if state.authority != *authority_key {
+    if state.delegation.authority != *authority_key {
         return Err(ProgramError::IncorrectAuthority);
     }
 
     // Ensure the stake account has the correct address derived from the
     // validator vote account and the stake config account.
     if stake_info.key
-        != &find_stake_pda(
-            &state.validator_vote,
+        != &find_validator_stake_pda(
+            &state.delegation.validator_vote,
             stake_config_address,
             &paladin_stake_program::id(),
         )
@@ -79,7 +81,7 @@ fn get_stake_checked(
         return Err(PaladinGovernanceError::StakeConfigMismatch.into());
     }
 
-    Ok(state.amount)
+    Ok(state.delegation.amount)
 }
 
 fn check_stake_config_exists(stake_config_info: &AccountInfo) -> ProgramResult {
@@ -105,8 +107,8 @@ fn check_stake_exists(stake_info: &AccountInfo) -> ProgramResult {
     }
 
     // Ensure the stake account is initialized.
-    if !(stake_info.data_len() == std::mem::size_of::<Stake>()
-        && &stake_info.try_borrow_data()?[0..8] == Stake::SPL_DISCRIMINATOR_SLICE)
+    if !(stake_info.data_len() == std::mem::size_of::<ValidatorStake>()
+        && &stake_info.try_borrow_data()?[0..8] == ValidatorStake::SPL_DISCRIMINATOR_SLICE)
     {
         return Err(ProgramError::UninitializedAccount);
     }
@@ -184,11 +186,11 @@ fn process_create_proposal(program_id: &Pubkey, accounts: &[AccountInfo]) -> Pro
         check_stake_exists(stake_info)?;
 
         let data = stake_info.try_borrow_data()?;
-        let state = bytemuck::try_from_bytes::<Stake>(&data)
+        let state = bytemuck::try_from_bytes::<ValidatorStake>(&data)
             .map_err(|_| ProgramError::InvalidAccountData)?;
 
         // Ensure the stake account belongs to the authority.
-        if state.authority != *stake_authority_info.key {
+        if state.delegation.authority != *stake_authority_info.key {
             return Err(ProgramError::IncorrectAuthority);
         }
     }
