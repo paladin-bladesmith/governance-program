@@ -713,6 +713,68 @@
       }
     }
   ],
+  "errors": [
+    {
+      "code": 0,
+      "name": "StakeConfigMismatch",
+      "msg": "Stake config accounts mismatch."
+    },
+    {
+      "code": 1,
+      "name": "IncorrectStakeConfig",
+      "msg": "Incorrect stake config."
+    },
+    {
+      "code": 2,
+      "name": "IncorrectProposalTransactionAddress",
+      "msg": "Incorrect proposal transaction address."
+    },
+    {
+      "code": 3,
+      "name": "IncorrectProposalVoteAddress",
+      "msg": "Incorrect proposal vote address."
+    },
+    {
+      "code": 4,
+      "name": "IncorrectGovernanceConfigAddress",
+      "msg": "Incorrect governance config address."
+    },
+    {
+      "code": 5,
+      "name": "IncorrectTreasuryAddress",
+      "msg": "Incorrect treasury address."
+    },
+    {
+      "code": 6,
+      "name": "ProposalNotInVotingStage",
+      "msg": "Proposal not in voting stage."
+    },
+    {
+      "code": 7,
+      "name": "ProposalIsImmutable",
+      "msg": "Proposal is immutable."
+    },
+    {
+      "code": 8,
+      "name": "ProposalNotAccepted",
+      "msg": "Proposal not accepted."
+    },
+    {
+      "code": 9,
+      "name": "InvalidTransactionIndex",
+      "msg": "Invalid transaction index."
+    },
+    {
+      "code": 10,
+      "name": "InstructionAlreadyExecuted",
+      "msg": "Instruction already executed."
+    },
+    {
+      "code": 11,
+      "name": "PreviousInstructionHasNotBeenExecuted",
+      "msg": "Previous instruction has not been executed."
+    }
+  ],
   "metadata": {
     "origin": "shank",
     "address": "8vDzKeincu9R9u6Yzuh7TQ5VqPXCcZtfYh6mh82XscQj",
