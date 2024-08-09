@@ -59,7 +59,7 @@ impl CreateProposal {
         let data = CreateProposalInstructionData::new().try_to_vec().unwrap();
 
         solana_program::instruction::Instruction {
-            program_id: crate::PALADIN_GOVERNANCE_PROGRAM_ID,
+            program_id: crate::PALADIN_GOVERNANCE_ID,
             accounts,
             data,
         }
@@ -311,7 +311,7 @@ impl<'a, 'b> CreateProposalCpi<'a, 'b> {
         let data = CreateProposalInstructionData::new().try_to_vec().unwrap();
 
         let instruction = solana_program::instruction::Instruction {
-            program_id: crate::PALADIN_GOVERNANCE_PROGRAM_ID,
+            program_id: crate::PALADIN_GOVERNANCE_ID,
             accounts,
             data,
         };

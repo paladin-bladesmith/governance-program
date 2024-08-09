@@ -10,11 +10,19 @@ import { getAllProgramIdls, getToolchainArgument } from "./utils.mjs";
 const [idl, ...additionalIdls] = getAllProgramIdls().map(idl => rootNodeFromAnchor(require(idl)))
 const kinobi = k.createFromRoot(idl, additionalIdls);
 
+
+// Update programs.
+kinobi.update(
+  k.updateProgramsVisitor({
+    "paladinGovernanceProgram": { name: "paladinGovernance" },
+  })
+);
+
 // Add missing types from the IDL.
 kinobi.update(
   k.bottomUpTransformerVisitor([
     {
-      select: "[programNode]paladinGovernanceProgram",
+      select: "[programNode]paladinGovernance",
       transform: (node) => {
         k.assertIsNode(node, "programNode");
         return {

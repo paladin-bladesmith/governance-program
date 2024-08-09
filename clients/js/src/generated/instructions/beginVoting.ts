@@ -26,11 +26,11 @@ import {
   type TransactionSigner,
   type WritableAccount,
 } from '@solana/web3.js';
-import { PALADIN_GOVERNANCE_PROGRAM_PROGRAM_ADDRESS } from '../programs';
+import { PALADIN_GOVERNANCE_PROGRAM_ADDRESS } from '../programs';
 import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
 
 export type BeginVotingInstruction<
-  TProgram extends string = typeof PALADIN_GOVERNANCE_PROGRAM_PROGRAM_ADDRESS,
+  TProgram extends string = typeof PALADIN_GOVERNANCE_PROGRAM_ADDRESS,
   TAccountStakeAuthority extends string | IAccountMeta<string> = string,
   TAccountProposal extends string | IAccountMeta<string> = string,
   TRemainingAccounts extends readonly IAccountMeta<string>[] = [],
@@ -90,12 +90,12 @@ export function getBeginVotingInstruction<
 >(
   input: BeginVotingInput<TAccountStakeAuthority, TAccountProposal>
 ): BeginVotingInstruction<
-  typeof PALADIN_GOVERNANCE_PROGRAM_PROGRAM_ADDRESS,
+  typeof PALADIN_GOVERNANCE_PROGRAM_ADDRESS,
   TAccountStakeAuthority,
   TAccountProposal
 > {
   // Program address.
-  const programAddress = PALADIN_GOVERNANCE_PROGRAM_PROGRAM_ADDRESS;
+  const programAddress = PALADIN_GOVERNANCE_PROGRAM_ADDRESS;
 
   // Original accounts.
   const originalAccounts = {
@@ -116,7 +116,7 @@ export function getBeginVotingInstruction<
     programAddress,
     data: getBeginVotingInstructionDataEncoder().encode({}),
   } as BeginVotingInstruction<
-    typeof PALADIN_GOVERNANCE_PROGRAM_PROGRAM_ADDRESS,
+    typeof PALADIN_GOVERNANCE_PROGRAM_ADDRESS,
     TAccountStakeAuthority,
     TAccountProposal
   >;
@@ -125,7 +125,7 @@ export function getBeginVotingInstruction<
 }
 
 export type ParsedBeginVotingInstruction<
-  TProgram extends string = typeof PALADIN_GOVERNANCE_PROGRAM_PROGRAM_ADDRESS,
+  TProgram extends string = typeof PALADIN_GOVERNANCE_PROGRAM_ADDRESS,
   TAccountMetas extends readonly IAccountMeta[] = readonly IAccountMeta[],
 > = {
   programAddress: Address<TProgram>;

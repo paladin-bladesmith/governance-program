@@ -27,7 +27,7 @@ import {
   type TransactionSigner,
   type WritableAccount,
 } from '@solana/web3.js';
-import { PALADIN_GOVERNANCE_PROGRAM_PROGRAM_ADDRESS } from '../programs';
+import { PALADIN_GOVERNANCE_PROGRAM_ADDRESS } from '../programs';
 import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
 import {
   getProposalVoteElectionDecoder,
@@ -37,7 +37,7 @@ import {
 } from '../types';
 
 export type VoteInstruction<
-  TProgram extends string = typeof PALADIN_GOVERNANCE_PROGRAM_PROGRAM_ADDRESS,
+  TProgram extends string = typeof PALADIN_GOVERNANCE_PROGRAM_ADDRESS,
   TAccountStakeAuthority extends string | IAccountMeta<string> = string,
   TAccountStake extends string | IAccountMeta<string> = string,
   TAccountStakeConfig extends string | IAccountMeta<string> = string,
@@ -148,7 +148,7 @@ export function getVoteInstruction<
     TAccountSystemProgram
   >
 ): VoteInstruction<
-  typeof PALADIN_GOVERNANCE_PROGRAM_PROGRAM_ADDRESS,
+  typeof PALADIN_GOVERNANCE_PROGRAM_ADDRESS,
   TAccountStakeAuthority,
   TAccountStake,
   TAccountStakeConfig,
@@ -157,7 +157,7 @@ export function getVoteInstruction<
   TAccountSystemProgram
 > {
   // Program address.
-  const programAddress = PALADIN_GOVERNANCE_PROGRAM_PROGRAM_ADDRESS;
+  const programAddress = PALADIN_GOVERNANCE_PROGRAM_ADDRESS;
 
   // Original accounts.
   const originalAccounts = {
@@ -197,7 +197,7 @@ export function getVoteInstruction<
       args as VoteInstructionDataArgs
     ),
   } as VoteInstruction<
-    typeof PALADIN_GOVERNANCE_PROGRAM_PROGRAM_ADDRESS,
+    typeof PALADIN_GOVERNANCE_PROGRAM_ADDRESS,
     TAccountStakeAuthority,
     TAccountStake,
     TAccountStakeConfig,
@@ -210,7 +210,7 @@ export function getVoteInstruction<
 }
 
 export type ParsedVoteInstruction<
-  TProgram extends string = typeof PALADIN_GOVERNANCE_PROGRAM_PROGRAM_ADDRESS,
+  TProgram extends string = typeof PALADIN_GOVERNANCE_PROGRAM_ADDRESS,
   TAccountMetas extends readonly IAccountMeta[] = readonly IAccountMeta[],
 > = {
   programAddress: Address<TProgram>;

@@ -1,6 +1,6 @@
 [package]
 name = "paladin-governance-program"
-version = "0.1.0"
+version = "0.0.1"
 description = "Paladin Governance Program"
 readme = "../README.md"
 edition = "2021"
