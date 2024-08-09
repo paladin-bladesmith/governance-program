@@ -832,7 +832,7 @@ fn process_finish_voting(program_id: &Pubkey, accounts: &[AccountInfo]) -> Progr
     let stake_config_info = next_account_info(accounts_iter)?;
 
     check_stake_config_exists(stake_config_info)?;
-    let _total_stake =
+    let total_stake =
         bytemuck::try_from_bytes::<StakeConfig>(&stake_config_info.try_borrow_data()?)
             .map_err(|_| ProgramError::InvalidAccountData)?
             .token_amount_delegated;
@@ -860,8 +860,18 @@ fn process_finish_voting(program_id: &Pubkey, accounts: &[AccountInfo]) -> Progr
         Some(_) => {
             // If the proposal is in a cooldown period, check if it has ended.
             if proposal_state.cooldown_has_ended(&clock) {
-                // If the cooldown period has ended, the proposal is accepted.
-                proposal_state.status = ProposalStatus::Accepted;
+                // If the cooldown period has ended, the proposal is accepted
+                // only if it still meets the acceptance threshold.
+                // If not, the proposal is rejected.
+                if calculate_proposal_vote_threshold(proposal_state.stake_for, total_stake)?
+                    >= proposal_state
+                        .governance_config
+                        .proposal_acceptance_threshold
+                {
+                    proposal_state.status = ProposalStatus::Accepted;
+                } else {
+                    proposal_state.status = ProposalStatus::Rejected;
+                }
                 Ok(())
             } else {
                 // If not, the proposal remains in the voting stage.
