@@ -26,7 +26,7 @@ import {
 } from '../instructions';
 
 export const PALADIN_GOVERNANCE_PROGRAM_ADDRESS =
-  '8vDzKeincu9R9u6Yzuh7TQ5VqPXCcZtfYh6mh82XscQj' as Address<'8vDzKeincu9R9u6Yzuh7TQ5VqPXCcZtfYh6mh82XscQj'>;
+  'PGovernance11111111111111111111111111111111' as Address<'PGovernance11111111111111111111111111111111'>;
 
 export enum PaladinGovernanceAccount {
   GovernanceConfig,
@@ -87,7 +87,7 @@ export function identifyPaladinGovernanceInstruction(
 }
 
 export type ParsedPaladinGovernanceInstruction<
-  TProgram extends string = '8vDzKeincu9R9u6Yzuh7TQ5VqPXCcZtfYh6mh82XscQj',
+  TProgram extends string = 'PGovernance11111111111111111111111111111111',
 > =
   | ({
       instructionType: PaladinGovernanceInstruction.CreateProposal;
