@@ -825,8 +825,49 @@ fn process_switch_vote(
 /// Processes a
 /// [FinishVoting](enum.PaladinGovernanceInstruction.html)
 /// instruction.
-fn process_finish_voting(_program_id: &Pubkey, _accounts: &[AccountInfo]) -> ProgramResult {
-    Ok(())
+fn process_finish_voting(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
+    let accounts_iter = &mut accounts.iter();
+
+    let proposal_info = next_account_info(accounts_iter)?;
+
+    check_proposal_exists(program_id, proposal_info)?;
+
+    let mut proposal_data = proposal_info.try_borrow_mut_data()?;
+    let proposal_state = bytemuck::try_from_bytes_mut::<Proposal>(&mut proposal_data)
+        .map_err(|_| ProgramError::InvalidAccountData)?;
+
+    // Ensure the proposal is in the voting stage.
+    if proposal_state.status != ProposalStatus::Voting {
+        return Err(PaladinGovernanceError::ProposalNotInVotingStage.into());
+    }
+
+    let clock = <Clock as Sysvar>::get()?;
+
+    match proposal_state.cooldown_timestamp {
+        Some(_) => {
+            // If the proposal is in a cooldown period, check if it has ended.
+            if proposal_state.cooldown_has_ended(&clock) {
+                // If the cooldown period has ended, the proposal is accepted.
+                proposal_state.status = ProposalStatus::Accepted;
+                Ok(())
+            } else {
+                // If not, the proposal remains in the voting stage.
+                Err(PaladinGovernanceError::ProposalNotAccepted.into())
+            }
+        }
+        None => {
+            // If the proposal is not in a cooldown period, check if the voting
+            // period has ended.
+            if proposal_state.voting_has_ended(&clock) {
+                // If the voting period has ended, the proposal is rejected.
+                proposal_state.status = ProposalStatus::Rejected;
+                Ok(())
+            } else {
+                // If not, the proposal remains in the voting stage.
+                Err(PaladinGovernanceError::ProposalVotingPeriodStillActive.into())
+            }
+        }
+    }
 }
 
 /// Processes a
