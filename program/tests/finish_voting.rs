@@ -147,7 +147,9 @@ async fn fail_proposal_not_accepted() {
         err,
         TransactionError::InstructionError(
             0,
-            InstructionError::Custom(PaladinGovernanceError::ProposalNotAccepted as u32)
+            InstructionError::Custom(
+                PaladinGovernanceError::ProposalVotingPeriodStillActive as u32
+            )
         )
     );
 }

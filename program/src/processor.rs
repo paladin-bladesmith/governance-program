@@ -852,7 +852,7 @@ fn process_finish_voting(program_id: &Pubkey, accounts: &[AccountInfo]) -> Progr
                 Ok(())
             } else {
                 // If not, the proposal remains in the voting stage.
-                Err(PaladinGovernanceError::ProposalNotAccepted.into())
+                Err(PaladinGovernanceError::ProposalVotingPeriodStillActive.into())
             }
         }
         None => {
