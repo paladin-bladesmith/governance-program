@@ -56,7 +56,7 @@ pub struct UpdateGovernanceInstructionData {
 
 impl UpdateGovernanceInstructionData {
     pub fn new() -> Self {
-        Self { discriminator: 9 }
+        Self { discriminator: 10 }
     }
 }
 
