@@ -63,7 +63,7 @@ export function getProcessInstructionInstructionDataEncoder(): Encoder<ProcessIn
       ['discriminator', getU8Encoder()],
       ['instructionIndex', getU32Encoder()],
     ]),
-    (value) => ({ ...value, discriminator: 7 })
+    (value) => ({ ...value, discriminator: 8 })
   );
 }
 

@@ -80,7 +80,7 @@ export function getInitializeGovernanceInstructionDataEncoder(): Encoder<Initial
       ['proposalRejectionThreshold', getU32Encoder()],
       ['votingPeriodSeconds', getU64Encoder()],
     ]),
-    (value) => ({ ...value, discriminator: 8 })
+    (value) => ({ ...value, discriminator: 9 })
   );
 }
 

@@ -9,6 +9,7 @@
 export * from './beginVoting';
 export * from './cancelProposal';
 export * from './createProposal';
+export * from './finishVoting';
 export * from './initializeGovernance';
 export * from './processInstruction';
 export * from './pushInstruction';

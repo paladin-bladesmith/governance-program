@@ -77,7 +77,7 @@ export function getUpdateGovernanceInstructionDataEncoder(): Encoder<UpdateGover
       ['proposalRejectionThreshold', getU32Encoder()],
       ['votingPeriodSeconds', getU64Encoder()],
     ]),
-    (value) => ({ ...value, discriminator: 9 })
+    (value) => ({ ...value, discriminator: 10 })
   );
 }
 
