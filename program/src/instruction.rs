@@ -271,6 +271,30 @@ pub enum PaladinGovernanceInstruction {
         /// New proposal vote election.
         new_election: ProposalVoteElection,
     },
+    /// Finish voting on a proposal. Marks a proposal as `Accepted` or
+    /// `Rejected`.
+    /// 
+    /// Permissionless instruction. Only succeeds under two conditions.
+    /// 
+    /// * If a proposal has reached the acceptance threshold _and_ the cooldown
+    ///   period has ended, marks the proposal as `Accepted`.
+    /// * If a proposal's voting period has ended, and no cooldown period is
+    ///   active, marks the proposal as `Rejected`.
+    ///
+    /// This way, accepted or expired proposals can be finalized without the
+    /// need for an additional vote or vote switch to be cast.
+    ///
+    /// Accounts expected by this instruction:
+    /// 
+    /// 0. `[w]` Proposal account.
+    #[account(
+        0,
+        writable,
+        name = "proposal",
+        description = "Proposal account"
+    )]
+    FinishVoting,
+    /// 
     /// Process an instruction in an accepted governance proposal.
     ///
     /// Given an accepted proposal and one of its instructions, executes it.
@@ -414,8 +438,9 @@ impl PaladinGovernanceInstruction {
             Self::BeginVoting => vec![4],
             Self::Vote { election } => vec![5, (*election).into()],
             Self::SwitchVote { new_election } => vec![6, (*new_election).into()],
+            Self::FinishVoting => vec![7],
             Self::ProcessInstruction { instruction_index } => {
-                let mut buf = vec![7];
+                let mut buf = vec![8];
                 buf.extend_from_slice(&instruction_index.to_le_bytes());
                 buf
             }
@@ -425,7 +450,7 @@ impl PaladinGovernanceInstruction {
                 proposal_rejection_threshold,
                 voting_period_seconds,
             } => {
-                let mut buf = vec![8];
+                let mut buf = vec![9];
                 buf.extend_from_slice(&cooldown_period_seconds.to_le_bytes());
                 buf.extend_from_slice(&proposal_acceptance_threshold.to_le_bytes());
                 buf.extend_from_slice(&proposal_rejection_threshold.to_le_bytes());
@@ -438,7 +463,7 @@ impl PaladinGovernanceInstruction {
                 proposal_rejection_threshold,
                 voting_period_seconds,
             } => {
-                let mut buf = vec![9];
+                let mut buf = vec![10];
                 buf.extend_from_slice(&cooldown_period_seconds.to_le_bytes());
                 buf.extend_from_slice(&proposal_acceptance_threshold.to_le_bytes());
                 buf.extend_from_slice(&proposal_rejection_threshold.to_le_bytes());
@@ -490,11 +515,12 @@ impl PaladinGovernanceInstruction {
                     .map_err(|_| ProgramError::InvalidInstructionData)?;
                 Ok(Self::SwitchVote { new_election })
             }
-            Some((&7, rest)) if rest.len() == 4 => {
+            Some((&7, _)) => Ok(Self::FinishVoting),
+            Some((&8, rest)) if rest.len() == 4 => {
                 let instruction_index = u32::from_le_bytes(rest.try_into().unwrap());
                 Ok(Self::ProcessInstruction { instruction_index })
             }
-            Some((&8, rest)) if rest.len() == 24 => {
+            Some((&9, rest)) if rest.len() == 24 => {
                 let cooldown_period_seconds = u64::from_le_bytes(rest[..8].try_into().unwrap());
                 let proposal_acceptance_threshold =
                     u32::from_le_bytes(rest[8..12].try_into().unwrap());
@@ -508,7 +534,7 @@ impl PaladinGovernanceInstruction {
                     voting_period_seconds,
                 })
             }
-            Some((&9, rest)) if rest.len() == 24 => {
+            Some((&10, rest)) if rest.len() == 24 => {
                 let cooldown_period_seconds = u64::from_le_bytes(rest[..8].try_into().unwrap());
                 let proposal_acceptance_threshold =
                     u32::from_le_bytes(rest[8..12].try_into().unwrap());
@@ -662,6 +688,15 @@ pub fn switch_vote(
 }
 
 /// Creates a
+/// [FinishVoting](enum.PaladinGovernanceInstruction.html)
+/// instruction.
+pub fn finish_voting(proposal_address: &Pubkey) -> Instruction {
+    let accounts = vec![AccountMeta::new(*proposal_address, false)];
+    let data = PaladinGovernanceInstruction::FinishVoting.pack();
+    Instruction::new_with_bytes(crate::id(), &data, accounts)
+}
+
+/// Creates a
 /// [ProcessInstruction](enum.PaladinGovernanceInstruction.html)
 /// instruction.
 pub fn process_instruction(
@@ -809,6 +844,11 @@ mod tests {
         test_pack_unpack(PaladinGovernanceInstruction::SwitchVote {
             new_election: ProposalVoteElection::Against,
         });
+    }
+
+    #[test]
+    fn test_pack_unpack_finish_voting() {
+        test_pack_unpack(PaladinGovernanceInstruction::FinishVoting);
     }
 
     #[test]
