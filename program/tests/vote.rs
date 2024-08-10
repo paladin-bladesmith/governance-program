@@ -1169,8 +1169,10 @@ async fn success_voting_closed_but_cooldown_active() {
     );
 }
 
+#[test_case(true, ProposalStatus::Accepted; "threshold_met")]
+#[test_case(false, ProposalStatus::Rejected; "threshold_not_met")]
 #[tokio::test]
-async fn success_cooldown_has_ended() {
+async fn success_cooldown_has_ended(threshold_met: bool, expected_status: ProposalStatus) {
     let stake_authority = Keypair::new();
     let validator_vote = Pubkey::new_unique();
     let stake_config = Pubkey::new_unique();
@@ -1181,17 +1183,31 @@ async fn success_cooldown_has_ended() {
     let proposal_vote =
         get_proposal_vote_address(&stake, &proposal, &paladin_governance_program::id());
 
-    let vote_stake = TOTAL_STAKE / 10;
-    let election = ProposalVoteElection::Against;
-
     let governance_config = GovernanceConfig::new(
         /* cooldown_period_seconds */ 10,
-        ACCEPTANCE_THRESHOLD,
+        ACCEPTANCE_THRESHOLD, // 50%
         REJECTION_THRESHOLD,
         /* signer_bump_seed */ 0,
         &stake_config,
         /* voting_period_seconds */ 1_000,
     );
+
+    let vote_stake = TOTAL_STAKE / 10;
+    let election = ProposalVoteElection::Against;
+
+    // We'll set up a proposal whose cooldown period has ended.
+    // If `threshold_met` is true, the proposal's stake_for will be set to the
+    // exact amount needed to meet the threshold.
+    // If `threshold_met` is false, the proposal's stake_for will be set to
+    // just below the threshold.
+    // The vote doesn't matter, since once cooldown is over, no more votes can
+    // be tallied, so this invocation is basically just a crank.
+    let accepance_threshold_stake_amount = TOTAL_STAKE / 2; // 50%
+    let proposal_stake_for = if threshold_met {
+        accepance_threshold_stake_amount
+    } else {
+        accepance_threshold_stake_amount - 1
+    };
 
     let mut context = setup().start_with_context().await;
     let clock = context.banks_client.get_sysvar::<Clock>().await.unwrap();
@@ -1214,7 +1230,7 @@ async fn success_cooldown_has_ended() {
         &stake_authority.pubkey(),
         /* creation_timestamp */ 0,
         governance_config,
-        /* stake_for */ TOTAL_STAKE,
+        /* stake_for */ proposal_stake_for,
         /* stake_against */ 0,
         /* stake_abstained */ 0,
         ProposalStatus::Voting,
@@ -1265,8 +1281,8 @@ async fn success_cooldown_has_ended() {
         .unwrap();
     let proposal_state = bytemuck::from_bytes::<Proposal>(&proposal_account.data);
 
-    // Assert the proposal was accepted.
-    assert_eq!(proposal_state.status, ProposalStatus::Accepted);
+    // Assert the proposal has the expected status.
+    assert_eq!(proposal_state.status, expected_status);
 
     let proposal_vote_account = context
         .banks_client

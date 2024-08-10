@@ -10,6 +10,8 @@ use borsh::{BorshDeserialize, BorshSerialize};
 pub struct FinishVoting {
     /// Proposal account
     pub proposal: solana_program::pubkey::Pubkey,
+    /// Paladin stake config account
+    pub stake_config: solana_program::pubkey::Pubkey,
 }
 
 impl FinishVoting {
@@ -21,9 +23,13 @@ impl FinishVoting {
         &self,
         remaining_accounts: &[solana_program::instruction::AccountMeta],
     ) -> solana_program::instruction::Instruction {
-        let mut accounts = Vec::with_capacity(1 + remaining_accounts.len());
+        let mut accounts = Vec::with_capacity(2 + remaining_accounts.len());
         accounts.push(solana_program::instruction::AccountMeta::new(
             self.proposal,
+            false,
+        ));
+        accounts.push(solana_program::instruction::AccountMeta::new_readonly(
+            self.stake_config,
             false,
         ));
         accounts.extend_from_slice(remaining_accounts);
@@ -59,9 +65,11 @@ impl Default for FinishVotingInstructionData {
 /// ### Accounts:
 ///
 ///   0. `[writable]` proposal
+///   1. `[]` stake_config
 #[derive(Clone, Debug, Default)]
 pub struct FinishVotingBuilder {
     proposal: Option<solana_program::pubkey::Pubkey>,
+    stake_config: Option<solana_program::pubkey::Pubkey>,
     __remaining_accounts: Vec<solana_program::instruction::AccountMeta>,
 }
 
@@ -73,6 +81,12 @@ impl FinishVotingBuilder {
     #[inline(always)]
     pub fn proposal(&mut self, proposal: solana_program::pubkey::Pubkey) -> &mut Self {
         self.proposal = Some(proposal);
+        self
+    }
+    /// Paladin stake config account
+    #[inline(always)]
+    pub fn stake_config(&mut self, stake_config: solana_program::pubkey::Pubkey) -> &mut Self {
+        self.stake_config = Some(stake_config);
         self
     }
     /// Add an aditional account to the instruction.
@@ -97,6 +111,7 @@ impl FinishVotingBuilder {
     pub fn instruction(&self) -> solana_program::instruction::Instruction {
         let accounts = FinishVoting {
             proposal: self.proposal.expect("proposal is not set"),
+            stake_config: self.stake_config.expect("stake_config is not set"),
         };
 
         accounts.instruction_with_remaining_accounts(&self.__remaining_accounts)
@@ -107,6 +122,8 @@ impl FinishVotingBuilder {
 pub struct FinishVotingCpiAccounts<'a, 'b> {
     /// Proposal account
     pub proposal: &'b solana_program::account_info::AccountInfo<'a>,
+    /// Paladin stake config account
+    pub stake_config: &'b solana_program::account_info::AccountInfo<'a>,
 }
 
 /// `finish_voting` CPI instruction.
@@ -115,6 +132,8 @@ pub struct FinishVotingCpi<'a, 'b> {
     pub __program: &'b solana_program::account_info::AccountInfo<'a>,
     /// Proposal account
     pub proposal: &'b solana_program::account_info::AccountInfo<'a>,
+    /// Paladin stake config account
+    pub stake_config: &'b solana_program::account_info::AccountInfo<'a>,
 }
 
 impl<'a, 'b> FinishVotingCpi<'a, 'b> {
@@ -125,6 +144,7 @@ impl<'a, 'b> FinishVotingCpi<'a, 'b> {
         Self {
             __program: program,
             proposal: accounts.proposal,
+            stake_config: accounts.stake_config,
         }
     }
     #[inline(always)]
@@ -160,9 +180,13 @@ impl<'a, 'b> FinishVotingCpi<'a, 'b> {
             bool,
         )],
     ) -> solana_program::entrypoint::ProgramResult {
-        let mut accounts = Vec::with_capacity(1 + remaining_accounts.len());
+        let mut accounts = Vec::with_capacity(2 + remaining_accounts.len());
         accounts.push(solana_program::instruction::AccountMeta::new(
             *self.proposal.key,
+            false,
+        ));
+        accounts.push(solana_program::instruction::AccountMeta::new_readonly(
+            *self.stake_config.key,
             false,
         ));
         remaining_accounts.iter().for_each(|remaining_account| {
@@ -179,9 +203,10 @@ impl<'a, 'b> FinishVotingCpi<'a, 'b> {
             accounts,
             data,
         };
-        let mut account_infos = Vec::with_capacity(1 + 1 + remaining_accounts.len());
+        let mut account_infos = Vec::with_capacity(2 + 1 + remaining_accounts.len());
         account_infos.push(self.__program.clone());
         account_infos.push(self.proposal.clone());
+        account_infos.push(self.stake_config.clone());
         remaining_accounts
             .iter()
             .for_each(|remaining_account| account_infos.push(remaining_account.0.clone()));
@@ -199,6 +224,7 @@ impl<'a, 'b> FinishVotingCpi<'a, 'b> {
 /// ### Accounts:
 ///
 ///   0. `[writable]` proposal
+///   1. `[]` stake_config
 #[derive(Clone, Debug)]
 pub struct FinishVotingCpiBuilder<'a, 'b> {
     instruction: Box<FinishVotingCpiBuilderInstruction<'a, 'b>>,
@@ -209,6 +235,7 @@ impl<'a, 'b> FinishVotingCpiBuilder<'a, 'b> {
         let instruction = Box::new(FinishVotingCpiBuilderInstruction {
             __program: program,
             proposal: None,
+            stake_config: None,
             __remaining_accounts: Vec::new(),
         });
         Self { instruction }
@@ -220,6 +247,15 @@ impl<'a, 'b> FinishVotingCpiBuilder<'a, 'b> {
         proposal: &'b solana_program::account_info::AccountInfo<'a>,
     ) -> &mut Self {
         self.instruction.proposal = Some(proposal);
+        self
+    }
+    /// Paladin stake config account
+    #[inline(always)]
+    pub fn stake_config(
+        &mut self,
+        stake_config: &'b solana_program::account_info::AccountInfo<'a>,
+    ) -> &mut Self {
+        self.instruction.stake_config = Some(stake_config);
         self
     }
     /// Add an additional account to the instruction.
@@ -268,6 +304,11 @@ impl<'a, 'b> FinishVotingCpiBuilder<'a, 'b> {
             __program: self.instruction.__program,
 
             proposal: self.instruction.proposal.expect("proposal is not set"),
+
+            stake_config: self
+                .instruction
+                .stake_config
+                .expect("stake_config is not set"),
         };
         instruction.invoke_signed_with_remaining_accounts(
             signers_seeds,
@@ -280,6 +321,7 @@ impl<'a, 'b> FinishVotingCpiBuilder<'a, 'b> {
 struct FinishVotingCpiBuilderInstruction<'a, 'b> {
     __program: &'b solana_program::account_info::AccountInfo<'a>,
     proposal: Option<&'b solana_program::account_info::AccountInfo<'a>>,
+    stake_config: Option<&'b solana_program::account_info::AccountInfo<'a>>,
     /// Additional instruction accounts `(AccountInfo, is_writable, is_signer)`.
     __remaining_accounts: Vec<(
         &'b solana_program::account_info::AccountInfo<'a>,
