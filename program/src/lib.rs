@@ -9,6 +9,7 @@
 //! operations, including the minimum stake support required for a proposal to
 //! be accepted or rejected, the voting time period, and more.
 
+#![allow(unexpected_cfgs)]
 #[cfg(all(target_os = "solana", feature = "bpf-entrypoint"))]
 mod entrypoint;
 pub mod error;
