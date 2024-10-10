@@ -11,9 +11,9 @@ crate-type = ["cdylib", "lib"]
 [dependencies]
 borsh = { version = "1.5.1", features = ["derive"] }
 bytemuck = { version = "1.16.1", features = ["derive"] }
-num_enum = "0.7.2"
 num-derive = "0.3"
 num-traits = "0.2"
+num_enum = "0.7.2"
 paladin-stake-program = { git = "https://github.com/paladin-bladesmith/stake-program.git" }
 shank = "0.4.2"
 solana-program = "2.0"
