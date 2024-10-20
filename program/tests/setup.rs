@@ -33,7 +33,8 @@ pub async fn setup_stake(
     amount: u64,
 ) {
     let mut state = ValidatorStake::new(*authority_address, *validator_vote_address);
-    state.delegation.amount = amount;
+    state.delegation.active_amount = amount;
+    state.delegation.effective_amount = amount;
     let data = bytemuck::bytes_of(&state).to_vec();
 
     let rent = context.banks_client.get_rent().await.unwrap();
@@ -61,9 +62,11 @@ pub async fn setup_stake_config(
         /* vault */ Pubkey::new_unique(),
         /* cooldown_time_seconds */ 0,
         /* max_deactivation_basis_points */ 0,
+        /* sync_rewards_lamports */ 0,
         /* vault_authority_bump */ 0,
+        /* lamports_last */ 0,
     );
-    state.token_amount_delegated = total_stake;
+    state.token_amount_effective = total_stake;
 
     let data = bytemuck::bytes_of(&state).to_vec();
 

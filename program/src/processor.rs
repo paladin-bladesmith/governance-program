@@ -81,7 +81,7 @@ fn get_stake_checked(
         return Err(PaladinGovernanceError::StakeConfigMismatch.into());
     }
 
-    Ok(state.delegation.amount)
+    Ok(state.delegation.effective_amount)
 }
 
 fn check_stake_config_exists(stake_config_info: &AccountInfo) -> ProgramResult {
@@ -533,7 +533,7 @@ fn process_vote(
     let total_stake =
         bytemuck::try_from_bytes::<StakeConfig>(&stake_config_info.try_borrow_data()?)
             .map_err(|_| ProgramError::InvalidAccountData)?
-            .token_amount_delegated;
+            .token_amount_effective;
 
     check_proposal_exists(program_id, proposal_info)?;
 
@@ -691,7 +691,7 @@ fn process_switch_vote(
     let total_stake =
         bytemuck::try_from_bytes::<StakeConfig>(&stake_config_info.try_borrow_data()?)
             .map_err(|_| ProgramError::InvalidAccountData)?
-            .token_amount_delegated;
+            .token_amount_effective;
 
     check_proposal_exists(program_id, proposal_info)?;
 
@@ -855,7 +855,7 @@ fn process_finish_voting(program_id: &Pubkey, accounts: &[AccountInfo]) -> Progr
     let total_stake =
         bytemuck::try_from_bytes::<StakeConfig>(&stake_config_info.try_borrow_data()?)
             .map_err(|_| ProgramError::InvalidAccountData)?
-            .token_amount_delegated;
+            .token_amount_effective;
 
     check_proposal_exists(program_id, proposal_info)?;
 
