@@ -273,9 +273,9 @@ pub enum PaladinGovernanceInstruction {
     },
     /// Finish voting on a proposal. Marks a proposal as `Accepted` or
     /// `Rejected`.
-    /// 
+    ///
     /// Permissionless instruction. Only succeeds under two conditions.
-    /// 
+    ///
     /// * If a proposal has reached the acceptance threshold _and_ the cooldown
     ///   period has ended, marks the proposal as `Accepted`.
     /// * If a proposal's voting period has ended, and no cooldown period is
@@ -285,7 +285,7 @@ pub enum PaladinGovernanceInstruction {
     /// need for an additional vote or vote switch to be cast.
     ///
     /// Accounts expected by this instruction:
-    /// 
+    ///
     /// 0. `[w]` Proposal account.
     /// 1. `[ ]` Paladin stake config account.
     #[account(
@@ -300,7 +300,7 @@ pub enum PaladinGovernanceInstruction {
         description = "Paladin stake config account"
     )]
     FinishVoting,
-    /// 
+    ///
     /// Process an instruction in an accepted governance proposal.
     ///
     /// Given an accepted proposal and one of its instructions, executes it.
