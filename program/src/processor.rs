@@ -29,6 +29,7 @@ use {
         program::invoke_signed,
         program_error::ProgramError,
         pubkey::Pubkey,
+        rent::Rent,
         system_instruction,
         sysvar::Sysvar,
     },
@@ -257,11 +258,16 @@ fn process_create_proposal(program_id: &Pubkey, accounts: &[AccountInfo]) -> Pro
         }
 
         let state = ProposalTransaction::default();
-        let space = get_instance_packed_len(&state)? as u64;
+        let space = get_instance_packed_len(&state)?;
+
+        // Ensure the account is rent exempt.
+        if governance_info.lamports() < Rent::get()?.minimum_balance(space) {
+            return Err(ProgramError::AccountNotRentExempt);
+        }
 
         // Allocate & assign.
         invoke_signed(
-            &system_instruction::allocate(&proposal_transaction_address, space),
+            &system_instruction::allocate(&proposal_transaction_address, space as u64),
             &[proposal_transaction_info.clone()],
             &[&proposal_transaction_signer_seeds],
         )?;
@@ -588,8 +594,8 @@ fn process_vote(
         let proposal_vote_signer_seeds =
             collect_proposal_vote_signer_seeds(stake_info.key, proposal_info.key, &bump_seed);
 
-        // Ensure the provided proposal vote address is the correct address
-        // derived from the stake authority and proposal.
+        // Ensure the provided proposal vote address is the correct address derived from
+        // the stake authority and proposal.
         if !proposal_vote_info.key.eq(&proposal_vote_address) {
             return Err(PaladinGovernanceError::IncorrectProposalVoteAddress.into());
         }
@@ -599,12 +605,15 @@ fn process_vote(
             return Err(ProgramError::AccountAlreadyInitialized);
         }
 
+        // Ensure the account is rent exempt.
+        let size = std::mem::size_of::<ProposalVote>();
+        if proposal_vote_info.lamports() < Rent::get()?.minimum_balance(size) {
+            return Err(ProgramError::AccountNotRentExempt);
+        }
+
         // Allocate & assign.
         invoke_signed(
-            &system_instruction::allocate(
-                &proposal_vote_address,
-                std::mem::size_of::<ProposalVote>() as u64,
-            ),
+            &system_instruction::allocate(&proposal_vote_address, size as u64),
             &[proposal_vote_info.clone()],
             &[&proposal_vote_signer_seeds],
         )?;
@@ -1043,12 +1052,15 @@ fn process_initialize_governance(
             return Err(ProgramError::AccountAlreadyInitialized);
         }
 
+        // Ensure the account is rent exempt.
+        let size = std::mem::size_of::<GovernanceConfig>();
+        if governance_info.lamports() < Rent::get()?.minimum_balance(size) {
+            return Err(ProgramError::AccountNotRentExempt);
+        }
+
         // Allocate & assign.
         invoke_signed(
-            &system_instruction::allocate(
-                &governance_address,
-                std::mem::size_of::<GovernanceConfig>() as u64,
-            ),
+            &system_instruction::allocate(&governance_address, size as u64),
             &[governance_info.clone()],
             &[&governance_signer_seeds],
         )?;
