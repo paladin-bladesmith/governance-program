@@ -96,14 +96,15 @@ async fn fail_governance_incorrect_owner() {
     let proposal_transaction_address =
         get_proposal_transaction_address(&proposal_address, &paladin_governance_program::id());
 
-    let original_governance_config = GovernanceConfig::new(
-        /* cooldown_period_seconds */ 0,
-        /* proposal_acceptance_threshold */ 0,
-        /* proposal_rejection_threshold */ 0,
-        /* signer_bump_seed */ 0,
-        /* stake_config_address */ &stake_config_address,
-        /* voting_period_seconds */ 0,
-    );
+    let original_governance_config = GovernanceConfig {
+        cooldown_period_seconds: 0,
+        proposal_acceptance_threshold: 0,
+        proposal_rejection_threshold: 0,
+        signer_bump_seed: 0,
+        _padding: [0; 7],
+        stake_config_address,
+        voting_period_seconds: 0,
+    };
 
     let new_cooldown_period_seconds = 1;
     let new_proposal_acceptance_threshold = 2;
@@ -188,14 +189,15 @@ async fn fail_governance_not_initialized() {
     let proposal_transaction_address =
         get_proposal_transaction_address(&proposal_address, &paladin_governance_program::id());
 
-    let original_governance_config = GovernanceConfig::new(
-        /* cooldown_period_seconds */ 0,
-        /* proposal_acceptance_threshold */ 0,
-        /* proposal_rejection_threshold */ 0,
-        /* signer_bump_seed */ 0,
-        /* stake_config_address */ &stake_config_address,
-        /* voting_period_seconds */ 0,
-    );
+    let original_governance_config = GovernanceConfig {
+        cooldown_period_seconds: 0,
+        proposal_acceptance_threshold: 0,
+        proposal_rejection_threshold: 0,
+        signer_bump_seed: 0,
+        _padding: [0; 7],
+        stake_config_address,
+        voting_period_seconds: 0,
+    };
 
     let new_cooldown_period_seconds = 1;
     let new_proposal_acceptance_threshold = 2;
@@ -279,14 +281,15 @@ async fn fail_treasury_incorrect_address() {
     let proposal_transaction_address =
         get_proposal_transaction_address(&proposal_address, &paladin_governance_program::id());
 
-    let original_governance_config = GovernanceConfig::new(
-        /* cooldown_period_seconds */ 0,
-        /* proposal_acceptance_threshold */ 0,
-        /* proposal_rejection_threshold */ 0,
-        /* signer_bump_seed */ 0,
-        /* stake_config_address */ &stake_config_address,
-        /* voting_period_seconds */ 0,
-    );
+    let original_governance_config = GovernanceConfig {
+        cooldown_period_seconds: 0,
+        proposal_acceptance_threshold: 0,
+        proposal_rejection_threshold: 0,
+        signer_bump_seed: 0,
+        _padding: [0; 7],
+        stake_config_address,
+        voting_period_seconds: 0,
+    };
 
     let new_cooldown_period_seconds = 1;
     let new_proposal_acceptance_threshold = 2;
@@ -300,7 +303,7 @@ async fn fail_treasury_incorrect_address() {
         original_governance_config.cooldown_period_seconds,
         original_governance_config.proposal_acceptance_threshold,
         original_governance_config.proposal_rejection_threshold,
-        &original_governance_config.stake_config_address,
+        original_governance_config.stake_config_address,
         original_governance_config.voting_period_seconds,
     )
     .await;
@@ -369,14 +372,15 @@ async fn fail_governance_incorrect_address() {
     let proposal_transaction_address =
         get_proposal_transaction_address(&proposal_address, &paladin_governance_program::id());
 
-    let original_governance_config = GovernanceConfig::new(
-        /* cooldown_period_seconds */ 0,
-        /* proposal_acceptance_threshold */ 0,
-        /* proposal_rejection_threshold */ 0,
-        /* signer_bump_seed */ 0,
-        /* stake_config_address */ &stake_config_address,
-        /* voting_period_seconds */ 0,
-    );
+    let original_governance_config = GovernanceConfig {
+        cooldown_period_seconds: 0,
+        proposal_acceptance_threshold: 0,
+        proposal_rejection_threshold: 0,
+        signer_bump_seed: 0,
+        _padding: [0; 7],
+        stake_config_address,
+        voting_period_seconds: 0,
+    };
 
     let new_cooldown_period_seconds = 1;
     let new_proposal_acceptance_threshold = 2;
@@ -390,7 +394,7 @@ async fn fail_governance_incorrect_address() {
         original_governance_config.cooldown_period_seconds,
         original_governance_config.proposal_acceptance_threshold,
         original_governance_config.proposal_rejection_threshold,
-        &original_governance_config.stake_config_address,
+        original_governance_config.stake_config_address,
         original_governance_config.voting_period_seconds,
     )
     .await;
@@ -465,14 +469,15 @@ async fn success() {
     let proposal_transaction_address =
         get_proposal_transaction_address(&proposal_address, &paladin_governance_program::id());
 
-    let original_governance_config = GovernanceConfig::new(
-        /* cooldown_period_seconds */ 0,
-        /* proposal_acceptance_threshold */ 0,
-        /* proposal_rejection_threshold */ 0,
-        /* signer_bump_seed */ 0,
-        /* stake_config_address */ &stake_config_address,
-        /* voting_period_seconds */ 0,
-    );
+    let original_governance_config = GovernanceConfig {
+        cooldown_period_seconds: 0,
+        proposal_acceptance_threshold: 0,
+        proposal_rejection_threshold: 0,
+        signer_bump_seed: 0,
+        _padding: [0; 7],
+        stake_config_address,
+        voting_period_seconds: 0,
+    };
 
     let new_cooldown_period_seconds = 1;
     let new_proposal_acceptance_threshold = 2;
@@ -486,7 +491,7 @@ async fn success() {
         original_governance_config.cooldown_period_seconds,
         original_governance_config.proposal_acceptance_threshold,
         original_governance_config.proposal_rejection_threshold,
-        &original_governance_config.stake_config_address,
+        original_governance_config.stake_config_address,
         original_governance_config.voting_period_seconds,
     )
     .await;

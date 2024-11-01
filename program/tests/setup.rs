@@ -90,17 +90,18 @@ pub async fn setup_governance(
     cooldown_period_seconds: u64,
     proposal_acceptance_threshold: u32,
     proposal_rejection_threshold: u32,
-    stake_config_address: &Pubkey,
+    stake_config_address: Pubkey,
     voting_period_seconds: u64,
 ) {
-    let state = GovernanceConfig::new(
+    let state = GovernanceConfig {
         cooldown_period_seconds,
         proposal_acceptance_threshold,
         proposal_rejection_threshold,
-        /* signer_bump_seed */ 0, // TODO: Unused right now.
+        signer_bump_seed: 0, // TODO: Unused right now.
+        _padding: [0; 7],
         stake_config_address,
         voting_period_seconds,
-    );
+    };
     let data = bytemuck::bytes_of(&state).to_vec();
 
     let rent = context.banks_client.get_rent().await.unwrap();

@@ -517,14 +517,15 @@ async fn success() {
         get_proposal_transaction_address(&proposal_address, &paladin_governance_program::id());
 
     let stake_config_address = Pubkey::new_unique();
-    let governance_config = GovernanceConfig::new(
-        /* cooldown_period_seconds */ 0,
-        /* proposal_acceptance_threshold */ 0,
-        /* proposal_rejection_threshold */ 0,
-        /* signer_bump_seed */ 0,
-        /* stake_config_address */ &stake_config_address,
-        /* voting_period_seconds */ 0,
-    );
+    let governance_config = GovernanceConfig {
+        cooldown_period_seconds: 0,
+        proposal_acceptance_threshold: 0,
+        proposal_rejection_threshold: 0,
+        signer_bump_seed: 0,
+        _padding: [0; 7],
+        stake_config_address: stake_config_address,
+        voting_period_seconds: 0,
+    };
 
     let treasury = get_treasury_address(&stake_config_address, &paladin_governance_program::id());
     let alice = Keypair::new();

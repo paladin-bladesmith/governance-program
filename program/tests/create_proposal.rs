@@ -356,7 +356,7 @@ async fn fail_proposal_incorrect_owner() {
         0,
         0,
         0,
-        /* stake_config_address */ &Pubkey::new_unique(), // Doesn't matter here.
+        /* stake_config_address */ Pubkey::new_unique(), // Doesn't matter here.
         0,
     )
     .await;
@@ -424,7 +424,7 @@ async fn fail_proposal_not_enough_space() {
         0,
         0,
         0,
-        /* stake_config_address */ &Pubkey::new_unique(), // Doesn't matter here.
+        /* stake_config_address */ Pubkey::new_unique(), // Doesn't matter here.
         0,
     )
     .await;
@@ -492,7 +492,7 @@ async fn fail_proposal_already_initialized() {
         0,
         0,
         0,
-        /* stake_config_address */ &Pubkey::new_unique(), // Doesn't matter here.
+        /* stake_config_address */ Pubkey::new_unique(), // Doesn't matter here.
         0,
     )
     .await;
@@ -544,14 +544,15 @@ async fn fail_proposal_transaction_incorrect_address() {
     let proposal_transaction = Pubkey::new_unique(); // Incorrect address.
     let governance = Pubkey::new_unique(); // PDA doesn't matter here.
 
-    let governance_config = GovernanceConfig::new(
-        /* cooldown_period_seconds */ 100_000_000,
-        /* proposal_acceptance_threshold */ 500_000_000, // 50%
-        /* proposal_rejection_threshold */ 500_000_000, // 50%
-        /* signer_bump_seed */ 0,
-        /* stake_config_address */ &Pubkey::new_unique(), // Doesn't matter here.
-        /* voting_period_seconds */ 100_000_000,
-    );
+    let governance_config = GovernanceConfig {
+        cooldown_period_seconds: 100_000_000,
+        proposal_acceptance_threshold: 500_000_000, // 50%
+        proposal_rejection_threshold: 500_000_000,  // 50%
+        signer_bump_seed: 0,
+        _padding: [0; 7],
+        stake_config_address: Pubkey::new_unique(), // Doesn't matter here.
+        voting_period_seconds: 100_000_000,
+    };
 
     let mut context = setup().start_with_context().await;
     setup_stake(
@@ -568,7 +569,7 @@ async fn fail_proposal_transaction_incorrect_address() {
         governance_config.cooldown_period_seconds,
         governance_config.proposal_acceptance_threshold,
         governance_config.proposal_rejection_threshold,
-        &governance_config.stake_config_address,
+        governance_config.stake_config_address,
         governance_config.voting_period_seconds,
     )
     .await;
@@ -627,14 +628,15 @@ async fn fail_proposal_transaction_already_initialized() {
         get_proposal_transaction_address(&proposal, &paladin_governance_program::id());
     let governance = Pubkey::new_unique(); // PDA doesn't matter here.
 
-    let governance_config = GovernanceConfig::new(
-        /* cooldown_period_seconds */ 100_000_000,
-        /* proposal_acceptance_threshold */ 500_000_000, // 50%
-        /* proposal_rejection_threshold */ 500_000_000, // 50%
-        /* signer_bump_seed */ 0,
-        /* stake_config_address */ &Pubkey::new_unique(), // Doesn't matter here.
-        /* voting_period_seconds */ 100_000_000,
-    );
+    let governance_config = GovernanceConfig {
+        cooldown_period_seconds: 100_000_000,
+        proposal_acceptance_threshold: 500_000_000, // 50%
+        proposal_rejection_threshold: 500_000_000,  // 50%
+        signer_bump_seed: 0,
+        _padding: [0; 7],
+        stake_config_address: Pubkey::new_unique(), // Doesn't matter here.
+        voting_period_seconds: 100_000_000,
+    };
 
     let mut context = setup().start_with_context().await;
     setup_stake(
@@ -651,7 +653,7 @@ async fn fail_proposal_transaction_already_initialized() {
         governance_config.cooldown_period_seconds,
         governance_config.proposal_acceptance_threshold,
         governance_config.proposal_rejection_threshold,
-        &governance_config.stake_config_address,
+        governance_config.stake_config_address,
         governance_config.voting_period_seconds,
     )
     .await;
@@ -713,14 +715,15 @@ async fn success() {
         get_proposal_transaction_address(&proposal, &paladin_governance_program::id());
     let governance = Pubkey::new_unique(); // PDA doesn't matter here.
 
-    let governance_config = GovernanceConfig::new(
-        /* cooldown_period_seconds */ 100_000_000,
-        /* proposal_acceptance_threshold */ 500_000_000, // 50%
-        /* proposal_rejection_threshold */ 500_000_000, // 50%
-        /* signer_bump_seed */ 0,
-        /* stake_config_address */ &Pubkey::new_unique(), // Doesn't matter here.
-        /* voting_period_seconds */ 100_000_000,
-    );
+    let governance_config = GovernanceConfig {
+        cooldown_period_seconds: 100_000_000,
+        proposal_acceptance_threshold: 500_000_000, // 50%
+        proposal_rejection_threshold: 500_000_000,  // 50%
+        signer_bump_seed: 0,
+        _padding: [0; 7],
+        stake_config_address: Pubkey::new_unique(), // Doesn't matter here.
+        voting_period_seconds: 100_000_000,
+    };
 
     let mut context = setup().start_with_context().await;
     setup_stake(
@@ -737,7 +740,7 @@ async fn success() {
         governance_config.cooldown_period_seconds,
         governance_config.proposal_acceptance_threshold,
         governance_config.proposal_rejection_threshold,
-        &governance_config.stake_config_address,
+        governance_config.stake_config_address,
         governance_config.voting_period_seconds,
     )
     .await;

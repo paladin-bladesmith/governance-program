@@ -1073,20 +1073,21 @@ fn process_initialize_governance(
         // Write the data.
         let mut data = governance_info.try_borrow_mut_data()?;
         *bytemuck::try_from_bytes_mut(&mut data).map_err(|_| ProgramError::InvalidAccountData)? =
-            GovernanceConfig::new(
+            GovernanceConfig {
                 cooldown_period_seconds,
                 proposal_acceptance_threshold,
                 proposal_rejection_threshold,
                 signer_bump_seed,
-                stake_config_info.key,
+                _padding: [0; 7],
+                stake_config_address: *stake_config_info.key,
                 voting_period_seconds,
-            );
+            };
     }
 
     Ok(())
 }
 
-/// Processes a
+/// Processes an
 /// [UpdateGovernance](enum.PaladinGovernanceInstruction.html)
 /// instruction.
 fn process_update_governance(

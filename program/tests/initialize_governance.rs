@@ -166,7 +166,7 @@ async fn fail_governance_already_initialized() {
     setup_stake_config(&mut context, &stake_config, /* total_stake */ 100).await;
 
     // Set up an already initialized governance account.
-    setup_governance(&mut context, &governance, 0, 0, 0, &stake_config, 0).await;
+    setup_governance(&mut context, &governance, 0, 0, 0, stake_config, 0).await;
 
     let instruction = initialize_governance(
         &governance,

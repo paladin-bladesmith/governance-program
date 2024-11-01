@@ -517,14 +517,15 @@ async fn fail_proposal_not_voting() {
     let proposal_vote =
         get_proposal_vote_address(&stake, &proposal, &paladin_governance_program::id());
 
-    let governance_config = GovernanceConfig::new(
-        /* cooldown_period_seconds */ 0,
-        /* proposal_acceptance_threshold */ 0,
-        /* proposal_rejection_threshold */ 0,
-        /* signer_bump_seed */ 0,
-        /* stake_config_address */ &stake_config,
-        /* voting_period_seconds */ 0,
-    );
+    let governance_config = GovernanceConfig {
+        cooldown_period_seconds: 0,
+        proposal_acceptance_threshold: 0,
+        proposal_rejection_threshold: 0,
+        signer_bump_seed: 0,
+        _padding: [0; 7],
+        stake_config_address: stake_config,
+        voting_period_seconds: 0,
+    };
 
     let mut context = setup().start_with_context().await;
     setup_stake_config(&mut context, &stake_config, 0).await;
@@ -589,14 +590,15 @@ async fn fail_proposal_vote_incorrect_address() {
         find_validator_stake_pda(&validator_vote, &stake_config, &paladin_stake_program::id()).0;
     let proposal_vote = Pubkey::new_unique(); // Incorrect proposal vote address.
 
-    let governance_config = GovernanceConfig::new(
-        /* cooldown_period_seconds */ 0,
-        /* proposal_acceptance_threshold */ 0,
-        /* proposal_rejection_threshold */ 0,
-        /* signer_bump_seed */ 0,
-        /* stake_config_address */ &stake_config,
-        /* voting_period_seconds */ 0,
-    );
+    let governance_config = GovernanceConfig {
+        cooldown_period_seconds: 0,
+        proposal_acceptance_threshold: 0,
+        proposal_rejection_threshold: 0,
+        signer_bump_seed: 0,
+        _padding: [0; 7],
+        stake_config_address: stake_config,
+        voting_period_seconds: 0,
+    };
 
     let mut context = setup().start_with_context().await;
     setup_stake_config(&mut context, &stake_config, 0).await;
@@ -662,14 +664,15 @@ async fn fail_proposal_vote_already_initialized() {
     let proposal_vote =
         get_proposal_vote_address(&stake, &proposal, &paladin_governance_program::id());
 
-    let governance_config = GovernanceConfig::new(
-        /* cooldown_period_seconds */ 0,
-        /* proposal_acceptance_threshold */ 0,
-        /* proposal_rejection_threshold */ 0,
-        /* signer_bump_seed */ 0,
-        /* stake_config_address */ &stake_config,
-        /* voting_period_seconds */ 0,
-    );
+    let governance_config = GovernanceConfig {
+        cooldown_period_seconds: 0,
+        proposal_acceptance_threshold: 0,
+        proposal_rejection_threshold: 0,
+        signer_bump_seed: 0,
+        _padding: [0; 7],
+        stake_config_address: stake_config,
+        voting_period_seconds: 0,
+    };
 
     let mut context = setup().start_with_context().await;
     setup_stake_config(&mut context, &stake_config, 0).await;
@@ -832,14 +835,15 @@ async fn success(vote: Vote, expect: Expect) {
     let proposal_vote =
         get_proposal_vote_address(&stake, &proposal, &paladin_governance_program::id());
 
-    let governance_config = GovernanceConfig::new(
-        COOLDOWN_PERIOD_SECONDS,
-        ACCEPTANCE_THRESHOLD,
-        REJECTION_THRESHOLD,
-        /* signer_bump_seed */ 0,
-        &stake_config,
-        VOTING_PERIOD_SECONDS,
-    );
+    let governance_config = GovernanceConfig {
+        cooldown_period_seconds: COOLDOWN_PERIOD_SECONDS,
+        proposal_acceptance_threshold: ACCEPTANCE_THRESHOLD,
+        proposal_rejection_threshold: REJECTION_THRESHOLD,
+        signer_bump_seed: 0,
+        _padding: [0; 7],
+        stake_config_address: stake_config,
+        voting_period_seconds: VOTING_PERIOD_SECONDS,
+    };
 
     let mut context = setup().start_with_context().await;
     let clock = context.banks_client.get_sysvar::<Clock>().await.unwrap();
@@ -961,14 +965,15 @@ async fn success_voting_closed() {
     let vote_stake = TOTAL_STAKE / 10;
     let election = ProposalVoteElection::Against;
 
-    let governance_config = GovernanceConfig::new(
-        /* cooldown_period_seconds */ 10,
-        ACCEPTANCE_THRESHOLD,
-        REJECTION_THRESHOLD,
-        /* signer_bump_seed */ 0,
-        &stake_config,
-        /* voting_period_seconds */ 10,
-    );
+    let governance_config = GovernanceConfig {
+        cooldown_period_seconds: 10,
+        proposal_acceptance_threshold: ACCEPTANCE_THRESHOLD,
+        proposal_rejection_threshold: REJECTION_THRESHOLD,
+        signer_bump_seed: 0,
+        _padding: [0; 7],
+        stake_config_address: stake_config,
+        voting_period_seconds: 10,
+    };
 
     let mut context = setup().start_with_context().await;
 
@@ -1071,14 +1076,15 @@ async fn success_voting_closed_but_cooldown_active() {
     let vote_stake = TOTAL_STAKE / 10;
     let election = ProposalVoteElection::Against;
 
-    let governance_config = GovernanceConfig::new(
-        /* cooldown_period_seconds */ 1_000,
-        ACCEPTANCE_THRESHOLD,
-        REJECTION_THRESHOLD,
-        /* signer_bump_seed */ 0,
-        &stake_config,
-        /* voting_period_seconds */ 10,
-    );
+    let governance_config = GovernanceConfig {
+        cooldown_period_seconds: 1_000,
+        proposal_acceptance_threshold: ACCEPTANCE_THRESHOLD,
+        proposal_rejection_threshold: REJECTION_THRESHOLD,
+        signer_bump_seed: 0,
+        _padding: [0; 7],
+        stake_config_address: stake_config,
+        voting_period_seconds: 10,
+    };
 
     let mut context = setup().start_with_context().await;
     let clock = context.banks_client.get_sysvar::<Clock>().await.unwrap();
@@ -1183,14 +1189,15 @@ async fn success_cooldown_has_ended(threshold_met: bool, expected_status: Propos
     let proposal_vote =
         get_proposal_vote_address(&stake, &proposal, &paladin_governance_program::id());
 
-    let governance_config = GovernanceConfig::new(
-        /* cooldown_period_seconds */ 10,
-        ACCEPTANCE_THRESHOLD, // 50%
-        REJECTION_THRESHOLD,
-        /* signer_bump_seed */ 0,
-        &stake_config,
-        /* voting_period_seconds */ 1_000,
-    );
+    let governance_config = GovernanceConfig {
+        cooldown_period_seconds: 10,
+        proposal_acceptance_threshold: ACCEPTANCE_THRESHOLD,
+        proposal_rejection_threshold: REJECTION_THRESHOLD,
+        signer_bump_seed: 0,
+        _padding: [0; 7],
+        stake_config_address: stake_config,
+        voting_period_seconds: 1_000,
+    };
 
     let vote_stake = TOTAL_STAKE / 10;
     let election = ProposalVoteElection::Against;

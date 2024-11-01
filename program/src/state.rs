@@ -191,7 +191,7 @@ pub struct GovernanceConfig {
     /// The signing bump seed, used to sign transactions for this governance
     /// config account with `invoke_signed`. Stored here to save on compute.
     pub signer_bump_seed: u8,
-    _padding: [u8; 7],
+    pub _padding: [u8; 7],
     /// The Paladin stake config account that this governance config account
     /// corresponds to.
     pub stake_config_address: Pubkey,
@@ -200,26 +200,6 @@ pub struct GovernanceConfig {
 }
 
 impl GovernanceConfig {
-    /// Create a new [Config](struct.Config.html).
-    pub fn new(
-        cooldown_period_seconds: u64,
-        proposal_acceptance_threshold: u32,
-        proposal_rejection_threshold: u32,
-        signer_bump_seed: u8,
-        stake_config_address: &Pubkey,
-        voting_period_seconds: u64,
-    ) -> Self {
-        Self {
-            cooldown_period_seconds,
-            proposal_acceptance_threshold,
-            proposal_rejection_threshold,
-            signer_bump_seed,
-            _padding: [0; 7],
-            stake_config_address: *stake_config_address,
-            voting_period_seconds,
-        }
-    }
-
     /// Evaluate a provided address against the corresponding stake config.
     pub fn check_stake_config(&self, stake_config: &Pubkey) -> ProgramResult {
         if self.stake_config_address == *stake_config {
