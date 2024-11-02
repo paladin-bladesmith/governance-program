@@ -2,6 +2,7 @@
 
 use {
     crate::state::{ProposalAccountMeta, ProposalVoteElection},
+    arrayref::{array_ref, array_refs},
     borsh::{BorshDeserialize, BorshSerialize},
     shank::ShankInstruction,
     solana_program::{
@@ -363,18 +364,11 @@ pub enum PaladinGovernanceInstruction {
         description = "System program"
     )]
     InitializeGovernance {
-        /// The cooldown period that begins when a proposal reaches the
-        /// `proposal_acceptance_threshold` and upon its conclusion will execute
-        /// the proposal's instruction.
         cooldown_period_seconds: u64,
-        /// The minimum required threshold of proposal acceptance to begin the
-        /// cooldown period.
-        proposal_acceptance_threshold: u32,
-        /// The minimum required threshold of proposal rejection to terminate
-        /// the proposal.
-        proposal_rejection_threshold: u32,
-        /// The voting period for proposals.
+        proposal_minimum_quorum: u32,
+        proposal_pass_threshold: u32,
         voting_period_seconds: u64,
+        stake_per_proposal: u64,
     },
     /// Update the governance config.
     ///
@@ -402,18 +396,11 @@ pub enum PaladinGovernanceInstruction {
         description = "Governance config account"
     )]
     UpdateGovernance {
-        /// The cooldown period that begins when a proposal reaches the
-        /// `proposal_acceptance_threshold` and upon its conclusion will execute
-        /// the proposal's instruction.
         cooldown_period_seconds: u64,
-        /// The minimum required threshold of proposal acceptance to begin the
-        /// cooldown period.
-        proposal_acceptance_threshold: u32,
-        /// The minimum required threshold of proposal rejection to terminate
-        /// the proposal.
-        proposal_rejection_threshold: u32,
-        /// The voting period for proposals.
+        proposal_minimum_quorum: u32,
+        proposal_pass_threshold: u32,
         voting_period_seconds: u64,
+        stake_per_proposal: u64,
     },
 }
 
@@ -452,28 +439,32 @@ impl PaladinGovernanceInstruction {
             }
             Self::InitializeGovernance {
                 cooldown_period_seconds,
-                proposal_acceptance_threshold,
-                proposal_rejection_threshold,
+                proposal_minimum_quorum,
+                proposal_pass_threshold,
                 voting_period_seconds,
+                stake_per_proposal,
             } => {
                 let mut buf = vec![9];
                 buf.extend_from_slice(&cooldown_period_seconds.to_le_bytes());
-                buf.extend_from_slice(&proposal_acceptance_threshold.to_le_bytes());
-                buf.extend_from_slice(&proposal_rejection_threshold.to_le_bytes());
+                buf.extend_from_slice(&proposal_minimum_quorum.to_le_bytes());
+                buf.extend_from_slice(&proposal_pass_threshold.to_le_bytes());
                 buf.extend_from_slice(&voting_period_seconds.to_le_bytes());
+                buf.extend_from_slice(&stake_per_proposal.to_le_bytes());
                 buf
             }
             Self::UpdateGovernance {
                 cooldown_period_seconds,
-                proposal_acceptance_threshold,
-                proposal_rejection_threshold,
+                proposal_minimum_quorum,
+                proposal_pass_threshold,
                 voting_period_seconds,
+                stake_per_proposal,
             } => {
                 let mut buf = vec![10];
                 buf.extend_from_slice(&cooldown_period_seconds.to_le_bytes());
-                buf.extend_from_slice(&proposal_acceptance_threshold.to_le_bytes());
-                buf.extend_from_slice(&proposal_rejection_threshold.to_le_bytes());
+                buf.extend_from_slice(&proposal_minimum_quorum.to_le_bytes());
+                buf.extend_from_slice(&proposal_pass_threshold.to_le_bytes());
                 buf.extend_from_slice(&voting_period_seconds.to_le_bytes());
+                buf.extend_from_slice(&stake_per_proposal.to_le_bytes());
                 buf
             }
         }
@@ -527,31 +518,51 @@ impl PaladinGovernanceInstruction {
                 Ok(Self::ProcessInstruction { instruction_index })
             }
             Some((&9, rest)) if rest.len() == 24 => {
-                let cooldown_period_seconds = u64::from_le_bytes(rest[..8].try_into().unwrap());
-                let proposal_acceptance_threshold =
-                    u32::from_le_bytes(rest[8..12].try_into().unwrap());
-                let proposal_rejection_threshold =
-                    u32::from_le_bytes(rest[12..16].try_into().unwrap());
-                let voting_period_seconds = u64::from_le_bytes(rest[16..24].try_into().unwrap());
+                let rest = array_ref![rest, 0, 32];
+                let (
+                    cooldown_period_seconds,
+                    proposal_minimum_quorum,
+                    proposal_pass_threshold,
+                    voting_period_seconds,
+                    stake_per_proposal,
+                ) = array_refs![rest, 8, 4, 4, 8, 8];
+
+                let cooldown_period_seconds = u64::from_le_bytes(*cooldown_period_seconds);
+                let proposal_minimum_quorum = u32::from_le_bytes(*proposal_minimum_quorum);
+                let proposal_pass_threshold = u32::from_le_bytes(*proposal_pass_threshold);
+                let voting_period_seconds = u64::from_le_bytes(*voting_period_seconds);
+                let stake_per_proposal = u64::from_le_bytes(*stake_per_proposal);
+
                 Ok(Self::InitializeGovernance {
                     cooldown_period_seconds,
-                    proposal_acceptance_threshold,
-                    proposal_rejection_threshold,
+                    proposal_minimum_quorum,
+                    proposal_pass_threshold,
                     voting_period_seconds,
+                    stake_per_proposal,
                 })
             }
             Some((&10, rest)) if rest.len() == 24 => {
-                let cooldown_period_seconds = u64::from_le_bytes(rest[..8].try_into().unwrap());
-                let proposal_acceptance_threshold =
-                    u32::from_le_bytes(rest[8..12].try_into().unwrap());
-                let proposal_rejection_threshold =
-                    u32::from_le_bytes(rest[12..16].try_into().unwrap());
-                let voting_period_seconds = u64::from_le_bytes(rest[16..24].try_into().unwrap());
+                let rest = array_ref![rest, 0, 32];
+                let (
+                    cooldown_period_seconds,
+                    proposal_minimum_quorum,
+                    proposal_pass_threshold,
+                    voting_period_seconds,
+                    stake_per_proposal,
+                ) = array_refs![rest, 8, 4, 4, 8, 8];
+
+                let cooldown_period_seconds = u64::from_le_bytes(*cooldown_period_seconds);
+                let proposal_minimum_quorum = u32::from_le_bytes(*proposal_minimum_quorum);
+                let proposal_pass_threshold = u32::from_le_bytes(*proposal_pass_threshold);
+                let voting_period_seconds = u64::from_le_bytes(*voting_period_seconds);
+                let stake_per_proposal = u64::from_le_bytes(*stake_per_proposal);
+
                 Ok(Self::UpdateGovernance {
                     cooldown_period_seconds,
-                    proposal_acceptance_threshold,
-                    proposal_rejection_threshold,
+                    proposal_minimum_quorum,
+                    proposal_pass_threshold,
                     voting_period_seconds,
+                    stake_per_proposal,
                 })
             }
             _ => Err(ProgramError::InvalidInstructionData),
@@ -730,20 +741,22 @@ pub fn initialize_governance(
     governance_config_address: &Pubkey,
     stake_config_address: &Pubkey,
     cooldown_period_seconds: u64,
-    proposal_acceptance_threshold: u32,
-    proposal_rejection_threshold: u32,
+    proposal_minimum_quorum: u32,
+    proposal_pass_threshold: u32,
     voting_period_seconds: u64,
+    stake_per_proposal: u64,
 ) -> Instruction {
     let accounts = vec![
         AccountMeta::new(*governance_config_address, false),
         AccountMeta::new_readonly(*stake_config_address, false),
         AccountMeta::new_readonly(system_program::id(), false),
     ];
-    let data = PaladinGovernanceInstruction::InitializeGovernance {
+    let data = PaladinGovernanceInstruction::UpdateGovernance {
         cooldown_period_seconds,
-        proposal_acceptance_threshold,
-        proposal_rejection_threshold,
+        proposal_minimum_quorum,
+        proposal_pass_threshold,
         voting_period_seconds,
+        stake_per_proposal,
     }
     .pack();
     Instruction::new_with_bytes(crate::id(), &data, accounts)
@@ -756,9 +769,10 @@ pub fn update_governance(
     treasury_address: &Pubkey,
     governance_config_address: &Pubkey,
     cooldown_period_seconds: u64,
-    proposal_acceptance_threshold: u32,
-    proposal_rejection_threshold: u32,
+    proposal_minimum_quorum: u32,
+    proposal_pass_threshold: u32,
     voting_period_seconds: u64,
+    stake_per_proposal: u64,
 ) -> Instruction {
     let accounts = vec![
         AccountMeta::new_readonly(*treasury_address, true),
@@ -766,9 +780,10 @@ pub fn update_governance(
     ];
     let data = PaladinGovernanceInstruction::UpdateGovernance {
         cooldown_period_seconds,
-        proposal_acceptance_threshold,
-        proposal_rejection_threshold,
+        proposal_minimum_quorum,
+        proposal_pass_threshold,
         voting_period_seconds,
+        stake_per_proposal,
     }
     .pack();
     Instruction::new_with_bytes(crate::id(), &data, accounts)
@@ -832,9 +847,6 @@ mod tests {
     #[test]
     fn test_pack_unpack_vote() {
         test_pack_unpack(PaladinGovernanceInstruction::Vote {
-            election: ProposalVoteElection::DidNotVote,
-        });
-        test_pack_unpack(PaladinGovernanceInstruction::Vote {
             election: ProposalVoteElection::For,
         });
         test_pack_unpack(PaladinGovernanceInstruction::Vote {
@@ -844,9 +856,6 @@ mod tests {
 
     #[test]
     fn test_pack_unpack_switch_vote() {
-        test_pack_unpack(PaladinGovernanceInstruction::SwitchVote {
-            new_election: ProposalVoteElection::DidNotVote,
-        });
         test_pack_unpack(PaladinGovernanceInstruction::SwitchVote {
             new_election: ProposalVoteElection::For,
         });
@@ -871,9 +880,10 @@ mod tests {
     fn test_pack_unpack_initialize_governance() {
         test_pack_unpack(PaladinGovernanceInstruction::InitializeGovernance {
             cooldown_period_seconds: 1,
-            proposal_acceptance_threshold: 2,
-            proposal_rejection_threshold: 3,
+            proposal_minimum_quorum: 2,
+            proposal_pass_threshold: 3,
             voting_period_seconds: 4,
+            stake_per_proposal: 5,
         });
     }
 
@@ -881,9 +891,10 @@ mod tests {
     fn test_pack_unpack_update_governance() {
         test_pack_unpack(PaladinGovernanceInstruction::UpdateGovernance {
             cooldown_period_seconds: 1,
-            proposal_acceptance_threshold: 2,
-            proposal_rejection_threshold: 3,
+            proposal_minimum_quorum: 2,
+            proposal_pass_threshold: 3,
             voting_period_seconds: 4,
+            stake_per_proposal: 5,
         });
     }
 }

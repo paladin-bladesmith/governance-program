@@ -176,18 +176,14 @@ pub struct GovernanceConfig {
     /// `proposal_acceptance_threshold` and upon its conclusion will execute
     /// the proposal's instruction.
     pub cooldown_period_seconds: u64,
-    /// The minimum required threshold (percentage) of proposal acceptance to
-    /// begin the cooldown period.
+    /// The minimum amount of effective stake (in 1e9 scaled format) that must
+    /// vote for the proposal to be considered valid.
+    pub proposal_minimum_quorum: u32,
+    /// The minimum required threshold of cast votes (in 1e9 scaled format) that
+    /// must be `For` for the proposal to pass.
     ///
-    /// Stored as a `u32`, which includes a scaling factor of `1e9` to
-    /// represent the threshold with 9 decimal places of precision.
-    pub proposal_acceptance_threshold: u32,
-    /// The minimum required threshold (percentage) of proposal rejection to
-    /// terminate the proposal.
-    ///
-    /// Stored as a `u32`, which includes a scaling factor of `1e9` to
-    /// represent the threshold with 9 decimal places of precision.
-    pub proposal_rejection_threshold: u32,
+    /// Valid values are between `5000` and `10_000`.
+    pub proposal_pass_threshold: u32,
     /// The signing bump seed, used to sign transactions for this governance
     /// config account with `invoke_signed`. Stored here to save on compute.
     pub signer_bump_seed: u8,
@@ -197,6 +193,11 @@ pub struct GovernanceConfig {
     pub stake_config_address: Pubkey,
     /// The voting period for proposals.
     pub voting_period_seconds: u64,
+    /// The required stake per active proposal for a user.
+    ///
+    /// Note that if a user has less than this amount of stake, they will not be
+    /// able to create a proposal.
+    pub stake_per_proposal: u64,
 }
 
 impl GovernanceConfig {
@@ -329,8 +330,6 @@ pub struct Proposal {
     pub creation_timestamp: UnixTimestamp,
     /// The governance config for this proposal.
     pub governance_config: GovernanceConfig,
-    /// Amount of stake that did not vote.
-    pub stake_abstained: u64,
     /// Amount of stake against the proposal.
     pub stake_against: u64,
     /// Amount of stake in favor of the proposal.
@@ -355,7 +354,6 @@ impl Proposal {
             cooldown_timestamp: None,
             creation_timestamp,
             governance_config,
-            stake_abstained: 0,
             stake_against: 0,
             stake_for: 0,
             status: ProposalStatus::Draft,
@@ -403,8 +401,6 @@ impl Proposal {
 #[derive(Clone, Copy, Debug, IntoPrimitive, PartialEq, ShankType, TryFromPrimitive)]
 #[repr(u8)]
 pub enum ProposalVoteElection {
-    /// Validator did not vote.
-    DidNotVote,
     /// Validator voted in favor of the proposal.
     For,
     /// Validator voted against the proposal.
