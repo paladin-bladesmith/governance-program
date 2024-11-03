@@ -509,6 +509,62 @@ async fn fail_previous_instruction_not_executed() {
     );
 }
 
+#[tokio::test]
+async fn fail_instruction_two_back_not_executed() {
+    let proposal_address = Pubkey::new_unique();
+    let proposal_transaction_address =
+        get_proposal_transaction_address(&proposal_address, &paladin_governance_program::id());
+
+    let proposal_transaction = create_mock_proposal_transaction(&[
+        &Pubkey::new_unique(),
+        &Pubkey::new_unique(),
+        &Pubkey::new_unique(),
+    ]);
+
+    let mut context = setup().start_with_context().await;
+    setup_proposal(
+        &mut context,
+        &proposal_address,
+        &Pubkey::new_unique(),
+        0,
+        GovernanceConfig::default(),
+        ProposalStatus::Accepted,
+    )
+    .await;
+    setup_proposal_transaction(
+        &mut context,
+        &proposal_transaction_address,
+        proposal_transaction,
+    )
+    .await;
+
+    let instruction = process_instruction(&proposal_address, &proposal_transaction_address, &[], 2);
+
+    let transaction = Transaction::new_signed_with_payer(
+        &[instruction],
+        Some(&context.payer.pubkey()),
+        &[&context.payer],
+        context.last_blockhash,
+    );
+
+    let err = context
+        .banks_client
+        .process_transaction(transaction)
+        .await
+        .unwrap_err()
+        .unwrap();
+
+    assert_eq!(
+        err,
+        TransactionError::InstructionError(
+            0,
+            InstructionError::Custom(
+                PaladinGovernanceError::PreviousInstructionHasNotBeenExecuted as u32
+            )
+        )
+    );
+}
+
 #[allow(clippy::arithmetic_side_effects)]
 #[tokio::test]
 async fn success() {
