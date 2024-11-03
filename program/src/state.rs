@@ -380,6 +380,7 @@ impl Proposal {
                 return true;
             }
         }
+
         false
     }
 
@@ -393,6 +394,7 @@ impl Proposal {
                 return true;
             }
         }
+
         false
     }
 }

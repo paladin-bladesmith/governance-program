@@ -254,7 +254,8 @@ async fn success_cooldown_result_is_accepted() {
     let mut governance_config = GovernanceConfig::default();
     governance_config.stake_config_address = stake_config;
     governance_config.cooldown_period_seconds = 10; // 10 seconds.
-    governance_config.proposal_acceptance_threshold = 500_000_000; // 50%
+    governance_config.proposal_minimum_quorum = 500_000_000; // 50%
+    governance_config.proposal_pass_threshold = 500_000_000; // 50%
 
     let total_stake = 100_000_000_000;
 
@@ -312,7 +313,8 @@ async fn success_cooldown_result_is_rejected() {
     let mut governance_config = GovernanceConfig::default();
     governance_config.stake_config_address = stake_config;
     governance_config.cooldown_period_seconds = 10; // 10 seconds.
-    governance_config.proposal_acceptance_threshold = 500_000_000; // 50%
+    governance_config.proposal_minimum_quorum = 500_000_000; // 50%
+    governance_config.proposal_pass_threshold = 500_000_000; // 50%
 
     let total_stake = 100_000_000_000;
 
@@ -329,7 +331,7 @@ async fn success_cooldown_result_is_rejected() {
         /* creation_timestamp */ 0,
         governance_config,
         /* stake_for */ total_stake / 4, // 25%, not accepted.
-        /* stake_against */ 0,
+        /* stake_against */ total_stake * 3 / 4,
         ProposalStatus::Voting,
         /* voting_start_timestamp */ NonZeroU64::new(1),
         /* cooldown_timestamp */ NonZeroU64::new(cooldown_timestamp as u64),
