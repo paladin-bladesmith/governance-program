@@ -3,59 +3,57 @@
 //! to add features, then rerun kinobi to update it.
 //!
 //! <https://github.com/kinobi-so/kinobi>
+//!
 
-use {
-    crate::{
-        generated::types::{Config, ProposalStatus},
-        hooked::NullableU64,
-    },
-    borsh::{BorshDeserialize, BorshSerialize},
-    solana_program::pubkey::Pubkey,
-};
+use solana_program::pubkey::Pubkey;
+use crate::hooked::NullableU64;
+use crate::generated::types::Config;
+use crate::generated::types::ProposalStatus;
+use borsh::BorshSerialize;
+use borsh::BorshDeserialize;
+
 
 #[derive(BorshSerialize, BorshDeserialize, Clone, Debug, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Proposal {
-    pub discriminator: [u8; 8],
-    #[cfg_attr(
-        feature = "serde",
-        serde(with = "serde_with::As::<serde_with::DisplayFromStr>")
-    )]
-    pub author: Pubkey,
-    pub cooldown_timestamp: NullableU64,
-    pub creation_timestamp: i64,
-    pub governance_config: Config,
-    pub stake_abstained: u64,
-    pub stake_against: u64,
-    pub stake_for: u64,
-    pub status: ProposalStatus,
-    pub padding: [u8; 7],
-    pub voting_start_timestamp: NullableU64,
+pub discriminator: [u8; 8],
+#[cfg_attr(feature = "serde", serde(with = "serde_with::As::<serde_with::DisplayFromStr>"))]
+pub author: Pubkey,
+pub cooldown_timestamp: NullableU64,
+pub creation_timestamp: i64,
+pub governance_config: Config,
+pub stake_against: u64,
+pub stake_for: u64,
+pub status: ProposalStatus,
+pub padding: [u8; 7],
+pub voting_start_timestamp: NullableU64,
 }
 
+
 impl Proposal {
-    #[inline(always)]
-    pub fn from_bytes(data: &[u8]) -> Result<Self, std::io::Error> {
-        let mut data = data;
-        Self::deserialize(&mut data)
-    }
+  
+  
+  
+  #[inline(always)]
+  pub fn from_bytes(data: &[u8]) -> Result<Self, std::io::Error> {
+    let mut data = data;
+    Self::deserialize(&mut data)
+  }
 }
 
 impl<'a> TryFrom<&solana_program::account_info::AccountInfo<'a>> for Proposal {
-    type Error = std::io::Error;
+  type Error = std::io::Error;
 
-    fn try_from(
-        account_info: &solana_program::account_info::AccountInfo<'a>,
-    ) -> Result<Self, Self::Error> {
-        let mut data: &[u8] = &(*account_info.data).borrow();
-        Self::deserialize(&mut data)
-    }
+  fn try_from(account_info: &solana_program::account_info::AccountInfo<'a>) -> Result<Self, Self::Error> {
+      let mut data: &[u8] = &(*account_info.data).borrow();
+      Self::deserialize(&mut data)
+  }
 }
 
 #[cfg(feature = "anchor")]
 impl anchor_lang::AccountDeserialize for Proposal {
     fn try_deserialize_unchecked(buf: &mut &[u8]) -> anchor_lang::Result<Self> {
-        Ok(Self::deserialize(buf)?)
+      Ok(Self::deserialize(buf)?)
     }
 }
 
@@ -65,14 +63,16 @@ impl anchor_lang::AccountSerialize for Proposal {}
 #[cfg(feature = "anchor")]
 impl anchor_lang::Owner for Proposal {
     fn owner() -> Pubkey {
-        crate::PALADIN_GOVERNANCE_ID
+      crate::PALADIN_GOVERNANCE_ID
     }
 }
 
 #[cfg(feature = "anchor-idl-build")]
 impl anchor_lang::IdlBuild for Proposal {}
 
+
 #[cfg(feature = "anchor-idl-build")]
 impl anchor_lang::Discriminator for Proposal {
-    const DISCRIMINATOR: [u8; 8] = [0; 8];
+  const DISCRIMINATOR: [u8; 8] = [0; 8];
 }
+

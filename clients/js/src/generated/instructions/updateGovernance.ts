@@ -56,16 +56,18 @@ export type UpdateGovernanceInstruction<
 export type UpdateGovernanceInstructionData = {
   discriminator: number;
   cooldownPeriodSeconds: bigint;
-  proposalAcceptanceThreshold: number;
-  proposalRejectionThreshold: number;
+  proposalMinimumQuorum: number;
+  proposalPassThreshold: number;
   votingPeriodSeconds: bigint;
+  stakePerProposal: bigint;
 };
 
 export type UpdateGovernanceInstructionDataArgs = {
   cooldownPeriodSeconds: number | bigint;
-  proposalAcceptanceThreshold: number;
-  proposalRejectionThreshold: number;
+  proposalMinimumQuorum: number;
+  proposalPassThreshold: number;
   votingPeriodSeconds: number | bigint;
+  stakePerProposal: number | bigint;
 };
 
 export function getUpdateGovernanceInstructionDataEncoder(): Encoder<UpdateGovernanceInstructionDataArgs> {
@@ -73,9 +75,10 @@ export function getUpdateGovernanceInstructionDataEncoder(): Encoder<UpdateGover
     getStructEncoder([
       ['discriminator', getU8Encoder()],
       ['cooldownPeriodSeconds', getU64Encoder()],
-      ['proposalAcceptanceThreshold', getU32Encoder()],
-      ['proposalRejectionThreshold', getU32Encoder()],
+      ['proposalMinimumQuorum', getU32Encoder()],
+      ['proposalPassThreshold', getU32Encoder()],
       ['votingPeriodSeconds', getU64Encoder()],
+      ['stakePerProposal', getU64Encoder()],
     ]),
     (value) => ({ ...value, discriminator: 10 })
   );
@@ -85,9 +88,10 @@ export function getUpdateGovernanceInstructionDataDecoder(): Decoder<UpdateGover
   return getStructDecoder([
     ['discriminator', getU8Decoder()],
     ['cooldownPeriodSeconds', getU64Decoder()],
-    ['proposalAcceptanceThreshold', getU32Decoder()],
-    ['proposalRejectionThreshold', getU32Decoder()],
+    ['proposalMinimumQuorum', getU32Decoder()],
+    ['proposalPassThreshold', getU32Decoder()],
     ['votingPeriodSeconds', getU64Decoder()],
+    ['stakePerProposal', getU64Decoder()],
   ]);
 }
 
@@ -110,9 +114,10 @@ export type UpdateGovernanceInput<
   /** Governance config account */
   governanceConfig: Address<TAccountGovernanceConfig>;
   cooldownPeriodSeconds: UpdateGovernanceInstructionDataArgs['cooldownPeriodSeconds'];
-  proposalAcceptanceThreshold: UpdateGovernanceInstructionDataArgs['proposalAcceptanceThreshold'];
-  proposalRejectionThreshold: UpdateGovernanceInstructionDataArgs['proposalRejectionThreshold'];
+  proposalMinimumQuorum: UpdateGovernanceInstructionDataArgs['proposalMinimumQuorum'];
+  proposalPassThreshold: UpdateGovernanceInstructionDataArgs['proposalPassThreshold'];
   votingPeriodSeconds: UpdateGovernanceInstructionDataArgs['votingPeriodSeconds'];
+  stakePerProposal: UpdateGovernanceInstructionDataArgs['stakePerProposal'];
 };
 
 export function getUpdateGovernanceInstruction<

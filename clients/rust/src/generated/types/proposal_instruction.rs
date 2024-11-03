@@ -3,22 +3,21 @@
 //! to add features, then rerun kinobi to update it.
 //!
 //! <https://github.com/kinobi-so/kinobi>
+//!
 
-use {
-    crate::generated::types::ProposalAccountMeta,
-    borsh::{BorshDeserialize, BorshSerialize},
-    solana_program::pubkey::Pubkey,
-};
+use solana_program::pubkey::Pubkey;
+use crate::generated::types::ProposalAccountMeta;
+use borsh::BorshSerialize;
+use borsh::BorshDeserialize;
 
 #[derive(BorshSerialize, BorshDeserialize, Clone, Debug, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ProposalInstruction {
-    #[cfg_attr(
-        feature = "serde",
-        serde(with = "serde_with::As::<serde_with::DisplayFromStr>")
-    )]
-    pub program_id: Pubkey,
-    pub accounts: Vec<ProposalAccountMeta>,
-    pub data: Vec<u8>,
-    pub executed: bool,
+#[cfg_attr(feature = "serde", serde(with = "serde_with::As::<serde_with::DisplayFromStr>"))]
+pub program_id: Pubkey,
+pub accounts: Vec<ProposalAccountMeta>,
+pub data: Vec<u8>,
+pub executed: bool,
 }
+
+

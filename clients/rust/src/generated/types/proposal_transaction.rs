@@ -3,14 +3,16 @@
 //! to add features, then rerun kinobi to update it.
 //!
 //! <https://github.com/kinobi-so/kinobi>
+//!
 
-use {
-    crate::generated::types::ProposalInstruction,
-    borsh::{BorshDeserialize, BorshSerialize},
-};
+use crate::generated::types::ProposalInstruction;
+use borsh::BorshSerialize;
+use borsh::BorshDeserialize;
 
 #[derive(BorshSerialize, BorshDeserialize, Clone, Debug, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ProposalTransaction {
-    pub instructions: Vec<ProposalInstruction>,
+pub instructions: Vec<ProposalInstruction>,
 }
+
+

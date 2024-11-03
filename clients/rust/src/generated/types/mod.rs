@@ -3,15 +3,19 @@
 //! to add features, then rerun kinobi to update it.
 //!
 //! <https://github.com/kinobi-so/kinobi>
+//!
 
-pub(crate) mod r#config;
-pub(crate) mod r#proposal_account_meta;
-pub(crate) mod r#proposal_instruction;
-pub(crate) mod r#proposal_status;
-pub(crate) mod r#proposal_transaction;
-pub(crate) mod r#proposal_vote_election;
+  pub(crate) mod r#config;
+  pub(crate) mod r#proposal_account_meta;
+  pub(crate) mod r#proposal_instruction;
+  pub(crate) mod r#proposal_status;
+  pub(crate) mod r#proposal_transaction;
+  pub(crate) mod r#proposal_vote_election;
 
-pub use self::{
-    r#config::*, r#proposal_account_meta::*, r#proposal_instruction::*, r#proposal_status::*,
-    r#proposal_transaction::*, r#proposal_vote_election::*,
-};
+  pub use self::r#config::*;
+  pub use self::r#proposal_account_meta::*;
+  pub use self::r#proposal_instruction::*;
+  pub use self::r#proposal_status::*;
+  pub use self::r#proposal_transaction::*;
+  pub use self::r#proposal_vote_election::*;
+

@@ -3,20 +3,19 @@
 //! to add features, then rerun kinobi to update it.
 //!
 //! <https://github.com/kinobi-so/kinobi>
+//!
 
-use {
-    borsh::{BorshDeserialize, BorshSerialize},
-    solana_program::pubkey::Pubkey,
-};
+use solana_program::pubkey::Pubkey;
+use borsh::BorshSerialize;
+use borsh::BorshDeserialize;
 
 #[derive(BorshSerialize, BorshDeserialize, Clone, Debug, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ProposalAccountMeta {
-    #[cfg_attr(
-        feature = "serde",
-        serde(with = "serde_with::As::<serde_with::DisplayFromStr>")
-    )]
-    pub pubkey: Pubkey,
-    pub is_signer: bool,
-    pub is_writable: bool,
+#[cfg_attr(feature = "serde", serde(with = "serde_with::As::<serde_with::DisplayFromStr>"))]
+pub pubkey: Pubkey,
+pub is_signer: bool,
+pub is_writable: bool,
 }
+
+

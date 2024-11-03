@@ -415,15 +415,19 @@
           "type": "u64"
         },
         {
-          "name": "proposalAcceptanceThreshold",
+          "name": "proposalMinimumQuorum",
           "type": "u32"
         },
         {
-          "name": "proposalRejectionThreshold",
+          "name": "proposalPassThreshold",
           "type": "u32"
         },
         {
           "name": "votingPeriodSeconds",
+          "type": "u64"
+        },
+        {
+          "name": "stakePerProposal",
           "type": "u64"
         }
       ],
@@ -458,15 +462,19 @@
           "type": "u64"
         },
         {
-          "name": "proposalAcceptanceThreshold",
+          "name": "proposalMinimumQuorum",
           "type": "u32"
         },
         {
-          "name": "proposalRejectionThreshold",
+          "name": "proposalPassThreshold",
           "type": "u32"
         },
         {
           "name": "votingPeriodSeconds",
+          "type": "u64"
+        },
+        {
+          "name": "stakePerProposal",
           "type": "u64"
         }
       ],
@@ -487,11 +495,11 @@
             "type": "u64"
           },
           {
-            "name": "proposalAcceptanceThreshold",
+            "name": "proposalMinimumQuorum",
             "type": "u32"
           },
           {
-            "name": "proposalRejectionThreshold",
+            "name": "proposalPassThreshold",
             "type": "u32"
           },
           {
@@ -513,6 +521,10 @@
           },
           {
             "name": "votingPeriodSeconds",
+            "type": "u64"
+          },
+          {
+            "name": "stakePerProposal",
             "type": "u64"
           }
         ]
@@ -555,10 +567,6 @@
             "type": {
               "defined": "GovernanceConfig"
             }
-          },
-          {
-            "name": "stakeAbstained",
-            "type": "u64"
           },
           {
             "name": "stakeAgainst",
@@ -726,9 +734,6 @@
       "type": {
         "kind": "enum",
         "variants": [
-          {
-            "name": "DidNotVote"
-          },
           {
             "name": "For"
           },

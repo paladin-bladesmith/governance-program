@@ -213,7 +213,6 @@ async fn fail_proposal_has_cooldown_but_has_not_ended() {
         governance_config,
         /* stake_for */ 0,
         /* stake_against */ 0,
-        /* stake_abstained */ 0,
         ProposalStatus::Voting,
         /* voting_start_timestamp */ NonZeroU64::new(1),
         /* cooldown_timestamp */ NonZeroU64::new(cooldown_timestamp as u64),
@@ -273,7 +272,6 @@ async fn success_cooldown_result_is_accepted() {
         governance_config,
         /* stake_for */ total_stake / 2, // 50%, accepted.
         /* stake_against */ 0,
-        /* stake_abstained */ 0,
         ProposalStatus::Voting,
         /* voting_start_timestamp */ NonZeroU64::new(1),
         /* cooldown_timestamp */ NonZeroU64::new(cooldown_timestamp as u64),
@@ -332,7 +330,6 @@ async fn success_cooldown_result_is_rejected() {
         governance_config,
         /* stake_for */ total_stake / 4, // 25%, not accepted.
         /* stake_against */ 0,
-        /* stake_abstained */ 0,
         ProposalStatus::Voting,
         /* voting_start_timestamp */ NonZeroU64::new(1),
         /* cooldown_timestamp */ NonZeroU64::new(cooldown_timestamp as u64),
@@ -388,7 +385,6 @@ async fn fail_proposal_vote_period_not_ended() {
         governance_config,
         /* stake_for */ 0,
         /* stake_against */ 0,
-        /* stake_abstained */ 0,
         ProposalStatus::Voting,
         /* voting_start_timestamp */ NonZeroU64::new(voting_start_timestamp as u64),
         /* cooldown_timestamp */ None, // No cooldown.
@@ -445,7 +441,6 @@ async fn success_vote_period_ended_result_rejected() {
         governance_config,
         /* stake_for */ 0,
         /* stake_against */ 0,
-        /* stake_abstained */ 0,
         ProposalStatus::Voting,
         /* voting_start_timestamp */ NonZeroU64::new(voting_start_timestamp as u64),
         /* cooldown_timestamp */ None, // No cooldown.

@@ -517,7 +517,7 @@ impl PaladinGovernanceInstruction {
                 let instruction_index = u32::from_le_bytes(rest.try_into().unwrap());
                 Ok(Self::ProcessInstruction { instruction_index })
             }
-            Some((&9, rest)) if rest.len() == 24 => {
+            Some((&9, rest)) if rest.len() == 32 => {
                 let rest = array_ref![rest, 0, 32];
                 let (
                     cooldown_period_seconds,
@@ -541,7 +541,7 @@ impl PaladinGovernanceInstruction {
                     stake_per_proposal,
                 })
             }
-            Some((&10, rest)) if rest.len() == 24 => {
+            Some((&10, rest)) if rest.len() == 32 => {
                 let rest = array_ref![rest, 0, 32];
                 let (
                     cooldown_period_seconds,

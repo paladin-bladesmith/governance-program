@@ -39,45 +39,49 @@ import {
 
 export type GovernanceConfig = {
   cooldownPeriodSeconds: bigint;
-  proposalAcceptanceThreshold: number;
-  proposalRejectionThreshold: number;
+  proposalMinimumQuorum: number;
+  proposalPassThreshold: number;
   signerBumpSeed: number;
   padding: Array<number>;
   stakeConfigAddress: Address;
   votingPeriodSeconds: bigint;
+  stakePerProposal: bigint;
 };
 
 export type GovernanceConfigArgs = {
   cooldownPeriodSeconds: number | bigint;
-  proposalAcceptanceThreshold: number;
-  proposalRejectionThreshold: number;
+  proposalMinimumQuorum: number;
+  proposalPassThreshold: number;
   signerBumpSeed: number;
   padding: Array<number>;
   stakeConfigAddress: Address;
   votingPeriodSeconds: number | bigint;
+  stakePerProposal: number | bigint;
 };
 
 export function getGovernanceConfigEncoder(): Encoder<GovernanceConfigArgs> {
   return getStructEncoder([
     ['cooldownPeriodSeconds', getU64Encoder()],
-    ['proposalAcceptanceThreshold', getU32Encoder()],
-    ['proposalRejectionThreshold', getU32Encoder()],
+    ['proposalMinimumQuorum', getU32Encoder()],
+    ['proposalPassThreshold', getU32Encoder()],
     ['signerBumpSeed', getU8Encoder()],
     ['padding', getArrayEncoder(getU8Encoder(), { size: 7 })],
     ['stakeConfigAddress', getAddressEncoder()],
     ['votingPeriodSeconds', getU64Encoder()],
+    ['stakePerProposal', getU64Encoder()],
   ]);
 }
 
 export function getGovernanceConfigDecoder(): Decoder<GovernanceConfig> {
   return getStructDecoder([
     ['cooldownPeriodSeconds', getU64Decoder()],
-    ['proposalAcceptanceThreshold', getU32Decoder()],
-    ['proposalRejectionThreshold', getU32Decoder()],
+    ['proposalMinimumQuorum', getU32Decoder()],
+    ['proposalPassThreshold', getU32Decoder()],
     ['signerBumpSeed', getU8Decoder()],
     ['padding', getArrayDecoder(getU8Decoder(), { size: 7 })],
     ['stakeConfigAddress', getAddressDecoder()],
     ['votingPeriodSeconds', getU64Decoder()],
+    ['stakePerProposal', getU64Decoder()],
   ]);
 }
 
@@ -155,5 +159,5 @@ export async function fetchAllMaybeGovernanceConfig(
 }
 
 export function getGovernanceConfigSize(): number {
-  return 64;
+  return 72;
 }
