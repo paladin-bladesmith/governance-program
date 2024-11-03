@@ -3,11 +3,8 @@
 //! to add features, then rerun kinobi to update it.
 //!
 //! <https://github.com/kinobi-so/kinobi>
-//!
 
 use solana_program::{pubkey, pubkey::Pubkey};
 
-
-  /// `paladin_governance` program ID.
-  pub const PALADIN_GOVERNANCE_ID: Pubkey = pubkey!("C1iuSykZ3SbTPmzZy66L57yQm6xnAtVdqEgYw2V39ptJ");
-
+/// `paladin_governance` program ID.
+pub const PALADIN_GOVERNANCE_ID: Pubkey = pubkey!("C1iuSykZ3SbTPmzZy66L57yQm6xnAtVdqEgYw2V39ptJ");

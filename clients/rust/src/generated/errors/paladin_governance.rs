@@ -3,10 +3,8 @@
 //! to add features, then rerun kinobi to update it.
 //!
 //! <https://github.com/kinobi-so/kinobi>
-//!
 
-use num_derive::FromPrimitive;
-use thiserror::Error;
+use {num_derive::FromPrimitive, thiserror::Error};
 
 #[derive(Clone, Debug, Eq, Error, FromPrimitive, PartialEq)]
 pub enum PaladinGovernanceError {
@@ -56,4 +54,3 @@ impl solana_program::program_error::PrintProgramError for PaladinGovernanceError
         solana_program::msg!(&self.to_string());
     }
 }
-
