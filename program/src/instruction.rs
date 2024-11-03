@@ -295,11 +295,6 @@ pub enum PaladinGovernanceInstruction {
         name = "proposal",
         description = "Proposal account"
     )]
-    #[account(
-        1,
-        name = "stake_config",
-        description = "Paladin stake config account"
-    )]
     FinishVoting,
     ///
     /// Process an instruction in an accepted governance proposal.
@@ -707,11 +702,8 @@ pub fn switch_vote(
 /// Creates a
 /// [FinishVoting](enum.PaladinGovernanceInstruction.html)
 /// instruction.
-pub fn finish_voting(proposal_address: &Pubkey, stake_config_address: &Pubkey) -> Instruction {
-    let accounts = vec![
-        AccountMeta::new(*proposal_address, false),
-        AccountMeta::new_readonly(*stake_config_address, false),
-    ];
+pub fn finish_voting(proposal_address: &Pubkey) -> Instruction {
+    let accounts = vec![AccountMeta::new(*proposal_address, false)];
     let data = PaladinGovernanceInstruction::FinishVoting.pack();
     Instruction::new_with_bytes(crate::id(), &data, accounts)
 }
