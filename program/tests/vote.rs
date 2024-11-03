@@ -518,13 +518,8 @@ async fn fail_proposal_not_voting() {
         get_proposal_vote_address(&stake, &proposal, &paladin_governance_program::id());
 
     let governance_config = GovernanceConfig {
-        cooldown_period_seconds: 0,
-        proposal_acceptance_threshold: 0,
-        proposal_rejection_threshold: 0,
-        signer_bump_seed: 0,
-        _padding: [0; 7],
         stake_config_address: stake_config,
-        voting_period_seconds: 0,
+        ..Default::default()
     };
 
     let mut context = setup().start_with_context().await;
@@ -591,13 +586,8 @@ async fn fail_proposal_vote_incorrect_address() {
     let proposal_vote = Pubkey::new_unique(); // Incorrect proposal vote address.
 
     let governance_config = GovernanceConfig {
-        cooldown_period_seconds: 0,
-        proposal_acceptance_threshold: 0,
-        proposal_rejection_threshold: 0,
-        signer_bump_seed: 0,
-        _padding: [0; 7],
         stake_config_address: stake_config,
-        voting_period_seconds: 0,
+        ..Default::default()
     };
 
     let mut context = setup().start_with_context().await;
@@ -665,13 +655,8 @@ async fn fail_proposal_vote_already_initialized() {
         get_proposal_vote_address(&stake, &proposal, &paladin_governance_program::id());
 
     let governance_config = GovernanceConfig {
-        cooldown_period_seconds: 0,
-        proposal_acceptance_threshold: 0,
-        proposal_rejection_threshold: 0,
-        signer_bump_seed: 0,
-        _padding: [0; 7],
         stake_config_address: stake_config,
-        voting_period_seconds: 0,
+        ..Default::default()
     };
 
     let mut context = setup().start_with_context().await;
@@ -734,15 +719,14 @@ async fn fail_proposal_vote_already_initialized() {
     );
 }
 
-const ACCEPTANCE_THRESHOLD: u32 = 500_000_000; // 50%
-const REJECTION_THRESHOLD: u32 = 500_000_000; // 50%
+const PASS_THRESHOLD: u32 = 500_000_000; // 50%
+const MINIMUM_QUORUM: u32 = 500_000_000; // 50%
 const COOLDOWN_PERIOD_SECONDS: u64 = 100_000_000;
 const VOTING_PERIOD_SECONDS: u64 = 100_000_000;
 const TOTAL_STAKE: u64 = 100_000_000;
 
 const PROPOSAL_STARTING_STAKE_FOR: u64 = 0;
 const PROPOSAL_STARTING_STAKE_AGAINST: u64 = 0;
-const PROPOSAL_STARTING_STAKE_ABSTAINED: u64 = 0;
 
 struct Vote {
     vote_stake: u64,
@@ -753,24 +737,10 @@ enum Expect {
         cooldown: bool,
         stake_for: u64,
         stake_against: u64,
-        stake_abstained: u64,
     },
     Terminated,
 }
 
-#[test_case(
-    Vote {
-        vote_stake: TOTAL_STAKE / 10, // 10% of total stake.
-        election: ProposalVoteElection::DidNotVote,
-    },
-    Expect::Cast {
-        cooldown: false,
-        stake_for: 0,
-        stake_against: 0,
-        stake_abstained: TOTAL_STAKE / 10,
-    };
-    "did_not_vote_increments_stake_abstained"
-)]
 #[test_case(
     Vote {
         vote_stake: TOTAL_STAKE / 10, // 10% of total stake.
@@ -780,7 +750,6 @@ enum Expect {
         cooldown: false,
         stake_for: TOTAL_STAKE / 10,
         stake_against: 0,
-        stake_abstained: 0,
     };
     "vote_for_increments_stake_for"
 )]
@@ -793,7 +762,6 @@ enum Expect {
         cooldown: false,
         stake_for: 0,
         stake_against: TOTAL_STAKE / 10,
-        stake_abstained: 0,
     };
     "vote_against_increments_stake_against"
 )]
@@ -806,7 +774,6 @@ enum Expect {
         cooldown: true, // Cooldown should be set.
         stake_for: TOTAL_STAKE / 2,
         stake_against: 0,
-        stake_abstained: 0,
     };
     "vote_for_beyond_threshold_increments_stake_for_and_activates_cooldown"
 )]
@@ -837,12 +804,13 @@ async fn success(vote: Vote, expect: Expect) {
 
     let governance_config = GovernanceConfig {
         cooldown_period_seconds: COOLDOWN_PERIOD_SECONDS,
-        proposal_acceptance_threshold: ACCEPTANCE_THRESHOLD,
-        proposal_rejection_threshold: REJECTION_THRESHOLD,
+        proposal_minimum_quorum: MINIMUM_QUORUM,
+        proposal_pass_threshold: PASS_THRESHOLD,
         signer_bump_seed: 0,
         _padding: [0; 7],
         stake_config_address: stake_config,
         voting_period_seconds: VOTING_PERIOD_SECONDS,
+        stake_per_proposal: 0,
     };
 
     let mut context = setup().start_with_context().await;
@@ -865,7 +833,6 @@ async fn success(vote: Vote, expect: Expect) {
         governance_config,
         PROPOSAL_STARTING_STAKE_FOR,
         PROPOSAL_STARTING_STAKE_AGAINST,
-        PROPOSAL_STARTING_STAKE_ABSTAINED,
         ProposalStatus::Voting,
         /* voting_start_timestamp */ NonZeroU64::new(clock.unix_timestamp as u64),
     )
@@ -928,12 +895,10 @@ async fn success(vote: Vote, expect: Expect) {
             cooldown,
             stake_for,
             stake_against,
-            stake_abstained,
         } => {
             // Assert the proposal stake matches the expected values.
             assert_eq!(proposal_state.stake_for, stake_for);
             assert_eq!(proposal_state.stake_against, stake_against);
-            assert_eq!(proposal_state.stake_abstained, stake_abstained);
 
             if cooldown {
                 // Assert the cooldown time is set.
@@ -967,12 +932,13 @@ async fn success_voting_closed() {
 
     let governance_config = GovernanceConfig {
         cooldown_period_seconds: 10,
-        proposal_acceptance_threshold: ACCEPTANCE_THRESHOLD,
-        proposal_rejection_threshold: REJECTION_THRESHOLD,
+        proposal_minimum_quorum: MINIMUM_QUORUM,
+        proposal_pass_threshold: PASS_THRESHOLD,
         signer_bump_seed: 0,
         _padding: [0; 7],
         stake_config_address: stake_config,
         voting_period_seconds: 10,
+        stake_per_proposal: 0,
     };
 
     let mut context = setup().start_with_context().await;
@@ -997,7 +963,6 @@ async fn success_voting_closed() {
         governance_config,
         /* stake_for */ 0,
         /* stake_against */ TOTAL_STAKE,
-        /* stake_abstained */ 0,
         ProposalStatus::Voting,
         /* voting_start_timestamp */ NonZeroU64::new(1), // Wayyy earlier.
     )
@@ -1078,12 +1043,13 @@ async fn success_voting_closed_but_cooldown_active() {
 
     let governance_config = GovernanceConfig {
         cooldown_period_seconds: 1_000,
-        proposal_acceptance_threshold: ACCEPTANCE_THRESHOLD,
-        proposal_rejection_threshold: REJECTION_THRESHOLD,
+        proposal_minimum_quorum: MINIMUM_QUORUM,
+        proposal_pass_threshold: PASS_THRESHOLD,
         signer_bump_seed: 0,
         _padding: [0; 7],
         stake_config_address: stake_config,
         voting_period_seconds: 10,
+        stake_per_proposal: 0,
     };
 
     let mut context = setup().start_with_context().await;
@@ -1111,7 +1077,6 @@ async fn success_voting_closed_but_cooldown_active() {
         governance_config,
         /* stake_for */ TOTAL_STAKE,
         /* stake_against */ 0,
-        /* stake_abstained */ 0,
         ProposalStatus::Voting,
         /* voting_start_timestamp */ NonZeroU64::new(1), // Wayyy earlier.
         /* cooldown_timestamp */
@@ -1191,12 +1156,13 @@ async fn success_cooldown_has_ended(threshold_met: bool, expected_status: Propos
 
     let governance_config = GovernanceConfig {
         cooldown_period_seconds: 10,
-        proposal_acceptance_threshold: ACCEPTANCE_THRESHOLD,
-        proposal_rejection_threshold: REJECTION_THRESHOLD,
+        proposal_minimum_quorum: MINIMUM_QUORUM,
+        proposal_pass_threshold: PASS_THRESHOLD,
         signer_bump_seed: 0,
         _padding: [0; 7],
         stake_config_address: stake_config,
         voting_period_seconds: 1_000,
+        stake_per_proposal: 0,
     };
 
     let vote_stake = TOTAL_STAKE / 10;
@@ -1239,7 +1205,6 @@ async fn success_cooldown_has_ended(threshold_met: bool, expected_status: Propos
         governance_config,
         /* stake_for */ proposal_stake_for,
         /* stake_against */ 0,
-        /* stake_abstained */ 0,
         ProposalStatus::Voting,
         /* voting_start_timestamp */
         NonZeroU64::new(clock.unix_timestamp as u64),
