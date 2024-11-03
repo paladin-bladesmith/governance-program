@@ -46,6 +46,7 @@ async fn fail_stake_config_incorrect_owner() {
         /* proposal_acceptance_threshold */ 0,
         /* proposal_rejection_threshold */ 0,
         /* voting_period_seconds */ 0,
+        /* stake_per_proposal */ 0,
     );
 
     let transaction = Transaction::new_signed_with_payer(
@@ -93,6 +94,7 @@ async fn fail_stake_config_not_initialized() {
         /* proposal_acceptance_threshold */ 0,
         /* proposal_rejection_threshold */ 0,
         /* voting_period_seconds */ 0,
+        /* stake_per_proposal */ 0,
     );
 
     let transaction = Transaction::new_signed_with_payer(
@@ -130,6 +132,7 @@ async fn fail_governance_incorrect_address() {
         /* proposal_acceptance_threshold */ 0,
         /* proposal_rejection_threshold */ 0,
         /* voting_period_seconds */ 0,
+        /* stake_per_proposal */ 0,
     );
 
     let transaction = Transaction::new_signed_with_payer(
@@ -166,7 +169,17 @@ async fn fail_governance_already_initialized() {
     setup_stake_config(&mut context, &stake_config, /* total_stake */ 100).await;
 
     // Set up an already initialized governance account.
-    setup_governance(&mut context, &governance, 0, 0, 0, stake_config, 0).await;
+    let governance_config = GovernanceConfig {
+        cooldown_period_seconds: 0,
+        proposal_minimum_quorum: 0,
+        proposal_pass_threshold: 0,
+        signer_bump_seed: 0,
+        _padding: [0; 7],
+        stake_config_address: stake_config,
+        voting_period_seconds: 0,
+        stake_per_proposal: 0,
+    };
+    setup_governance(&mut context, &governance, &governance_config).await;
 
     let instruction = initialize_governance(
         &governance,
@@ -175,6 +188,7 @@ async fn fail_governance_already_initialized() {
         /* proposal_acceptance_threshold */ 0,
         /* proposal_rejection_threshold */ 0,
         /* voting_period_seconds */ 0,
+        /* stake_per_proposal */ 0,
     );
 
     let transaction = Transaction::new_signed_with_payer(
@@ -222,6 +236,7 @@ async fn success() {
         /* proposal_acceptance_threshold */ 0,
         /* proposal_rejection_threshold */ 0,
         /* voting_period_seconds */ 0,
+        /* stake_per_proposal */ 0,
     );
 
     let transaction = Transaction::new_signed_with_payer(
@@ -246,7 +261,8 @@ async fn success() {
         .unwrap();
     let governance_state = bytemuck::from_bytes::<GovernanceConfig>(&governance_account.data);
     assert_eq!(governance_state.cooldown_period_seconds, 0);
-    assert_eq!(governance_state.proposal_acceptance_threshold, 0);
-    assert_eq!(governance_state.proposal_rejection_threshold, 0);
+    assert_eq!(governance_state.proposal_minimum_quorum, 0);
+    assert_eq!(governance_state.proposal_pass_threshold, 0);
+    assert_eq!(governance_state.stake_per_proposal, 0);
     assert_eq!(governance_state.stake_config_address, stake_config);
 }

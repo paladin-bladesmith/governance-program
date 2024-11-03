@@ -751,7 +751,7 @@ pub fn initialize_governance(
         AccountMeta::new_readonly(*stake_config_address, false),
         AccountMeta::new_readonly(system_program::id(), false),
     ];
-    let data = PaladinGovernanceInstruction::UpdateGovernance {
+    let data = PaladinGovernanceInstruction::InitializeGovernance {
         cooldown_period_seconds,
         proposal_minimum_quorum,
         proposal_pass_threshold,
