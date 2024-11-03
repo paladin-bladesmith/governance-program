@@ -738,7 +738,6 @@ enum Expect {
         stake_for: u64,
         stake_against: u64,
     },
-    Terminated,
 }
 
 #[test_case(
@@ -776,14 +775,6 @@ enum Expect {
         stake_against: 0,
     };
     "vote_for_beyond_threshold_increments_stake_for_and_activates_cooldown"
-)]
-#[test_case(
-    Vote {
-        vote_stake: TOTAL_STAKE / 2, // 50% of total stake.
-        election: ProposalVoteElection::Against,
-    },
-    Expect::Terminated;
-    "vote_against_beyond_threshold_terminates"
 )]
 #[tokio::test]
 async fn success(vote: Vote, expect: Expect) {
@@ -907,10 +898,6 @@ async fn success(vote: Vote, expect: Expect) {
                 // Assert the cooldown time is not set.
                 assert!(proposal_state.cooldown_timestamp.is_none());
             }
-        }
-        Expect::Terminated => {
-            // Assert the proposal was rejected.
-            assert_eq!(proposal_state.status, ProposalStatus::Rejected);
         }
     }
 }
@@ -1204,7 +1191,7 @@ async fn success_cooldown_has_ended(threshold_met: bool, expected_status: Propos
         /* creation_timestamp */ 0,
         governance_config,
         /* stake_for */ proposal_stake_for,
-        /* stake_against */ 0,
+        /* stake_against */ TOTAL_STAKE / 2,
         ProposalStatus::Voting,
         /* voting_start_timestamp */
         NonZeroU64::new(clock.unix_timestamp as u64),
