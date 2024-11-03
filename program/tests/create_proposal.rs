@@ -584,7 +584,6 @@ async fn fail_proposal_transaction_incorrect_address() {
     );
 }
 
-/*
 #[tokio::test]
 async fn fail_proposal_transaction_already_initialized() {
     let stake_authority = Keypair::new();
@@ -596,12 +595,13 @@ async fn fail_proposal_transaction_already_initialized() {
 
     let governance_config = GovernanceConfig {
         cooldown_period_seconds: 100_000_000,
-        proposal_acceptance_threshold: 500_000_000, // 50%
-        proposal_rejection_threshold: 500_000_000,  // 50%
+        proposal_minimum_quorum: 5 * 10u32.pow(8), // 50%
+        proposal_pass_threshold: 5 * 10u32.pow(8), // 50%
         signer_bump_seed: 0,
         _padding: [0; 7],
         stake_config_address: Pubkey::new_unique(), // Doesn't matter here.
         voting_period_seconds: 100_000_000,
+        stake_per_proposal: 1,
     };
 
     let mut context = setup().start_with_context().await;
@@ -613,16 +613,7 @@ async fn fail_proposal_transaction_already_initialized() {
         0,
     )
     .await;
-    setup_governance(
-        &mut context,
-        &governance,
-        governance_config.cooldown_period_seconds,
-        governance_config.proposal_acceptance_threshold,
-        governance_config.proposal_rejection_threshold,
-        governance_config.stake_config_address,
-        governance_config.voting_period_seconds,
-    )
-    .await;
+    setup_governance(&mut context, &governance, &governance_config).await;
 
     // Set up a proposal transaction account already initialized.
     setup_proposal_transaction(
@@ -683,12 +674,13 @@ async fn success() {
 
     let governance_config = GovernanceConfig {
         cooldown_period_seconds: 100_000_000,
-        proposal_acceptance_threshold: 500_000_000, // 50%
-        proposal_rejection_threshold: 500_000_000,  // 50%
+        proposal_minimum_quorum: 5 * 10u32.pow(8), // 50%
+        proposal_pass_threshold: 5 * 10u32.pow(8), // 50%
         signer_bump_seed: 0,
         _padding: [0; 7],
         stake_config_address: Pubkey::new_unique(), // Doesn't matter here.
         voting_period_seconds: 100_000_000,
+        stake_per_proposal: 1,
     };
 
     let mut context = setup().start_with_context().await;
@@ -700,16 +692,7 @@ async fn success() {
         0,
     )
     .await;
-    setup_governance(
-        &mut context,
-        &governance,
-        governance_config.cooldown_period_seconds,
-        governance_config.proposal_acceptance_threshold,
-        governance_config.proposal_rejection_threshold,
-        governance_config.stake_config_address,
-        governance_config.voting_period_seconds,
-    )
-    .await;
+    setup_governance(&mut context, &governance, &governance_config).await;
 
     // Fund the proposal and proposal transaction accounts.
     {
@@ -777,4 +760,3 @@ async fn success() {
     let state = ProposalTransaction::try_from_slice(&proposal_transaction_account.data).unwrap();
     assert_eq!(state, ProposalTransaction::default());
 }
-*/
