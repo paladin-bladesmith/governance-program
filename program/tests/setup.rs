@@ -87,22 +87,9 @@ pub async fn setup_stake_config(
 pub async fn setup_governance(
     context: &mut ProgramTestContext,
     governance_address: &Pubkey,
-    cooldown_period_seconds: u64,
-    proposal_acceptance_threshold: u32,
-    proposal_rejection_threshold: u32,
-    stake_config_address: Pubkey,
-    voting_period_seconds: u64,
+    config: &GovernanceConfig,
 ) {
-    let state = GovernanceConfig {
-        cooldown_period_seconds,
-        proposal_acceptance_threshold,
-        proposal_rejection_threshold,
-        signer_bump_seed: 0, // TODO: Unused right now.
-        _padding: [0; 7],
-        stake_config_address,
-        voting_period_seconds,
-    };
-    let data = bytemuck::bytes_of(&state).to_vec();
+    let data = bytemuck::bytes_of(config).to_vec();
 
     let rent = context.banks_client.get_rent().await.unwrap();
     let lamports = rent.minimum_balance(data.len());
@@ -127,7 +114,6 @@ async fn _setup_proposal_inner(
     governance_config: GovernanceConfig,
     stake_for: u64,
     stake_against: u64,
-    stake_abstained: u64,
     status: ProposalStatus,
     voting_start_timestamp: Option<NonZeroU64>,
     cooldown_timestamp: Option<NonZeroU64>,
@@ -136,7 +122,6 @@ async fn _setup_proposal_inner(
     state.cooldown_timestamp = cooldown_timestamp;
     state.stake_for = stake_for;
     state.stake_against = stake_against;
-    state.stake_abstained = stake_abstained;
     state.status = status;
     state.voting_start_timestamp = voting_start_timestamp;
 
@@ -165,7 +150,6 @@ pub async fn setup_proposal_with_stake_and_cooldown(
     governance_config: GovernanceConfig,
     stake_for: u64,
     stake_against: u64,
-    stake_abstained: u64,
     status: ProposalStatus,
     voting_start_timestamp: Option<NonZeroU64>,
     cooldown_timestamp: Option<NonZeroU64>,
@@ -178,7 +162,6 @@ pub async fn setup_proposal_with_stake_and_cooldown(
         governance_config,
         stake_for,
         stake_against,
-        stake_abstained,
         status,
         voting_start_timestamp,
         cooldown_timestamp,
@@ -195,7 +178,6 @@ pub async fn setup_proposal_with_stake(
     governance_config: GovernanceConfig,
     stake_for: u64,
     stake_against: u64,
-    stake_abstained: u64,
     status: ProposalStatus,
     voting_start_timestamp: Option<NonZeroU64>,
 ) {
@@ -207,7 +189,6 @@ pub async fn setup_proposal_with_stake(
         governance_config,
         stake_for,
         stake_against,
-        stake_abstained,
         status,
         voting_start_timestamp,
         None,
@@ -229,7 +210,6 @@ pub async fn setup_proposal(
         author,
         creation_timestamp,
         governance_config,
-        0,
         0,
         0,
         status,
