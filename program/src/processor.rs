@@ -210,7 +210,6 @@ fn process_create_proposal(program_id: &Pubkey, accounts: &[AccountInfo]) -> Pro
         return Err(ProgramError::MissingRequiredSignature);
     }
 
-    solana_program::msg!("0");
     // Check & deserialize author.
     if author_info.key
         != &crate::state::get_proposal_author_address(stake_authority_info.key, program_id)
@@ -221,7 +220,6 @@ fn process_create_proposal(program_id: &Pubkey, accounts: &[AccountInfo]) -> Pro
     let author_state = bytemuck::try_from_bytes_mut::<Author>(&mut author_data)
         .map_err(|_| ProgramError::InvalidAccountData)?;
 
-    solana_program::msg!("1");
     // Ensure a valid stake account was provided.
     {
         check_stake_exists(stake_info)?;
@@ -236,7 +234,6 @@ fn process_create_proposal(program_id: &Pubkey, accounts: &[AccountInfo]) -> Pro
         }
     }
 
-    solana_program::msg!("2");
     // Check & deserialize governance config.
     check_governance_exists(program_id, governance_info)?;
     let governance_config = {
@@ -245,14 +242,12 @@ fn process_create_proposal(program_id: &Pubkey, accounts: &[AccountInfo]) -> Pro
             .map_err(|_| ProgramError::InvalidAccountData)?
     };
 
-    solana_program::msg!("3");
     // Increment the active proposal count.
     author_state.active_proposals = author_state
         .active_proposals
         .checked_add(1)
         .ok_or(ProgramError::ArithmeticOverflow)?;
 
-    solana_program::msg!("4");
     // Ensure the author does not have too many active proposals.
     let author_stake = get_stake_checked(
         stake_authority_info.key,
@@ -264,7 +259,6 @@ fn process_create_proposal(program_id: &Pubkey, accounts: &[AccountInfo]) -> Pro
         return Err(PaladinGovernanceError::TooManyActiveProposals.into());
     }
 
-    solana_program::msg!("5");
     // Initialize the proposal account.
     {
         // Ensure the proposal account is owned by the Paladin Governance program.
@@ -295,7 +289,6 @@ fn process_create_proposal(program_id: &Pubkey, accounts: &[AccountInfo]) -> Pro
         );
     }
 
-    solana_program::msg!("6");
     // Initialize the proposal transaction account.
     {
         let (proposal_transaction_address, signer_bump_seed) =

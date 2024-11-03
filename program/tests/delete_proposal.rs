@@ -206,7 +206,7 @@ async fn fail_proposal_immutable() {
         err,
         TransactionError::InstructionError(
             0,
-            InstructionError::Custom(PaladinGovernanceError::ProposalIsImmutable as u32)
+            InstructionError::Custom(PaladinGovernanceError::ProposalIsActive as u32)
         )
     );
 }

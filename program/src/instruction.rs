@@ -592,6 +592,10 @@ pub fn create_proposal(
 ) -> Instruction {
     let accounts = vec![
         AccountMeta::new_readonly(*stake_authority_address, true),
+        AccountMeta::new(
+            crate::state::get_proposal_author_address(stake_authority_address, &crate::id()),
+            false,
+        ),
         AccountMeta::new_readonly(*stake_address, false),
         AccountMeta::new(*proposal_address, false),
         AccountMeta::new(*proposal_transaction_address, false),
