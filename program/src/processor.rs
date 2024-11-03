@@ -10,9 +10,9 @@ use {
             get_governance_address, get_governance_address_and_bump_seed,
             get_proposal_transaction_address, get_proposal_transaction_address_and_bump_seed,
             get_proposal_vote_address, get_proposal_vote_address_and_bump_seed,
-            get_treasury_address, get_treasury_address_and_bump_seed, GovernanceConfig, Proposal,
-            ProposalAccountMeta, ProposalInstruction, ProposalStatus, ProposalTransaction,
-            ProposalVote, ProposalVoteElection,
+            get_treasury_address, get_treasury_address_and_bump_seed, Author, GovernanceConfig,
+            Proposal, ProposalAccountMeta, ProposalInstruction, ProposalStatus,
+            ProposalTransaction, ProposalVote, ProposalVoteElection,
         },
     },
     borsh::BorshDeserialize,
@@ -38,6 +38,14 @@ use {
 };
 
 const THRESHOLD_SCALING_FACTOR: u128 = 1_000_000_000; // 1e9
+
+fn calculate_maximum_proposals(governance_config: &GovernanceConfig, author_stake: u64) -> u64 {
+    if governance_config.stake_per_proposal == 0 {
+        return u64::MAX;
+    }
+
+    author_stake / governance_config.stake_per_proposal
+}
 
 fn calculate_voter_turnout(stake: u64, total_stake: u64) -> Result<u32, ProgramError> {
     if total_stake == 0 {
@@ -191,6 +199,7 @@ fn process_create_proposal(program_id: &Pubkey, accounts: &[AccountInfo]) -> Pro
     let accounts_iter = &mut accounts.iter();
 
     let stake_authority_info = next_account_info(accounts_iter)?;
+    let author_info = next_account_info(accounts_iter)?;
     let stake_info = next_account_info(accounts_iter)?;
     let proposal_info = next_account_info(accounts_iter)?;
     let proposal_transaction_info = next_account_info(accounts_iter)?;
@@ -201,6 +210,18 @@ fn process_create_proposal(program_id: &Pubkey, accounts: &[AccountInfo]) -> Pro
         return Err(ProgramError::MissingRequiredSignature);
     }
 
+    solana_program::msg!("0");
+    // Check & deserialize author.
+    if author_info.key
+        != &crate::state::get_proposal_author_address(stake_authority_info.key, program_id)
+    {
+        return Err(ProgramError::InvalidSeeds);
+    }
+    let mut author_data = author_info.try_borrow_mut_data()?;
+    let author_state = bytemuck::try_from_bytes_mut::<Author>(&mut author_data)
+        .map_err(|_| ProgramError::InvalidAccountData)?;
+
+    solana_program::msg!("1");
     // Ensure a valid stake account was provided.
     {
         check_stake_exists(stake_info)?;
@@ -215,14 +236,35 @@ fn process_create_proposal(program_id: &Pubkey, accounts: &[AccountInfo]) -> Pro
         }
     }
 
+    solana_program::msg!("2");
+    // Check & deserialize governance config.
     check_governance_exists(program_id, governance_info)?;
-
     let governance_config = {
         let governance_data = governance_info.try_borrow_data()?;
         *bytemuck::try_from_bytes::<GovernanceConfig>(&governance_data)
             .map_err(|_| ProgramError::InvalidAccountData)?
     };
 
+    solana_program::msg!("3");
+    // Increment the active proposal count.
+    author_state.active_proposals = author_state
+        .active_proposals
+        .checked_add(1)
+        .ok_or(ProgramError::ArithmeticOverflow)?;
+
+    solana_program::msg!("4");
+    // Ensure the author does not have too many active proposals.
+    let author_stake = get_stake_checked(
+        stake_authority_info.key,
+        &governance_config.stake_config_address,
+        stake_info,
+    )?;
+    if author_state.active_proposals > calculate_maximum_proposals(&governance_config, author_stake)
+    {
+        return Err(PaladinGovernanceError::TooManyActiveProposals.into());
+    }
+
+    solana_program::msg!("5");
     // Initialize the proposal account.
     {
         // Ensure the proposal account is owned by the Paladin Governance program.
@@ -253,6 +295,7 @@ fn process_create_proposal(program_id: &Pubkey, accounts: &[AccountInfo]) -> Pro
         );
     }
 
+    solana_program::msg!("6");
     // Initialize the proposal transaction account.
     {
         let (proposal_transaction_address, signer_bump_seed) =
@@ -453,12 +496,13 @@ fn process_remove_instruction(
 }
 
 /// Processes a
-/// [CancelProposal](enum.PaladinGovernanceInstruction.html)
+/// [DeleteProposal](enum.PaladinGovernanceInstruction.html)
 /// instruction.
-fn process_cancel_proposal(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
+fn process_delete_proposal(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
     let accounts_iter = &mut accounts.iter();
 
     let stake_authority_info = next_account_info(accounts_iter)?;
+    let author_info = next_account_info(accounts_iter)?;
     let proposal_info = next_account_info(accounts_iter)?;
 
     // Ensure the stake authority is a signer.
@@ -466,22 +510,43 @@ fn process_cancel_proposal(program_id: &Pubkey, accounts: &[AccountInfo]) -> Pro
         return Err(ProgramError::MissingRequiredSignature);
     }
 
+    // Check & deserialize proposal.
     check_proposal_exists(program_id, proposal_info)?;
-
     let mut proposal_data = proposal_info.try_borrow_mut_data()?;
     let proposal_state = bytemuck::try_from_bytes_mut::<Proposal>(&mut proposal_data)
+        .map_err(|_| ProgramError::InvalidAccountData)?;
+
+    // Check & deserialize proposal author state.
+    if author_info.key
+        != &crate::state::get_proposal_author_address(stake_authority_info.key, program_id)
+    {
+        return Err(ProgramError::InvalidSeeds);
+    }
+    let mut author_data = author_info.try_borrow_mut_data()?;
+    let author_state = bytemuck::try_from_bytes_mut::<Author>(&mut author_data)
         .map_err(|_| ProgramError::InvalidAccountData)?;
 
     // Ensure the stake authority is the proposal author.
     proposal_state.check_author(stake_authority_info.key)?;
 
-    // Ensure the proposal is in draft or voting stage.
-    if proposal_state.status != ProposalStatus::Draft {
-        return Err(PaladinGovernanceError::ProposalIsImmutable.into());
+    // Ensure the proposal is eligible for deletion.
+    match proposal_state.status {
+        ProposalStatus::Draft | ProposalStatus::Rejected | ProposalStatus::Processed => {}
+        ProposalStatus::Voting | ProposalStatus::Accepted => {
+            return Err(PaladinGovernanceError::ProposalIsActive.into())
+        }
     }
 
-    // Set the proposal's status to cancelled.
-    proposal_state.status = ProposalStatus::Cancelled;
+    // Decrease the user's active proposal count.
+    author_state.active_proposals = author_state
+        .active_proposals
+        .checked_sub(1)
+        .ok_or(ProgramError::ArithmeticOverflow)?;
+
+    // Delete the proposal & refund the rent.
+    let rent = proposal_info.lamports();
+    **proposal_info.lamports.borrow_mut() = 0;
+    **stake_authority_info.lamports.borrow_mut() += rent;
 
     Ok(())
 }
@@ -1102,9 +1167,9 @@ pub fn process(program_id: &Pubkey, accounts: &[AccountInfo], input: &[u8]) -> P
             msg!("Instruction: RemoveInstruction");
             process_remove_instruction(program_id, accounts, instruction_index)
         }
-        PaladinGovernanceInstruction::CancelProposal => {
-            msg!("Instruction: CancelProposal");
-            process_cancel_proposal(program_id, accounts)
+        PaladinGovernanceInstruction::DeleteProposal => {
+            msg!("Instruction: DeleteProposal");
+            process_delete_proposal(program_id, accounts)
         }
         PaladinGovernanceInstruction::BeginVoting => {
             msg!("Instruction: BeginVoting");

@@ -14,6 +14,14 @@
           ]
         },
         {
+          "name": "author",
+          "isMut": true,
+          "isSigner": false,
+          "docs": [
+            "Stake authority author account"
+          ]
+        },
+        {
           "name": "stake",
           "isMut": false,
           "isSigner": false,
@@ -151,14 +159,22 @@
       }
     },
     {
-      "name": "CancelProposal",
+      "name": "DeleteProposal",
       "accounts": [
         {
           "name": "stakeAuthority",
-          "isMut": false,
+          "isMut": true,
           "isSigner": true,
           "docs": [
             "Paladin stake authority account"
+          ]
+        },
+        {
+          "name": "author",
+          "isMut": true,
+          "isSigner": false,
+          "docs": [
+            "Stake authority author account"
           ]
         },
         {
@@ -615,6 +631,18 @@
           }
         ]
       }
+    },
+    {
+      "name": "Author",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "activeProposals",
+            "type": "u64"
+          }
+        ]
+      }
     }
   ],
   "types": [
@@ -694,9 +722,6 @@
             "name": "Voting"
           },
           {
-            "name": "Cancelled"
-          },
-          {
             "name": "Accepted"
           },
           {
@@ -766,28 +791,38 @@
     },
     {
       "code": 8,
+      "name": "ProposalIsActive",
+      "msg": "Proposal is active."
+    },
+    {
+      "code": 9,
       "name": "ProposalNotAccepted",
       "msg": "Proposal not accepted."
     },
     {
-      "code": 9,
+      "code": 10,
       "name": "ProposalVotingPeriodStillActive",
       "msg": "Proposal voting period still active."
     },
     {
-      "code": 10,
+      "code": 11,
       "name": "InvalidTransactionIndex",
       "msg": "Invalid transaction index."
     },
     {
-      "code": 11,
+      "code": 12,
       "name": "InstructionAlreadyExecuted",
       "msg": "Instruction already executed."
     },
     {
-      "code": 12,
+      "code": 13,
       "name": "PreviousInstructionHasNotBeenExecuted",
       "msg": "Previous instruction has not been executed."
+    },
+    {
+      "code": 14,
+      "name": "TooManyActiveProposals",
+      "msg": "Author has too many active proposals."
     }
   ],
   "metadata": {

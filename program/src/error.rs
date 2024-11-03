@@ -38,6 +38,9 @@ pub enum PaladinGovernanceError {
     /// Proposal is immutable.
     #[error("Proposal is immutable.")]
     ProposalIsImmutable,
+    /// Proposal is active.
+    #[error("Proposal is active.")]
+    ProposalIsActive,
     /// Proposal not accepted.
     #[error("Proposal not accepted.")]
     ProposalNotAccepted,
@@ -53,6 +56,9 @@ pub enum PaladinGovernanceError {
     /// Previous instruction has not been executed.
     #[error("Previous instruction has not been executed.")]
     PreviousInstructionHasNotBeenExecuted,
+    /// Author has too many active proposals.
+    #[error("Author has too many active proposals.")]
+    TooManyActiveProposals,
 }
 
 impl PrintProgramError for PaladinGovernanceError {

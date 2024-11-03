@@ -168,6 +168,14 @@ pub(crate) fn collect_proposal_vote_signer_seeds<'a>(
     ]
 }
 
+pub fn get_proposal_author_address(stake_authority: &Pubkey, program_id: &Pubkey) -> Pubkey {
+    Pubkey::find_program_address(
+        &[b"proposal_author", &stake_authority.to_bytes()],
+        program_id,
+    )
+    .0
+}
+
 /// Governance configuration account.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Pod, ShankAccount, ShankType, Zeroable)]
 #[repr(C)]
@@ -297,8 +305,6 @@ pub enum ProposalStatus {
     Draft,
     /// The proposal is in the voting stage.
     Voting,
-    /// The proposal was cancelled.
-    Cancelled,
     /// The proposal was accepted.
     Accepted,
     /// The proposal was rejected.
@@ -439,4 +445,11 @@ impl ProposalVote {
             _padding: [0; 7],
         }
     }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Pod, ShankAccount, SplDiscriminate, Zeroable)]
+#[discriminator_hash_input("governance::state::author")]
+#[repr(C)]
+pub struct Author {
+    pub active_proposals: u64,
 }

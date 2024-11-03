@@ -26,11 +26,12 @@ pub enum PaladinGovernanceInstruction {
     /// Accounts expected by this instruction:
     ///
     /// 0. `[s]` Paladin stake authority account.
-    /// 1. `[ ]` Paladin stake account.
-    /// 2. `[w]` Proposal account.
-    /// 3. `[w]` Proposal transaction account.
-    /// 4. `[ ]` Governance config account.
-    /// 5. `[ ]` System program.
+    /// 1. `[w]` Author account.
+    /// 2. `[ ]` Paladin stake account.
+    /// 3. `[w]` Proposal account.
+    /// 4. `[w]` Proposal transaction account.
+    /// 5. `[ ]` Governance config account.
+    /// 6. `[ ]` System program.
     #[account(
         0,
         signer,
@@ -39,28 +40,34 @@ pub enum PaladinGovernanceInstruction {
     )]
     #[account(
         1,
+        writable,
+        name = "author",
+        description = "Stake authority author account"
+    )]
+    #[account(
+        2,
         name = "stake",
         description = "Paladin stake account"
     )]
     #[account(
-        2,
+        3,
         writable,
         name = "proposal",
         description = "Proposal account"
     )]
     #[account(
-        3,
+        4,
         writable,
         name = "proposal_transaction",
         description = "Proposal transaction account"
     )]
     #[account(
-        4,
+        5,
         name = "governance_config",
         description = "Governance config account"
     )]
     #[account(
-        5,
+        6,
         name = "system_program",
         description = "System program"
     )]
@@ -131,27 +138,35 @@ pub enum PaladinGovernanceInstruction {
         /// The index of the instruction to remove.
         instruction_index: u32,
     },
-    /// Cancel a governance proposal.
+    /// Delete a governance proposal.
     ///
     /// Authority account provided must be the proposal creator.
     ///
     /// Accounts expected by this instruction:
     ///
-    /// 0. `[s]` Paladin stake authority account.
-    /// 1. `[w]` Proposal account.
+    /// 0. `[s,w]` Paladin stake authority account.
+    /// 1. `[w]` Author account.
+    /// 2. `[w]` Proposal account.
     #[account(
         0,
         signer,
+        writable,
         name = "stake_authority",
         description = "Paladin stake authority account"
     )]
     #[account(
         1,
         writable,
+        name = "author",
+        description = "Stake authority author account"
+    )]
+    #[account(
+        2,
+        writable,
         name = "proposal",
         description = "Proposal account"
     )]
-    CancelProposal,
+    DeleteProposal,
     /// Finalize a draft governance proposal and begin voting.
     ///
     /// Authority account provided must be the proposal creator.
@@ -422,7 +437,7 @@ impl PaladinGovernanceInstruction {
                 buf.extend_from_slice(&instruction_index.to_le_bytes());
                 buf
             }
-            Self::CancelProposal => vec![3],
+            Self::DeleteProposal => vec![3],
             Self::BeginVoting => vec![4],
             Self::Vote { election } => vec![5, (*election).into()],
             Self::SwitchVote { new_election } => vec![6, (*new_election).into()],
@@ -493,7 +508,7 @@ impl PaladinGovernanceInstruction {
                 let instruction_index = u32::from_le_bytes(rest.try_into().unwrap());
                 Ok(Self::RemoveInstruction { instruction_index })
             }
-            Some((&3, _)) => Ok(Self::CancelProposal),
+            Some((&3, _)) => Ok(Self::DeleteProposal),
             Some((&4, _)) => Ok(Self::BeginVoting),
             Some((&5, rest)) if rest.len() == 1 => {
                 let election = rest[0]
@@ -631,14 +646,18 @@ pub fn remove_instruction(
 }
 
 /// Creates a
-/// [CancelProposal](enum.PaladinGovernanceInstruction.html)
+/// [DeleteProposal](enum.PaladinGovernanceInstruction.html)
 /// instruction.
-pub fn cancel_proposal(stake_authority_address: &Pubkey, proposal_address: &Pubkey) -> Instruction {
+pub fn delete_proposal(stake_authority_address: Pubkey, proposal_address: Pubkey) -> Instruction {
     let accounts = vec![
-        AccountMeta::new_readonly(*stake_authority_address, true),
-        AccountMeta::new(*proposal_address, false),
+        AccountMeta::new(stake_authority_address, true),
+        AccountMeta::new(
+            crate::state::get_proposal_author_address(&stake_authority_address, &crate::id()),
+            false,
+        ),
+        AccountMeta::new(proposal_address, false),
     ];
-    let data = PaladinGovernanceInstruction::CancelProposal.pack();
+    let data = PaladinGovernanceInstruction::DeleteProposal.pack();
     Instruction::new_with_bytes(crate::id(), &data, accounts)
 }
 
@@ -828,7 +847,7 @@ mod tests {
 
     #[test]
     fn test_pack_unpack_cancel_proposal() {
-        test_pack_unpack(PaladinGovernanceInstruction::CancelProposal);
+        test_pack_unpack(PaladinGovernanceInstruction::DeleteProposal);
     }
 
     #[test]

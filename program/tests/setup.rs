@@ -4,8 +4,9 @@
 use {
     borsh::BorshSerialize,
     paladin_governance_program::state::{
-        GovernanceConfig, Proposal, ProposalAccountMeta, ProposalInstruction, ProposalStatus,
-        ProposalTransaction, ProposalVote, ProposalVoteElection,
+        get_proposal_author_address, GovernanceConfig, Proposal, ProposalAccountMeta,
+        ProposalInstruction, ProposalStatus, ProposalTransaction, ProposalVote,
+        ProposalVoteElection,
     },
     paladin_stake_program::state::{Config as StakeConfig, ValidatorStake},
     solana_program_test::*,
@@ -46,6 +47,26 @@ pub async fn setup_stake(
             lamports,
             data,
             owner: paladin_stake_program::id(),
+            ..Account::default()
+        }),
+    );
+}
+
+pub async fn setup_author(
+    context: &mut ProgramTestContext,
+    authority_address: &Pubkey,
+    active_proposals: u64,
+) {
+    let rent = context.banks_client.get_rent().await.unwrap();
+    let data = active_proposals.to_le_bytes().to_vec();
+    let lamports = rent.minimum_balance(data.len());
+
+    context.set_account(
+        &get_proposal_author_address(authority_address, &paladin_governance_program::ID),
+        &AccountSharedData::from(Account {
+            lamports,
+            data,
+            owner: paladin_governance_program::ID,
             ..Account::default()
         }),
     );

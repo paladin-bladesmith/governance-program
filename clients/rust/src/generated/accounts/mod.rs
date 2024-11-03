@@ -4,8 +4,9 @@
 //!
 //! <https://github.com/kinobi-so/kinobi>
 
+pub(crate) mod r#author;
 pub(crate) mod r#governance_config;
 pub(crate) mod r#proposal;
 pub(crate) mod r#proposal_vote;
 
-pub use self::{r#governance_config::*, r#proposal::*, r#proposal_vote::*};
+pub use self::{r#author::*, r#governance_config::*, r#proposal::*, r#proposal_vote::*};

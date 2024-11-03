@@ -6,6 +6,7 @@
  * @see https://github.com/kinobi-so/kinobi
  */
 
+export * from './author';
 export * from './governanceConfig';
 export * from './proposal';
 export * from './proposalVote';

@@ -25,7 +25,6 @@ use {
 pub enum ProposalStatus {
     Draft,
     Voting,
-    Cancelled,
     Accepted,
     Rejected,
     Processed,

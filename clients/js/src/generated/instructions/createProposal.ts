@@ -33,6 +33,7 @@ import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
 export type CreateProposalInstruction<
   TProgram extends string = typeof PALADIN_GOVERNANCE_PROGRAM_ADDRESS,
   TAccountStakeAuthority extends string | IAccountMeta<string> = string,
+  TAccountAuthor extends string | IAccountMeta<string> = string,
   TAccountStake extends string | IAccountMeta<string> = string,
   TAccountProposal extends string | IAccountMeta<string> = string,
   TAccountProposalTransaction extends string | IAccountMeta<string> = string,
@@ -49,6 +50,9 @@ export type CreateProposalInstruction<
         ? ReadonlySignerAccount<TAccountStakeAuthority> &
             IAccountSignerMeta<TAccountStakeAuthority>
         : TAccountStakeAuthority,
+      TAccountAuthor extends string
+        ? WritableAccount<TAccountAuthor>
+        : TAccountAuthor,
       TAccountStake extends string
         ? ReadonlyAccount<TAccountStake>
         : TAccountStake,
@@ -95,6 +99,7 @@ export function getCreateProposalInstructionDataCodec(): Codec<
 
 export type CreateProposalInput<
   TAccountStakeAuthority extends string = string,
+  TAccountAuthor extends string = string,
   TAccountStake extends string = string,
   TAccountProposal extends string = string,
   TAccountProposalTransaction extends string = string,
@@ -103,6 +108,8 @@ export type CreateProposalInput<
 > = {
   /** Paladin stake authority account */
   stakeAuthority: TransactionSigner<TAccountStakeAuthority>;
+  /** Stake authority author account */
+  author: Address<TAccountAuthor>;
   /** Paladin stake account */
   stake: Address<TAccountStake>;
   /** Proposal account */
@@ -117,6 +124,7 @@ export type CreateProposalInput<
 
 export function getCreateProposalInstruction<
   TAccountStakeAuthority extends string,
+  TAccountAuthor extends string,
   TAccountStake extends string,
   TAccountProposal extends string,
   TAccountProposalTransaction extends string,
@@ -125,6 +133,7 @@ export function getCreateProposalInstruction<
 >(
   input: CreateProposalInput<
     TAccountStakeAuthority,
+    TAccountAuthor,
     TAccountStake,
     TAccountProposal,
     TAccountProposalTransaction,
@@ -134,6 +143,7 @@ export function getCreateProposalInstruction<
 ): CreateProposalInstruction<
   typeof PALADIN_GOVERNANCE_PROGRAM_ADDRESS,
   TAccountStakeAuthority,
+  TAccountAuthor,
   TAccountStake,
   TAccountProposal,
   TAccountProposalTransaction,
@@ -146,6 +156,7 @@ export function getCreateProposalInstruction<
   // Original accounts.
   const originalAccounts = {
     stakeAuthority: { value: input.stakeAuthority ?? null, isWritable: false },
+    author: { value: input.author ?? null, isWritable: true },
     stake: { value: input.stake ?? null, isWritable: false },
     proposal: { value: input.proposal ?? null, isWritable: true },
     proposalTransaction: {
@@ -173,6 +184,7 @@ export function getCreateProposalInstruction<
   const instruction = {
     accounts: [
       getAccountMeta(accounts.stakeAuthority),
+      getAccountMeta(accounts.author),
       getAccountMeta(accounts.stake),
       getAccountMeta(accounts.proposal),
       getAccountMeta(accounts.proposalTransaction),
@@ -184,6 +196,7 @@ export function getCreateProposalInstruction<
   } as CreateProposalInstruction<
     typeof PALADIN_GOVERNANCE_PROGRAM_ADDRESS,
     TAccountStakeAuthority,
+    TAccountAuthor,
     TAccountStake,
     TAccountProposal,
     TAccountProposalTransaction,
@@ -202,16 +215,18 @@ export type ParsedCreateProposalInstruction<
   accounts: {
     /** Paladin stake authority account */
     stakeAuthority: TAccountMetas[0];
+    /** Stake authority author account */
+    author: TAccountMetas[1];
     /** Paladin stake account */
-    stake: TAccountMetas[1];
+    stake: TAccountMetas[2];
     /** Proposal account */
-    proposal: TAccountMetas[2];
+    proposal: TAccountMetas[3];
     /** Proposal transaction account */
-    proposalTransaction: TAccountMetas[3];
+    proposalTransaction: TAccountMetas[4];
     /** Governance config account */
-    governanceConfig: TAccountMetas[4];
+    governanceConfig: TAccountMetas[5];
     /** System program */
-    systemProgram: TAccountMetas[5];
+    systemProgram: TAccountMetas[6];
   };
   data: CreateProposalInstructionData;
 };
@@ -224,7 +239,7 @@ export function parseCreateProposalInstruction<
     IInstructionWithAccounts<TAccountMetas> &
     IInstructionWithData<Uint8Array>
 ): ParsedCreateProposalInstruction<TProgram, TAccountMetas> {
-  if (instruction.accounts.length < 6) {
+  if (instruction.accounts.length < 7) {
     // TODO: Coded error.
     throw new Error('Not enough accounts');
   }
@@ -238,6 +253,7 @@ export function parseCreateProposalInstruction<
     programAddress: instruction.programAddress,
     accounts: {
       stakeAuthority: getNextAccount(),
+      author: getNextAccount(),
       stake: getNextAccount(),
       proposal: getNextAccount(),
       proposalTransaction: getNextAccount(),

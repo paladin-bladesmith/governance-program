@@ -22,16 +22,17 @@ import {
   type IInstruction,
   type IInstructionWithAccounts,
   type IInstructionWithData,
-  type ReadonlySignerAccount,
   type TransactionSigner,
   type WritableAccount,
+  type WritableSignerAccount,
 } from '@solana/web3.js';
 import { PALADIN_GOVERNANCE_PROGRAM_ADDRESS } from '../programs';
 import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
 
-export type CancelProposalInstruction<
+export type DeleteProposalInstruction<
   TProgram extends string = typeof PALADIN_GOVERNANCE_PROGRAM_ADDRESS,
   TAccountStakeAuthority extends string | IAccountMeta<string> = string,
+  TAccountAuthor extends string | IAccountMeta<string> = string,
   TAccountProposal extends string | IAccountMeta<string> = string,
   TRemainingAccounts extends readonly IAccountMeta<string>[] = [],
 > = IInstruction<TProgram> &
@@ -39,9 +40,12 @@ export type CancelProposalInstruction<
   IInstructionWithAccounts<
     [
       TAccountStakeAuthority extends string
-        ? ReadonlySignerAccount<TAccountStakeAuthority> &
+        ? WritableSignerAccount<TAccountStakeAuthority> &
             IAccountSignerMeta<TAccountStakeAuthority>
         : TAccountStakeAuthority,
+      TAccountAuthor extends string
+        ? WritableAccount<TAccountAuthor>
+        : TAccountAuthor,
       TAccountProposal extends string
         ? WritableAccount<TAccountProposal>
         : TAccountProposal,
@@ -49,49 +53,58 @@ export type CancelProposalInstruction<
     ]
   >;
 
-export type CancelProposalInstructionData = { discriminator: number };
+export type DeleteProposalInstructionData = { discriminator: number };
 
-export type CancelProposalInstructionDataArgs = {};
+export type DeleteProposalInstructionDataArgs = {};
 
-export function getCancelProposalInstructionDataEncoder(): Encoder<CancelProposalInstructionDataArgs> {
+export function getDeleteProposalInstructionDataEncoder(): Encoder<DeleteProposalInstructionDataArgs> {
   return transformEncoder(
     getStructEncoder([['discriminator', getU8Encoder()]]),
     (value) => ({ ...value, discriminator: 3 })
   );
 }
 
-export function getCancelProposalInstructionDataDecoder(): Decoder<CancelProposalInstructionData> {
+export function getDeleteProposalInstructionDataDecoder(): Decoder<DeleteProposalInstructionData> {
   return getStructDecoder([['discriminator', getU8Decoder()]]);
 }
 
-export function getCancelProposalInstructionDataCodec(): Codec<
-  CancelProposalInstructionDataArgs,
-  CancelProposalInstructionData
+export function getDeleteProposalInstructionDataCodec(): Codec<
+  DeleteProposalInstructionDataArgs,
+  DeleteProposalInstructionData
 > {
   return combineCodec(
-    getCancelProposalInstructionDataEncoder(),
-    getCancelProposalInstructionDataDecoder()
+    getDeleteProposalInstructionDataEncoder(),
+    getDeleteProposalInstructionDataDecoder()
   );
 }
 
-export type CancelProposalInput<
+export type DeleteProposalInput<
   TAccountStakeAuthority extends string = string,
+  TAccountAuthor extends string = string,
   TAccountProposal extends string = string,
 > = {
   /** Paladin stake authority account */
   stakeAuthority: TransactionSigner<TAccountStakeAuthority>;
+  /** Stake authority author account */
+  author: Address<TAccountAuthor>;
   /** Proposal account */
   proposal: Address<TAccountProposal>;
 };
 
-export function getCancelProposalInstruction<
+export function getDeleteProposalInstruction<
   TAccountStakeAuthority extends string,
+  TAccountAuthor extends string,
   TAccountProposal extends string,
 >(
-  input: CancelProposalInput<TAccountStakeAuthority, TAccountProposal>
-): CancelProposalInstruction<
+  input: DeleteProposalInput<
+    TAccountStakeAuthority,
+    TAccountAuthor,
+    TAccountProposal
+  >
+): DeleteProposalInstruction<
   typeof PALADIN_GOVERNANCE_PROGRAM_ADDRESS,
   TAccountStakeAuthority,
+  TAccountAuthor,
   TAccountProposal
 > {
   // Program address.
@@ -99,7 +112,8 @@ export function getCancelProposalInstruction<
 
   // Original accounts.
   const originalAccounts = {
-    stakeAuthority: { value: input.stakeAuthority ?? null, isWritable: false },
+    stakeAuthority: { value: input.stakeAuthority ?? null, isWritable: true },
+    author: { value: input.author ?? null, isWritable: true },
     proposal: { value: input.proposal ?? null, isWritable: true },
   };
   const accounts = originalAccounts as Record<
@@ -111,20 +125,22 @@ export function getCancelProposalInstruction<
   const instruction = {
     accounts: [
       getAccountMeta(accounts.stakeAuthority),
+      getAccountMeta(accounts.author),
       getAccountMeta(accounts.proposal),
     ],
     programAddress,
-    data: getCancelProposalInstructionDataEncoder().encode({}),
-  } as CancelProposalInstruction<
+    data: getDeleteProposalInstructionDataEncoder().encode({}),
+  } as DeleteProposalInstruction<
     typeof PALADIN_GOVERNANCE_PROGRAM_ADDRESS,
     TAccountStakeAuthority,
+    TAccountAuthor,
     TAccountProposal
   >;
 
   return instruction;
 }
 
-export type ParsedCancelProposalInstruction<
+export type ParsedDeleteProposalInstruction<
   TProgram extends string = typeof PALADIN_GOVERNANCE_PROGRAM_ADDRESS,
   TAccountMetas extends readonly IAccountMeta[] = readonly IAccountMeta[],
 > = {
@@ -132,21 +148,23 @@ export type ParsedCancelProposalInstruction<
   accounts: {
     /** Paladin stake authority account */
     stakeAuthority: TAccountMetas[0];
+    /** Stake authority author account */
+    author: TAccountMetas[1];
     /** Proposal account */
-    proposal: TAccountMetas[1];
+    proposal: TAccountMetas[2];
   };
-  data: CancelProposalInstructionData;
+  data: DeleteProposalInstructionData;
 };
 
-export function parseCancelProposalInstruction<
+export function parseDeleteProposalInstruction<
   TProgram extends string,
   TAccountMetas extends readonly IAccountMeta[],
 >(
   instruction: IInstruction<TProgram> &
     IInstructionWithAccounts<TAccountMetas> &
     IInstructionWithData<Uint8Array>
-): ParsedCancelProposalInstruction<TProgram, TAccountMetas> {
-  if (instruction.accounts.length < 2) {
+): ParsedDeleteProposalInstruction<TProgram, TAccountMetas> {
+  if (instruction.accounts.length < 3) {
     // TODO: Coded error.
     throw new Error('Not enough accounts');
   }
@@ -160,8 +178,9 @@ export function parseCancelProposalInstruction<
     programAddress: instruction.programAddress,
     accounts: {
       stakeAuthority: getNextAccount(),
+      author: getNextAccount(),
       proposal: getNextAccount(),
     },
-    data: getCancelProposalInstructionDataDecoder().decode(instruction.data),
+    data: getDeleteProposalInstructionDataDecoder().decode(instruction.data),
   };
 }

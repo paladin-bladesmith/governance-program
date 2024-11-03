@@ -13,7 +13,10 @@ use {
         },
     },
     paladin_stake_program::state::ValidatorStake,
-    setup::{setup, setup_governance, setup_proposal, setup_proposal_transaction, setup_stake},
+    setup::{
+        setup, setup_author, setup_governance, setup_proposal, setup_proposal_transaction,
+        setup_stake,
+    },
     solana_program_test::*,
     solana_sdk::{
         account::AccountSharedData,
@@ -471,6 +474,7 @@ async fn fail_proposal_already_initialized() {
     setup_governance(&mut context, &governance, &GovernanceConfig::default()).await;
 
     // Set up an initialized proposal account.
+    setup_author(&mut context, &stake_authority.pubkey(), 0).await;
     setup_proposal(
         &mut context,
         &proposal,
