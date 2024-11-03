@@ -495,19 +495,6 @@
             "type": "u32"
           },
           {
-            "name": "signerBumpSeed",
-            "type": "u8"
-          },
-          {
-            "name": "padding",
-            "type": {
-              "array": [
-                "u8",
-                7
-              ]
-            }
-          },
-          {
             "name": "stakeConfigAddress",
             "type": "publicKey"
           },

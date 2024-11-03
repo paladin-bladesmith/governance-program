@@ -184,10 +184,6 @@ pub struct GovernanceConfig {
     ///
     /// Valid values are between `5000` and `10_000`.
     pub proposal_pass_threshold: u32,
-    /// The signing bump seed, used to sign transactions for this governance
-    /// config account with `invoke_signed`. Stored here to save on compute.
-    pub signer_bump_seed: u8,
-    pub _padding: [u8; 7],
     /// The Paladin stake config account that this governance config account
     /// corresponds to.
     pub stake_config_address: Pubkey,

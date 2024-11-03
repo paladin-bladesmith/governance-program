@@ -173,8 +173,6 @@ async fn fail_governance_already_initialized() {
         cooldown_period_seconds: 0,
         proposal_minimum_quorum: 0,
         proposal_pass_threshold: 0,
-        signer_bump_seed: 0,
-        _padding: [0; 7],
         stake_config_address: stake_config,
         voting_period_seconds: 0,
         stake_per_proposal: 0,

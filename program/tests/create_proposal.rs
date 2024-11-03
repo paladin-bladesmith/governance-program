@@ -519,10 +519,8 @@ async fn fail_proposal_transaction_incorrect_address() {
 
     let governance_config = GovernanceConfig {
         cooldown_period_seconds: 100_000_000,
-        proposal_minimum_quorum: 5 * 10u32.pow(8), // 50%
-        proposal_pass_threshold: 5 * 10u32.pow(8), // 50%
-        signer_bump_seed: 0,
-        _padding: [0; 7],
+        proposal_minimum_quorum: 5 * 10u32.pow(8),  // 50%
+        proposal_pass_threshold: 5 * 10u32.pow(8),  // 50%
         stake_config_address: Pubkey::new_unique(), // Doesn't matter here.
         voting_period_seconds: 100_000_000,
         stake_per_proposal: 1,
@@ -595,10 +593,8 @@ async fn fail_proposal_transaction_already_initialized() {
 
     let governance_config = GovernanceConfig {
         cooldown_period_seconds: 100_000_000,
-        proposal_minimum_quorum: 5 * 10u32.pow(8), // 50%
-        proposal_pass_threshold: 5 * 10u32.pow(8), // 50%
-        signer_bump_seed: 0,
-        _padding: [0; 7],
+        proposal_minimum_quorum: 5 * 10u32.pow(8),  // 50%
+        proposal_pass_threshold: 5 * 10u32.pow(8),  // 50%
         stake_config_address: Pubkey::new_unique(), // Doesn't matter here.
         voting_period_seconds: 100_000_000,
         stake_per_proposal: 1,
@@ -674,10 +670,8 @@ async fn success() {
 
     let governance_config = GovernanceConfig {
         cooldown_period_seconds: 100_000_000,
-        proposal_minimum_quorum: 5 * 10u32.pow(8), // 50%
-        proposal_pass_threshold: 5 * 10u32.pow(8), // 50%
-        signer_bump_seed: 0,
-        _padding: [0; 7],
+        proposal_minimum_quorum: 5 * 10u32.pow(8),  // 50%
+        proposal_pass_threshold: 5 * 10u32.pow(8),  // 50%
         stake_config_address: Pubkey::new_unique(), // Doesn't matter here.
         voting_period_seconds: 100_000_000,
         stake_per_proposal: 1,

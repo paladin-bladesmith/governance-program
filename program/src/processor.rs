@@ -1031,8 +1031,6 @@ fn process_initialize_governance(
                 cooldown_period_seconds,
                 proposal_minimum_quorum,
                 proposal_pass_threshold,
-                signer_bump_seed,
-                _padding: [0; 7],
                 stake_config_address: *stake_config_info.key,
                 voting_period_seconds,
                 stake_per_proposal,

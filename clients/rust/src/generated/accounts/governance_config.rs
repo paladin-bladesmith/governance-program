@@ -15,8 +15,6 @@ pub struct GovernanceConfig {
     pub cooldown_period_seconds: u64,
     pub proposal_minimum_quorum: u32,
     pub proposal_pass_threshold: u32,
-    pub signer_bump_seed: u8,
-    pub padding: [u8; 7],
     #[cfg_attr(
         feature = "serde",
         serde(with = "serde_with::As::<serde_with::DisplayFromStr>")
@@ -27,7 +25,7 @@ pub struct GovernanceConfig {
 }
 
 impl GovernanceConfig {
-    pub const LEN: usize = 72;
+    pub const LEN: usize = 64;
 
     #[inline(always)]
     pub fn from_bytes(data: &[u8]) -> Result<Self, std::io::Error> {

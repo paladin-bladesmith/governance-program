@@ -15,16 +15,12 @@ import {
   fetchEncodedAccounts,
   getAddressDecoder,
   getAddressEncoder,
-  getArrayDecoder,
-  getArrayEncoder,
   getStructDecoder,
   getStructEncoder,
   getU32Decoder,
   getU32Encoder,
   getU64Decoder,
   getU64Encoder,
-  getU8Decoder,
-  getU8Encoder,
   type Account,
   type Address,
   type Codec,
@@ -41,8 +37,6 @@ export type GovernanceConfig = {
   cooldownPeriodSeconds: bigint;
   proposalMinimumQuorum: number;
   proposalPassThreshold: number;
-  signerBumpSeed: number;
-  padding: Array<number>;
   stakeConfigAddress: Address;
   votingPeriodSeconds: bigint;
   stakePerProposal: bigint;
@@ -52,8 +46,6 @@ export type GovernanceConfigArgs = {
   cooldownPeriodSeconds: number | bigint;
   proposalMinimumQuorum: number;
   proposalPassThreshold: number;
-  signerBumpSeed: number;
-  padding: Array<number>;
   stakeConfigAddress: Address;
   votingPeriodSeconds: number | bigint;
   stakePerProposal: number | bigint;
@@ -64,8 +56,6 @@ export function getGovernanceConfigEncoder(): Encoder<GovernanceConfigArgs> {
     ['cooldownPeriodSeconds', getU64Encoder()],
     ['proposalMinimumQuorum', getU32Encoder()],
     ['proposalPassThreshold', getU32Encoder()],
-    ['signerBumpSeed', getU8Encoder()],
-    ['padding', getArrayEncoder(getU8Encoder(), { size: 7 })],
     ['stakeConfigAddress', getAddressEncoder()],
     ['votingPeriodSeconds', getU64Encoder()],
     ['stakePerProposal', getU64Encoder()],
@@ -77,8 +67,6 @@ export function getGovernanceConfigDecoder(): Decoder<GovernanceConfig> {
     ['cooldownPeriodSeconds', getU64Decoder()],
     ['proposalMinimumQuorum', getU32Decoder()],
     ['proposalPassThreshold', getU32Decoder()],
-    ['signerBumpSeed', getU8Decoder()],
-    ['padding', getArrayDecoder(getU8Decoder(), { size: 7 })],
     ['stakeConfigAddress', getAddressDecoder()],
     ['votingPeriodSeconds', getU64Decoder()],
     ['stakePerProposal', getU64Decoder()],
@@ -159,5 +147,5 @@ export async function fetchAllMaybeGovernanceConfig(
 }
 
 export function getGovernanceConfigSize(): number {
-  return 72;
+  return 64;
 }
