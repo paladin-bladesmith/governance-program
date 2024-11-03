@@ -901,7 +901,7 @@ async fn success(vote: Vote, expect: Expect) {
 }
 
 #[tokio::test]
-async fn success_voting_closed() {
+async fn error_voting_closed() {
     let stake_authority = Keypair::new();
     let validator_vote = Pubkey::new_unique();
     let stake_config = Pubkey::new_unique();
@@ -977,33 +977,19 @@ async fn success_voting_closed() {
         context.last_blockhash,
     );
 
-    context
+    let err = context
         .banks_client
         .process_transaction(transaction)
         .await
+        .unwrap_err()
         .unwrap();
-
-    let proposal_account = context
-        .banks_client
-        .get_account(proposal)
-        .await
-        .unwrap()
-        .unwrap();
-
-    // Assert the proposal was marked as rejected.
-    let proposal_state = bytemuck::from_bytes::<Proposal>(&proposal_account.data);
-    assert_eq!(proposal_state.status, ProposalStatus::Rejected);
-
-    let proposal_vote_account = context
-        .banks_client
-        .get_account(proposal_vote)
-        .await
-        .unwrap()
-        .unwrap();
-
-    // Assert the proposal vote was _not_ initialized.
-    assert_eq!(proposal_vote_account.data.len(), 0);
-    assert_eq!(proposal_vote_account.owner, system_program::id());
+    assert_eq!(
+        err,
+        TransactionError::InstructionError(
+            0,
+            InstructionError::Custom(PaladinGovernanceError::ProposalNotInVotingStage as u32)
+        )
+    )
 }
 
 #[tokio::test]
@@ -1145,7 +1131,6 @@ async fn success_cooldown_has_ended(threshold_met: bool, expected_status: Propos
     };
 
     let vote_stake = TOTAL_STAKE / 10;
-    let election = ProposalVoteElection::Against;
 
     // We'll set up a proposal whose cooldown period has ended.
     // If `threshold_met` is true, the proposal's stake_for will be set to the
@@ -1202,19 +1187,12 @@ async fn success_cooldown_has_ended(threshold_met: bool, expected_status: Propos
         );
     }
 
-    let instruction = paladin_governance_program::instruction::vote(
-        &stake_authority.pubkey(),
-        &stake,
-        &stake_config,
-        &proposal_vote,
-        &proposal,
-        election,
-    );
+    let instruction = paladin_governance_program::instruction::finish_voting(&proposal);
 
     let transaction = Transaction::new_signed_with_payer(
         &[instruction],
         Some(&context.payer.pubkey()),
-        &[&context.payer, &stake_authority],
+        &[&context.payer],
         context.last_blockhash,
     );
 

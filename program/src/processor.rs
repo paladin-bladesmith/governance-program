@@ -581,14 +581,7 @@ fn process_vote(
 
     // If the proposal has an active cooldown period, ensure it has not ended.
     if proposal_state.cooldown_has_ended(&clock) {
-        match calculate_for_percentage(proposal_state.stake_for, proposal_state.stake_against)?
-            >= proposal_state.governance_config.proposal_pass_threshold
-        {
-            true => proposal_state.status = ProposalStatus::Accepted,
-            false => proposal_state.status = ProposalStatus::Rejected,
-        }
-
-        return Ok(());
+        return Err(PaladinGovernanceError::ProposalNotInVotingStage.into());
     }
 
     // Cooldown periods take precedence over voting periods. For example, if a
@@ -596,8 +589,7 @@ fn process_vote(
     // the proposal will remain open for voting until the cooldown period ends.
     // Cooldown periods end only in an accepted or rejected proposal.
     if proposal_state.cooldown_timestamp.is_none() && proposal_state.voting_has_ended(&clock) {
-        proposal_state.status = ProposalStatus::Rejected;
-        return Ok(());
+        return Err(PaladinGovernanceError::ProposalNotInVotingStage.into());
     }
 
     // Create the proposal vote account.
@@ -721,15 +713,7 @@ fn process_switch_vote(
 
     // If the proposal has an active cooldown period, ensure it has not ended.
     if proposal_state.cooldown_has_ended(&clock) {
-        // Check if the proposal has met the pass threshold.
-        match calculate_for_percentage(proposal_state.stake_for, proposal_state.stake_against)?
-            >= proposal_state.governance_config.proposal_pass_threshold
-        {
-            true => proposal_state.status = ProposalStatus::Accepted,
-            false => proposal_state.status = ProposalStatus::Rejected,
-        }
-
-        return Ok(());
+        return Err(PaladinGovernanceError::ProposalNotInVotingStage.into());
     }
 
     // Cooldown periods take precedence over voting periods. For example, if a
@@ -737,8 +721,7 @@ fn process_switch_vote(
     // the proposal will remain open for voting until the cooldown period ends.
     // Cooldown periods end only in an accepted or rejected proposal.
     if proposal_state.cooldown_timestamp.is_none() && proposal_state.voting_has_ended(&clock) {
-        proposal_state.status = ProposalStatus::Rejected;
-        return Ok(());
+        return Err(PaladinGovernanceError::ProposalNotInVotingStage.into());
     }
 
     // Update the proposal vote account.

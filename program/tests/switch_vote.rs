@@ -1161,34 +1161,19 @@ async fn success_voting_closed() {
         context.last_blockhash,
     );
 
-    context
+    let err = context
         .banks_client
         .process_transaction(transaction)
         .await
+        .unwrap_err()
         .unwrap();
-
-    let proposal_account = context
-        .banks_client
-        .get_account(proposal)
-        .await
-        .unwrap()
-        .unwrap();
-
-    // Assert the proposal was marked as rejected.
-    let proposal_state = bytemuck::from_bytes::<Proposal>(&proposal_account.data);
-    assert_eq!(proposal_state.status, ProposalStatus::Rejected);
-
-    let proposal_vote_account = context
-        .banks_client
-        .get_account(proposal_vote)
-        .await
-        .unwrap()
-        .unwrap();
-
-    // Assert the proposal vote was _not_ updated.
-    let proposal_vote_state = bytemuck::from_bytes::<ProposalVote>(&proposal_vote_account.data);
-    assert_eq!(proposal_vote_state.stake, prev_vote_stake);
-    assert_eq!(proposal_vote_state.election, prev_election);
+    assert_eq!(
+        err,
+        TransactionError::InstructionError(
+            0,
+            InstructionError::Custom(PaladinGovernanceError::ProposalNotInVotingStage as u32)
+        )
+    )
 }
 
 #[tokio::test]
@@ -1327,7 +1312,6 @@ async fn success_cooldown_has_ended(threshold_met: bool, expected_status: Propos
     let prev_election = ProposalVoteElection::Against;
 
     let new_vote_stake = TOTAL_STAKE / 10 + 100;
-    let new_election = ProposalVoteElection::For;
 
     let governance_config = GovernanceConfig {
         cooldown_period_seconds: 10,
@@ -1393,22 +1377,13 @@ async fn success_cooldown_has_ended(threshold_met: bool, expected_status: Propos
     )
     .await;
 
-    let instruction = paladin_governance_program::instruction::switch_vote(
-        &stake_authority.pubkey(),
-        &stake,
-        &stake_config,
-        &proposal_vote,
-        &proposal,
-        new_election,
-    );
-
+    let instruction = paladin_governance_program::instruction::finish_voting(&proposal);
     let transaction = Transaction::new_signed_with_payer(
         &[instruction],
         Some(&context.payer.pubkey()),
-        &[&context.payer, &stake_authority],
+        &[&context.payer],
         context.last_blockhash,
     );
-
     context
         .banks_client
         .process_transaction(transaction)
