@@ -39,11 +39,14 @@ use {
 
 const THRESHOLD_SCALING_FACTOR: u128 = 1_000_000_000; // 1e9
 
+#[allow(clippy::arithmetic_side_effects)]
 fn calculate_maximum_proposals(governance_config: &GovernanceConfig, author_stake: u64) -> u64 {
     if governance_config.stake_per_proposal == 0 {
         return u64::MAX;
     }
 
+    // NB: Division by zero is not possible as we have already handle this case
+    // above.
     author_stake / governance_config.stake_per_proposal
 }
 
@@ -539,7 +542,12 @@ fn process_delete_proposal(program_id: &Pubkey, accounts: &[AccountInfo]) -> Pro
     // Delete the proposal & refund the rent.
     let rent = proposal_info.lamports();
     **proposal_info.lamports.borrow_mut() = 0;
-    **stake_authority_info.lamports.borrow_mut() += rent;
+    // NB: The runtime will revert us if we overflow as the sum of balances
+    // before/after will not match.
+    #[allow(clippy::arithmetic_side_effects)]
+    {
+        **stake_authority_info.lamports.borrow_mut() += rent;
+    }
 
     Ok(())
 }
