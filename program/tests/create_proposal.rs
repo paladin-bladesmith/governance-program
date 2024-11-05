@@ -702,6 +702,89 @@ async fn fail_proposal_transaction_already_initialized() {
 }
 
 #[tokio::test]
+async fn fail_proposal_too_many_active_proposals() {
+    let stake_authority = Keypair::new();
+    let stake_config = Pubkey::new_unique();
+    let validator_vote = Pubkey::new_unique();
+    let proposal = Pubkey::new_unique();
+    let stake =
+        find_validator_stake_pda(&validator_vote, &stake_config, &paladin_stake_program::id()).0;
+    let proposal_transaction =
+        get_proposal_transaction_address(&proposal, &paladin_governance_program::id());
+    let governance = Pubkey::new_unique(); // PDA doesn't matter here.
+    let governance_config = GovernanceConfig {
+        cooldown_period_seconds: 100_000_000,
+        proposal_minimum_quorum: 5 * 10u32.pow(8), // 50%
+        proposal_pass_threshold: 5 * 10u32.pow(8), // 50%
+        stake_config_address: stake_config,
+        voting_period_seconds: 100_000_000,
+        stake_per_proposal: 1,
+    };
+
+    let mut context = setup().start_with_context().await;
+    setup_author(&mut context, &stake_authority.pubkey(), 0).await;
+    setup_stake(
+        &mut context,
+        &stake,
+        &stake_authority.pubkey(),
+        &validator_vote,
+        0,
+    )
+    .await;
+    setup_governance(&mut context, &governance, &governance_config).await;
+
+    // Set up a proposal transaction account already initialized.
+    setup_proposal_transaction(
+        &mut context,
+        &proposal_transaction,
+        ProposalTransaction::default(),
+    )
+    .await;
+
+    // Fund the proposal account.
+    {
+        let rent = context.banks_client.get_rent().await.unwrap();
+
+        let space = std::mem::size_of::<Proposal>();
+        let lamports = rent.minimum_balance(space);
+        context.set_account(
+            &proposal,
+            &AccountSharedData::new(lamports, space, &paladin_governance_program::id()),
+        );
+    }
+
+    let instruction = create_proposal(
+        &stake_authority.pubkey(),
+        &stake,
+        &proposal,
+        &proposal_transaction,
+        &governance,
+    );
+
+    let transaction = Transaction::new_signed_with_payer(
+        &[instruction],
+        Some(&context.payer.pubkey()),
+        &[&context.payer, &stake_authority],
+        context.last_blockhash,
+    );
+
+    let err = context
+        .banks_client
+        .process_transaction(transaction)
+        .await
+        .unwrap_err()
+        .unwrap();
+
+    assert_eq!(
+        err,
+        TransactionError::InstructionError(
+            0,
+            InstructionError::Custom(PaladinGovernanceError::TooManyActiveProposals as u32)
+        )
+    );
+}
+
+#[tokio::test]
 async fn success() {
     let stake_authority = Keypair::new();
     let stake_config = Pubkey::new_unique();
