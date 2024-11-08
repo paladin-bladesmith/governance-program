@@ -6,7 +6,7 @@ use {
     paladin_governance_program::{
         error::PaladinGovernanceError,
         instruction::delete_proposal,
-        state::{GovernanceConfig, Proposal, ProposalStatus},
+        state::{Author, GovernanceConfig, Proposal, ProposalStatus},
     },
     setup::{setup, setup_author, setup_proposal},
     solana_program_test::*,
@@ -228,26 +228,53 @@ async fn success() {
     )
     .await;
 
-    let instruction = delete_proposal(stake_authority.pubkey(), proposal);
+    // Sanity - Open proposal account is zero.
+    let author = paladin_governance_program::state::get_proposal_author_address(
+        &stake_authority.pubkey(),
+        &paladin_governance_program::ID,
+    );
+    let author = context
+        .banks_client
+        .get_account(author)
+        .await
+        .unwrap()
+        .unwrap();
+    let author = bytemuck::from_bytes::<Author>(&author.data);
+    assert_eq!(author.active_proposals, 1);
 
+    // Act - Execute delete proposal transaction.
+    let instruction = delete_proposal(stake_authority.pubkey(), proposal);
     let transaction = Transaction::new_signed_with_payer(
         &[instruction],
         Some(&context.payer.pubkey()),
         &[&context.payer, &stake_authority],
         context.last_blockhash,
     );
-
     context
         .banks_client
         .process_transaction(transaction)
         .await
         .unwrap();
 
-    // Assert the proposal was deleted.
+    // Assert - The proposal was deleted.
     assert!(context
         .banks_client
         .get_account(proposal)
         .await
         .unwrap()
         .is_none());
+
+    // Assert - Open proposal account is zero.
+    let author = paladin_governance_program::state::get_proposal_author_address(
+        &stake_authority.pubkey(),
+        &paladin_governance_program::ID,
+    );
+    let author = context
+        .banks_client
+        .get_account(author)
+        .await
+        .unwrap()
+        .unwrap();
+    let author = bytemuck::from_bytes::<Author>(&author.data);
+    assert_eq!(author.active_proposals, 0);
 }
