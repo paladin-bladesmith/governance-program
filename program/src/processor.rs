@@ -1001,7 +1001,6 @@ fn process_process_instruction(
     proposal_transaction_state.instructions[instruction_index].executed = true;
 
     // If this was the last instruction, mark the proposal as processed.
-    solana_program::msg!("Processed index: {}", instruction_index);
     #[allow(clippy::arithmetic_side_effects)]
     {
         if instruction_index == proposal_transaction_state.instructions.len() - 1 {
