@@ -964,7 +964,6 @@ fn process_process_instruction(
     if instruction_index >= proposal_transaction_state.instructions.len() {
         return Err(PaladinGovernanceError::InvalidTransactionIndex.into());
     }
-
     let instruction = &proposal_transaction_state.instructions[instruction_index];
 
     // Ensure the instruction has not already been executed.
@@ -1000,6 +999,12 @@ fn process_process_instruction(
 
     // Mark the instruction as executed.
     proposal_transaction_state.instructions[instruction_index].executed = true;
+
+    // If this was the last instruction, mark the proposal as processed.
+    solana_program::msg!("Processed index: {}", instruction_index);
+    if instruction_index == proposal_transaction_state.instructions.len() - 1 {
+        proposal_state.status = ProposalStatus::Processed;
+    }
 
     // Write the data (no reallocation necessary).
     borsh::to_writer(

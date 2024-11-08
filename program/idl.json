@@ -363,7 +363,7 @@
       "accounts": [
         {
           "name": "proposal",
-          "isMut": false,
+          "isMut": true,
           "isSigner": false,
           "docs": [
             "Proposal account"

@@ -729,4 +729,14 @@ async fn success() {
             alice_starting_lamports + treasury_to_alice_lamports - alice_to_treasury_lamports
         );
     }
+
+    // Assert - The proposal has been marked as processed.
+    let proposal = context
+        .banks_client
+        .get_account(proposal_address)
+        .await
+        .unwrap()
+        .unwrap();
+    let proposal = bytemuck::from_bytes::<Proposal>(&proposal.data);
+    assert_eq!(proposal.status, ProposalStatus::Processed);
 }

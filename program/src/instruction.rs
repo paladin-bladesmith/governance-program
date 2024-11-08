@@ -329,6 +329,7 @@ pub enum PaladinGovernanceInstruction {
     /// 2..N.    Instruction accounts.
     #[account(
         0,
+        writable,
         name = "proposal",
         description = "Proposal account"
     )]
@@ -741,7 +742,7 @@ pub fn process_instruction(
     instruction_index: u32,
 ) -> Instruction {
     let mut accounts = vec![
-        AccountMeta::new_readonly(*proposal_address, false),
+        AccountMeta::new(*proposal_address, false),
         AccountMeta::new(*proposal_transaction_address, false),
     ];
     accounts.extend_from_slice(account_metas);
