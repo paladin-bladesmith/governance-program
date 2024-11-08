@@ -7,8 +7,8 @@
  */
 
 export * from './beginVoting';
-export * from './cancelProposal';
 export * from './createProposal';
+export * from './deleteProposal';
 export * from './finishVoting';
 export * from './initializeGovernance';
 export * from './processInstruction';

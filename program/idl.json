@@ -14,6 +14,14 @@
           ]
         },
         {
+          "name": "author",
+          "isMut": true,
+          "isSigner": false,
+          "docs": [
+            "Stake authority author account"
+          ]
+        },
+        {
           "name": "stake",
           "isMut": false,
           "isSigner": false,
@@ -151,14 +159,22 @@
       }
     },
     {
-      "name": "CancelProposal",
+      "name": "DeleteProposal",
       "accounts": [
         {
           "name": "stakeAuthority",
-          "isMut": false,
+          "isMut": true,
           "isSigner": true,
           "docs": [
             "Paladin stake authority account"
+          ]
+        },
+        {
+          "name": "author",
+          "isMut": true,
+          "isSigner": false,
+          "docs": [
+            "Stake authority author account"
           ]
         },
         {
@@ -334,14 +350,6 @@
           "docs": [
             "Proposal account"
           ]
-        },
-        {
-          "name": "stakeConfig",
-          "isMut": false,
-          "isSigner": false,
-          "docs": [
-            "Paladin stake config account"
-          ]
         }
       ],
       "args": [],
@@ -355,7 +363,7 @@
       "accounts": [
         {
           "name": "proposal",
-          "isMut": false,
+          "isMut": true,
           "isSigner": false,
           "docs": [
             "Proposal account"
@@ -415,15 +423,19 @@
           "type": "u64"
         },
         {
-          "name": "proposalAcceptanceThreshold",
+          "name": "proposalMinimumQuorum",
           "type": "u32"
         },
         {
-          "name": "proposalRejectionThreshold",
+          "name": "proposalPassThreshold",
           "type": "u32"
         },
         {
           "name": "votingPeriodSeconds",
+          "type": "u64"
+        },
+        {
+          "name": "stakePerProposal",
           "type": "u64"
         }
       ],
@@ -458,15 +470,19 @@
           "type": "u64"
         },
         {
-          "name": "proposalAcceptanceThreshold",
+          "name": "proposalMinimumQuorum",
           "type": "u32"
         },
         {
-          "name": "proposalRejectionThreshold",
+          "name": "proposalPassThreshold",
           "type": "u32"
         },
         {
           "name": "votingPeriodSeconds",
+          "type": "u64"
+        },
+        {
+          "name": "stakePerProposal",
           "type": "u64"
         }
       ],
@@ -487,25 +503,12 @@
             "type": "u64"
           },
           {
-            "name": "proposalAcceptanceThreshold",
+            "name": "proposalMinimumQuorum",
             "type": "u32"
           },
           {
-            "name": "proposalRejectionThreshold",
+            "name": "proposalPassThreshold",
             "type": "u32"
-          },
-          {
-            "name": "signerBumpSeed",
-            "type": "u8"
-          },
-          {
-            "name": "padding",
-            "type": {
-              "array": [
-                "u8",
-                7
-              ]
-            }
           },
           {
             "name": "stakeConfigAddress",
@@ -513,6 +516,10 @@
           },
           {
             "name": "votingPeriodSeconds",
+            "type": "u64"
+          },
+          {
+            "name": "stakePerProposal",
             "type": "u64"
           }
         ]
@@ -555,10 +562,6 @@
             "type": {
               "defined": "GovernanceConfig"
             }
-          },
-          {
-            "name": "stakeAbstained",
-            "type": "u64"
           },
           {
             "name": "stakeAgainst",
@@ -625,6 +628,18 @@
                 7
               ]
             }
+          }
+        ]
+      }
+    },
+    {
+      "name": "Author",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "activeProposals",
+            "type": "u64"
           }
         ]
       }
@@ -707,9 +722,6 @@
             "name": "Voting"
           },
           {
-            "name": "Cancelled"
-          },
-          {
             "name": "Accepted"
           },
           {
@@ -726,9 +738,6 @@
       "type": {
         "kind": "enum",
         "variants": [
-          {
-            "name": "DidNotVote"
-          },
           {
             "name": "For"
           },
@@ -782,28 +791,38 @@
     },
     {
       "code": 8,
+      "name": "ProposalIsActive",
+      "msg": "Proposal is active."
+    },
+    {
+      "code": 9,
       "name": "ProposalNotAccepted",
       "msg": "Proposal not accepted."
     },
     {
-      "code": 9,
+      "code": 10,
       "name": "ProposalVotingPeriodStillActive",
       "msg": "Proposal voting period still active."
     },
     {
-      "code": 10,
+      "code": 11,
       "name": "InvalidTransactionIndex",
       "msg": "Invalid transaction index."
     },
     {
-      "code": 11,
+      "code": 12,
       "name": "InstructionAlreadyExecuted",
       "msg": "Instruction already executed."
     },
     {
-      "code": 12,
+      "code": 13,
       "name": "PreviousInstructionHasNotBeenExecuted",
       "msg": "Previous instruction has not been executed."
+    },
+    {
+      "code": 14,
+      "name": "TooManyActiveProposals",
+      "msg": "Author has too many active proposals."
     }
   ],
   "metadata": {

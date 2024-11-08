@@ -28,7 +28,7 @@ impl ProcessInstruction {
         remaining_accounts: &[solana_program::instruction::AccountMeta],
     ) -> solana_program::instruction::Instruction {
         let mut accounts = Vec::with_capacity(2 + remaining_accounts.len());
-        accounts.push(solana_program::instruction::AccountMeta::new_readonly(
+        accounts.push(solana_program::instruction::AccountMeta::new(
             self.proposal,
             false,
         ));
@@ -78,7 +78,7 @@ pub struct ProcessInstructionInstructionArgs {
 ///
 /// ### Accounts:
 ///
-///   0. `[]` proposal
+///   0. `[writable]` proposal
 ///   1. `[writable]` proposal_transaction
 #[derive(Clone, Debug, Default)]
 pub struct ProcessInstructionBuilder {
@@ -216,7 +216,7 @@ impl<'a, 'b> ProcessInstructionCpi<'a, 'b> {
         )],
     ) -> solana_program::entrypoint::ProgramResult {
         let mut accounts = Vec::with_capacity(2 + remaining_accounts.len());
-        accounts.push(solana_program::instruction::AccountMeta::new_readonly(
+        accounts.push(solana_program::instruction::AccountMeta::new(
             *self.proposal.key,
             false,
         ));
@@ -262,7 +262,7 @@ impl<'a, 'b> ProcessInstructionCpi<'a, 'b> {
 ///
 /// ### Accounts:
 ///
-///   0. `[]` proposal
+///   0. `[writable]` proposal
 ///   1. `[writable]` proposal_transaction
 #[derive(Clone, Debug)]
 pub struct ProcessInstructionCpiBuilder<'a, 'b> {

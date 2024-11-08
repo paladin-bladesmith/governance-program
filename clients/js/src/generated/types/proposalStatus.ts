@@ -18,7 +18,6 @@ import {
 export enum ProposalStatus {
   Draft,
   Voting,
-  Cancelled,
   Accepted,
   Rejected,
   Processed,

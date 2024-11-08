@@ -59,16 +59,18 @@ export type InitializeGovernanceInstruction<
 export type InitializeGovernanceInstructionData = {
   discriminator: number;
   cooldownPeriodSeconds: bigint;
-  proposalAcceptanceThreshold: number;
-  proposalRejectionThreshold: number;
+  proposalMinimumQuorum: number;
+  proposalPassThreshold: number;
   votingPeriodSeconds: bigint;
+  stakePerProposal: bigint;
 };
 
 export type InitializeGovernanceInstructionDataArgs = {
   cooldownPeriodSeconds: number | bigint;
-  proposalAcceptanceThreshold: number;
-  proposalRejectionThreshold: number;
+  proposalMinimumQuorum: number;
+  proposalPassThreshold: number;
   votingPeriodSeconds: number | bigint;
+  stakePerProposal: number | bigint;
 };
 
 export function getInitializeGovernanceInstructionDataEncoder(): Encoder<InitializeGovernanceInstructionDataArgs> {
@@ -76,9 +78,10 @@ export function getInitializeGovernanceInstructionDataEncoder(): Encoder<Initial
     getStructEncoder([
       ['discriminator', getU8Encoder()],
       ['cooldownPeriodSeconds', getU64Encoder()],
-      ['proposalAcceptanceThreshold', getU32Encoder()],
-      ['proposalRejectionThreshold', getU32Encoder()],
+      ['proposalMinimumQuorum', getU32Encoder()],
+      ['proposalPassThreshold', getU32Encoder()],
       ['votingPeriodSeconds', getU64Encoder()],
+      ['stakePerProposal', getU64Encoder()],
     ]),
     (value) => ({ ...value, discriminator: 9 })
   );
@@ -88,9 +91,10 @@ export function getInitializeGovernanceInstructionDataDecoder(): Decoder<Initial
   return getStructDecoder([
     ['discriminator', getU8Decoder()],
     ['cooldownPeriodSeconds', getU64Decoder()],
-    ['proposalAcceptanceThreshold', getU32Decoder()],
-    ['proposalRejectionThreshold', getU32Decoder()],
+    ['proposalMinimumQuorum', getU32Decoder()],
+    ['proposalPassThreshold', getU32Decoder()],
     ['votingPeriodSeconds', getU64Decoder()],
+    ['stakePerProposal', getU64Decoder()],
   ]);
 }
 
@@ -116,9 +120,10 @@ export type InitializeGovernanceInput<
   /** System program */
   systemProgram?: Address<TAccountSystemProgram>;
   cooldownPeriodSeconds: InitializeGovernanceInstructionDataArgs['cooldownPeriodSeconds'];
-  proposalAcceptanceThreshold: InitializeGovernanceInstructionDataArgs['proposalAcceptanceThreshold'];
-  proposalRejectionThreshold: InitializeGovernanceInstructionDataArgs['proposalRejectionThreshold'];
+  proposalMinimumQuorum: InitializeGovernanceInstructionDataArgs['proposalMinimumQuorum'];
+  proposalPassThreshold: InitializeGovernanceInstructionDataArgs['proposalPassThreshold'];
   votingPeriodSeconds: InitializeGovernanceInstructionDataArgs['votingPeriodSeconds'];
+  stakePerProposal: InitializeGovernanceInstructionDataArgs['stakePerProposal'];
 };
 
 export function getInitializeGovernanceInstruction<

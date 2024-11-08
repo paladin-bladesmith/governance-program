@@ -78,9 +78,10 @@ impl Default for InitializeGovernanceInstructionData {
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct InitializeGovernanceInstructionArgs {
     pub cooldown_period_seconds: u64,
-    pub proposal_acceptance_threshold: u32,
-    pub proposal_rejection_threshold: u32,
+    pub proposal_minimum_quorum: u32,
+    pub proposal_pass_threshold: u32,
     pub voting_period_seconds: u64,
+    pub stake_per_proposal: u64,
 }
 
 /// Instruction builder for `InitializeGovernance`.
@@ -97,9 +98,10 @@ pub struct InitializeGovernanceBuilder {
     stake_config: Option<solana_program::pubkey::Pubkey>,
     system_program: Option<solana_program::pubkey::Pubkey>,
     cooldown_period_seconds: Option<u64>,
-    proposal_acceptance_threshold: Option<u32>,
-    proposal_rejection_threshold: Option<u32>,
+    proposal_minimum_quorum: Option<u32>,
+    proposal_pass_threshold: Option<u32>,
     voting_period_seconds: Option<u64>,
+    stake_per_proposal: Option<u64>,
     __remaining_accounts: Vec<solana_program::instruction::AccountMeta>,
 }
 
@@ -135,21 +137,23 @@ impl InitializeGovernanceBuilder {
         self
     }
     #[inline(always)]
-    pub fn proposal_acceptance_threshold(
-        &mut self,
-        proposal_acceptance_threshold: u32,
-    ) -> &mut Self {
-        self.proposal_acceptance_threshold = Some(proposal_acceptance_threshold);
+    pub fn proposal_minimum_quorum(&mut self, proposal_minimum_quorum: u32) -> &mut Self {
+        self.proposal_minimum_quorum = Some(proposal_minimum_quorum);
         self
     }
     #[inline(always)]
-    pub fn proposal_rejection_threshold(&mut self, proposal_rejection_threshold: u32) -> &mut Self {
-        self.proposal_rejection_threshold = Some(proposal_rejection_threshold);
+    pub fn proposal_pass_threshold(&mut self, proposal_pass_threshold: u32) -> &mut Self {
+        self.proposal_pass_threshold = Some(proposal_pass_threshold);
         self
     }
     #[inline(always)]
     pub fn voting_period_seconds(&mut self, voting_period_seconds: u64) -> &mut Self {
         self.voting_period_seconds = Some(voting_period_seconds);
+        self
+    }
+    #[inline(always)]
+    pub fn stake_per_proposal(&mut self, stake_per_proposal: u64) -> &mut Self {
+        self.stake_per_proposal = Some(stake_per_proposal);
         self
     }
     /// Add an aditional account to the instruction.
@@ -186,18 +190,22 @@ impl InitializeGovernanceBuilder {
                 .cooldown_period_seconds
                 .clone()
                 .expect("cooldown_period_seconds is not set"),
-            proposal_acceptance_threshold: self
-                .proposal_acceptance_threshold
+            proposal_minimum_quorum: self
+                .proposal_minimum_quorum
                 .clone()
-                .expect("proposal_acceptance_threshold is not set"),
-            proposal_rejection_threshold: self
-                .proposal_rejection_threshold
+                .expect("proposal_minimum_quorum is not set"),
+            proposal_pass_threshold: self
+                .proposal_pass_threshold
                 .clone()
-                .expect("proposal_rejection_threshold is not set"),
+                .expect("proposal_pass_threshold is not set"),
             voting_period_seconds: self
                 .voting_period_seconds
                 .clone()
                 .expect("voting_period_seconds is not set"),
+            stake_per_proposal: self
+                .stake_per_proposal
+                .clone()
+                .expect("stake_per_proposal is not set"),
         };
 
         accounts.instruction_with_remaining_accounts(args, &self.__remaining_accounts)
@@ -343,9 +351,10 @@ impl<'a, 'b> InitializeGovernanceCpiBuilder<'a, 'b> {
             stake_config: None,
             system_program: None,
             cooldown_period_seconds: None,
-            proposal_acceptance_threshold: None,
-            proposal_rejection_threshold: None,
+            proposal_minimum_quorum: None,
+            proposal_pass_threshold: None,
             voting_period_seconds: None,
+            stake_per_proposal: None,
             __remaining_accounts: Vec::new(),
         });
         Self { instruction }
@@ -383,21 +392,23 @@ impl<'a, 'b> InitializeGovernanceCpiBuilder<'a, 'b> {
         self
     }
     #[inline(always)]
-    pub fn proposal_acceptance_threshold(
-        &mut self,
-        proposal_acceptance_threshold: u32,
-    ) -> &mut Self {
-        self.instruction.proposal_acceptance_threshold = Some(proposal_acceptance_threshold);
+    pub fn proposal_minimum_quorum(&mut self, proposal_minimum_quorum: u32) -> &mut Self {
+        self.instruction.proposal_minimum_quorum = Some(proposal_minimum_quorum);
         self
     }
     #[inline(always)]
-    pub fn proposal_rejection_threshold(&mut self, proposal_rejection_threshold: u32) -> &mut Self {
-        self.instruction.proposal_rejection_threshold = Some(proposal_rejection_threshold);
+    pub fn proposal_pass_threshold(&mut self, proposal_pass_threshold: u32) -> &mut Self {
+        self.instruction.proposal_pass_threshold = Some(proposal_pass_threshold);
         self
     }
     #[inline(always)]
     pub fn voting_period_seconds(&mut self, voting_period_seconds: u64) -> &mut Self {
         self.instruction.voting_period_seconds = Some(voting_period_seconds);
+        self
+    }
+    #[inline(always)]
+    pub fn stake_per_proposal(&mut self, stake_per_proposal: u64) -> &mut Self {
+        self.instruction.stake_per_proposal = Some(stake_per_proposal);
         self
     }
     /// Add an additional account to the instruction.
@@ -448,21 +459,26 @@ impl<'a, 'b> InitializeGovernanceCpiBuilder<'a, 'b> {
                 .cooldown_period_seconds
                 .clone()
                 .expect("cooldown_period_seconds is not set"),
-            proposal_acceptance_threshold: self
+            proposal_minimum_quorum: self
                 .instruction
-                .proposal_acceptance_threshold
+                .proposal_minimum_quorum
                 .clone()
-                .expect("proposal_acceptance_threshold is not set"),
-            proposal_rejection_threshold: self
+                .expect("proposal_minimum_quorum is not set"),
+            proposal_pass_threshold: self
                 .instruction
-                .proposal_rejection_threshold
+                .proposal_pass_threshold
                 .clone()
-                .expect("proposal_rejection_threshold is not set"),
+                .expect("proposal_pass_threshold is not set"),
             voting_period_seconds: self
                 .instruction
                 .voting_period_seconds
                 .clone()
                 .expect("voting_period_seconds is not set"),
+            stake_per_proposal: self
+                .instruction
+                .stake_per_proposal
+                .clone()
+                .expect("stake_per_proposal is not set"),
         };
         let instruction = InitializeGovernanceCpi {
             __program: self.instruction.__program,
@@ -497,9 +513,10 @@ struct InitializeGovernanceCpiBuilderInstruction<'a, 'b> {
     stake_config: Option<&'b solana_program::account_info::AccountInfo<'a>>,
     system_program: Option<&'b solana_program::account_info::AccountInfo<'a>>,
     cooldown_period_seconds: Option<u64>,
-    proposal_acceptance_threshold: Option<u32>,
-    proposal_rejection_threshold: Option<u32>,
+    proposal_minimum_quorum: Option<u32>,
+    proposal_pass_threshold: Option<u32>,
     voting_period_seconds: Option<u64>,
+    stake_per_proposal: Option<u64>,
     /// Additional instruction accounts `(AccountInfo, is_writable, is_signer)`.
     __remaining_accounts: Vec<(
         &'b solana_program::account_info::AccountInfo<'a>,

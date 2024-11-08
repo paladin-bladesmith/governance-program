@@ -15,16 +15,12 @@ import {
   fetchEncodedAccounts,
   getAddressDecoder,
   getAddressEncoder,
-  getArrayDecoder,
-  getArrayEncoder,
   getStructDecoder,
   getStructEncoder,
   getU32Decoder,
   getU32Encoder,
   getU64Decoder,
   getU64Encoder,
-  getU8Decoder,
-  getU8Encoder,
   type Account,
   type Address,
   type Codec,
@@ -39,45 +35,41 @@ import {
 
 export type GovernanceConfig = {
   cooldownPeriodSeconds: bigint;
-  proposalAcceptanceThreshold: number;
-  proposalRejectionThreshold: number;
-  signerBumpSeed: number;
-  padding: Array<number>;
+  proposalMinimumQuorum: number;
+  proposalPassThreshold: number;
   stakeConfigAddress: Address;
   votingPeriodSeconds: bigint;
+  stakePerProposal: bigint;
 };
 
 export type GovernanceConfigArgs = {
   cooldownPeriodSeconds: number | bigint;
-  proposalAcceptanceThreshold: number;
-  proposalRejectionThreshold: number;
-  signerBumpSeed: number;
-  padding: Array<number>;
+  proposalMinimumQuorum: number;
+  proposalPassThreshold: number;
   stakeConfigAddress: Address;
   votingPeriodSeconds: number | bigint;
+  stakePerProposal: number | bigint;
 };
 
 export function getGovernanceConfigEncoder(): Encoder<GovernanceConfigArgs> {
   return getStructEncoder([
     ['cooldownPeriodSeconds', getU64Encoder()],
-    ['proposalAcceptanceThreshold', getU32Encoder()],
-    ['proposalRejectionThreshold', getU32Encoder()],
-    ['signerBumpSeed', getU8Encoder()],
-    ['padding', getArrayEncoder(getU8Encoder(), { size: 7 })],
+    ['proposalMinimumQuorum', getU32Encoder()],
+    ['proposalPassThreshold', getU32Encoder()],
     ['stakeConfigAddress', getAddressEncoder()],
     ['votingPeriodSeconds', getU64Encoder()],
+    ['stakePerProposal', getU64Encoder()],
   ]);
 }
 
 export function getGovernanceConfigDecoder(): Decoder<GovernanceConfig> {
   return getStructDecoder([
     ['cooldownPeriodSeconds', getU64Decoder()],
-    ['proposalAcceptanceThreshold', getU32Decoder()],
-    ['proposalRejectionThreshold', getU32Decoder()],
-    ['signerBumpSeed', getU8Decoder()],
-    ['padding', getArrayDecoder(getU8Decoder(), { size: 7 })],
+    ['proposalMinimumQuorum', getU32Decoder()],
+    ['proposalPassThreshold', getU32Decoder()],
     ['stakeConfigAddress', getAddressDecoder()],
     ['votingPeriodSeconds', getU64Decoder()],
+    ['stakePerProposal', getU64Decoder()],
   ]);
 }
 

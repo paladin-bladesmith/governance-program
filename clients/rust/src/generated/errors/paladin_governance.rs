@@ -32,21 +32,27 @@ pub enum PaladinGovernanceError {
     /// 7 - Proposal is immutable.
     #[error("Proposal is immutable.")]
     ProposalIsImmutable = 0x7,
-    /// 8 - Proposal not accepted.
+    /// 8 - Proposal is active.
+    #[error("Proposal is active.")]
+    ProposalIsActive = 0x8,
+    /// 9 - Proposal not accepted.
     #[error("Proposal not accepted.")]
-    ProposalNotAccepted = 0x8,
-    /// 9 - Proposal voting period still active.
+    ProposalNotAccepted = 0x9,
+    /// 10 - Proposal voting period still active.
     #[error("Proposal voting period still active.")]
-    ProposalVotingPeriodStillActive = 0x9,
-    /// 10 - Invalid transaction index.
+    ProposalVotingPeriodStillActive = 0xA,
+    /// 11 - Invalid transaction index.
     #[error("Invalid transaction index.")]
-    InvalidTransactionIndex = 0xA,
-    /// 11 - Instruction already executed.
+    InvalidTransactionIndex = 0xB,
+    /// 12 - Instruction already executed.
     #[error("Instruction already executed.")]
-    InstructionAlreadyExecuted = 0xB,
-    /// 12 - Previous instruction has not been executed.
+    InstructionAlreadyExecuted = 0xC,
+    /// 13 - Previous instruction has not been executed.
     #[error("Previous instruction has not been executed.")]
-    PreviousInstructionHasNotBeenExecuted = 0xC,
+    PreviousInstructionHasNotBeenExecuted = 0xD,
+    /// 14 - Author has too many active proposals.
+    #[error("Author has too many active proposals.")]
+    TooManyActiveProposals = 0xE,
 }
 
 impl solana_program::program_error::PrintProgramError for PaladinGovernanceError {

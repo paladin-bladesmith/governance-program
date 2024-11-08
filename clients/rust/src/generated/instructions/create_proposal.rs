@@ -10,6 +10,8 @@ use borsh::{BorshDeserialize, BorshSerialize};
 pub struct CreateProposal {
     /// Paladin stake authority account
     pub stake_authority: solana_program::pubkey::Pubkey,
+    /// Stake authority author account
+    pub author: solana_program::pubkey::Pubkey,
     /// Paladin stake account
     pub stake: solana_program::pubkey::Pubkey,
     /// Proposal account
@@ -31,10 +33,14 @@ impl CreateProposal {
         &self,
         remaining_accounts: &[solana_program::instruction::AccountMeta],
     ) -> solana_program::instruction::Instruction {
-        let mut accounts = Vec::with_capacity(6 + remaining_accounts.len());
+        let mut accounts = Vec::with_capacity(7 + remaining_accounts.len());
         accounts.push(solana_program::instruction::AccountMeta::new_readonly(
             self.stake_authority,
             true,
+        ));
+        accounts.push(solana_program::instruction::AccountMeta::new(
+            self.author,
+            false,
         ));
         accounts.push(solana_program::instruction::AccountMeta::new_readonly(
             self.stake, false,
@@ -88,15 +94,17 @@ impl Default for CreateProposalInstructionData {
 /// ### Accounts:
 ///
 ///   0. `[signer]` stake_authority
-///   1. `[]` stake
-///   2. `[writable]` proposal
-///   3. `[writable]` proposal_transaction
-///   4. `[]` governance_config
-///   5. `[optional]` system_program (default to
+///   1. `[writable]` author
+///   2. `[]` stake
+///   3. `[writable]` proposal
+///   4. `[writable]` proposal_transaction
+///   5. `[]` governance_config
+///   6. `[optional]` system_program (default to
 ///      `11111111111111111111111111111111`)
 #[derive(Clone, Debug, Default)]
 pub struct CreateProposalBuilder {
     stake_authority: Option<solana_program::pubkey::Pubkey>,
+    author: Option<solana_program::pubkey::Pubkey>,
     stake: Option<solana_program::pubkey::Pubkey>,
     proposal: Option<solana_program::pubkey::Pubkey>,
     proposal_transaction: Option<solana_program::pubkey::Pubkey>,
@@ -116,6 +124,12 @@ impl CreateProposalBuilder {
         stake_authority: solana_program::pubkey::Pubkey,
     ) -> &mut Self {
         self.stake_authority = Some(stake_authority);
+        self
+    }
+    /// Stake authority author account
+    #[inline(always)]
+    pub fn author(&mut self, author: solana_program::pubkey::Pubkey) -> &mut Self {
+        self.author = Some(author);
         self
     }
     /// Paladin stake account
@@ -177,6 +191,7 @@ impl CreateProposalBuilder {
     pub fn instruction(&self) -> solana_program::instruction::Instruction {
         let accounts = CreateProposal {
             stake_authority: self.stake_authority.expect("stake_authority is not set"),
+            author: self.author.expect("author is not set"),
             stake: self.stake.expect("stake is not set"),
             proposal: self.proposal.expect("proposal is not set"),
             proposal_transaction: self
@@ -198,6 +213,8 @@ impl CreateProposalBuilder {
 pub struct CreateProposalCpiAccounts<'a, 'b> {
     /// Paladin stake authority account
     pub stake_authority: &'b solana_program::account_info::AccountInfo<'a>,
+    /// Stake authority author account
+    pub author: &'b solana_program::account_info::AccountInfo<'a>,
     /// Paladin stake account
     pub stake: &'b solana_program::account_info::AccountInfo<'a>,
     /// Proposal account
@@ -216,6 +233,8 @@ pub struct CreateProposalCpi<'a, 'b> {
     pub __program: &'b solana_program::account_info::AccountInfo<'a>,
     /// Paladin stake authority account
     pub stake_authority: &'b solana_program::account_info::AccountInfo<'a>,
+    /// Stake authority author account
+    pub author: &'b solana_program::account_info::AccountInfo<'a>,
     /// Paladin stake account
     pub stake: &'b solana_program::account_info::AccountInfo<'a>,
     /// Proposal account
@@ -236,6 +255,7 @@ impl<'a, 'b> CreateProposalCpi<'a, 'b> {
         Self {
             __program: program,
             stake_authority: accounts.stake_authority,
+            author: accounts.author,
             stake: accounts.stake,
             proposal: accounts.proposal,
             proposal_transaction: accounts.proposal_transaction,
@@ -276,10 +296,14 @@ impl<'a, 'b> CreateProposalCpi<'a, 'b> {
             bool,
         )],
     ) -> solana_program::entrypoint::ProgramResult {
-        let mut accounts = Vec::with_capacity(6 + remaining_accounts.len());
+        let mut accounts = Vec::with_capacity(7 + remaining_accounts.len());
         accounts.push(solana_program::instruction::AccountMeta::new_readonly(
             *self.stake_authority.key,
             true,
+        ));
+        accounts.push(solana_program::instruction::AccountMeta::new(
+            *self.author.key,
+            false,
         ));
         accounts.push(solana_program::instruction::AccountMeta::new_readonly(
             *self.stake.key,
@@ -315,9 +339,10 @@ impl<'a, 'b> CreateProposalCpi<'a, 'b> {
             accounts,
             data,
         };
-        let mut account_infos = Vec::with_capacity(6 + 1 + remaining_accounts.len());
+        let mut account_infos = Vec::with_capacity(7 + 1 + remaining_accounts.len());
         account_infos.push(self.__program.clone());
         account_infos.push(self.stake_authority.clone());
+        account_infos.push(self.author.clone());
         account_infos.push(self.stake.clone());
         account_infos.push(self.proposal.clone());
         account_infos.push(self.proposal_transaction.clone());
@@ -340,11 +365,12 @@ impl<'a, 'b> CreateProposalCpi<'a, 'b> {
 /// ### Accounts:
 ///
 ///   0. `[signer]` stake_authority
-///   1. `[]` stake
-///   2. `[writable]` proposal
-///   3. `[writable]` proposal_transaction
-///   4. `[]` governance_config
-///   5. `[]` system_program
+///   1. `[writable]` author
+///   2. `[]` stake
+///   3. `[writable]` proposal
+///   4. `[writable]` proposal_transaction
+///   5. `[]` governance_config
+///   6. `[]` system_program
 #[derive(Clone, Debug)]
 pub struct CreateProposalCpiBuilder<'a, 'b> {
     instruction: Box<CreateProposalCpiBuilderInstruction<'a, 'b>>,
@@ -355,6 +381,7 @@ impl<'a, 'b> CreateProposalCpiBuilder<'a, 'b> {
         let instruction = Box::new(CreateProposalCpiBuilderInstruction {
             __program: program,
             stake_authority: None,
+            author: None,
             stake: None,
             proposal: None,
             proposal_transaction: None,
@@ -371,6 +398,15 @@ impl<'a, 'b> CreateProposalCpiBuilder<'a, 'b> {
         stake_authority: &'b solana_program::account_info::AccountInfo<'a>,
     ) -> &mut Self {
         self.instruction.stake_authority = Some(stake_authority);
+        self
+    }
+    /// Stake authority author account
+    #[inline(always)]
+    pub fn author(
+        &mut self,
+        author: &'b solana_program::account_info::AccountInfo<'a>,
+    ) -> &mut Self {
+        self.instruction.author = Some(author);
         self
     }
     /// Paladin stake account
@@ -465,6 +501,8 @@ impl<'a, 'b> CreateProposalCpiBuilder<'a, 'b> {
                 .stake_authority
                 .expect("stake_authority is not set"),
 
+            author: self.instruction.author.expect("author is not set"),
+
             stake: self.instruction.stake.expect("stake is not set"),
 
             proposal: self.instruction.proposal.expect("proposal is not set"),
@@ -495,6 +533,7 @@ impl<'a, 'b> CreateProposalCpiBuilder<'a, 'b> {
 struct CreateProposalCpiBuilderInstruction<'a, 'b> {
     __program: &'b solana_program::account_info::AccountInfo<'a>,
     stake_authority: Option<&'b solana_program::account_info::AccountInfo<'a>>,
+    author: Option<&'b solana_program::account_info::AccountInfo<'a>>,
     stake: Option<&'b solana_program::account_info::AccountInfo<'a>>,
     proposal: Option<&'b solana_program::account_info::AccountInfo<'a>>,
     proposal_transaction: Option<&'b solana_program::account_info::AccountInfo<'a>>,

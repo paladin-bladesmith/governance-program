@@ -9,7 +9,6 @@ use {
         instruction::finish_voting,
         state::{GovernanceConfig, Proposal, ProposalStatus},
     },
-    paladin_stake_program::state::Config as StakeConfig,
     setup::{setup, setup_proposal, setup_proposal_with_stake_and_cooldown, setup_stake_config},
     solana_program_test::*,
     solana_sdk::{
@@ -22,86 +21,6 @@ use {
     },
     std::num::NonZeroU64,
 };
-
-#[tokio::test]
-async fn fail_stake_config_incorrect_owner() {
-    let proposal = Pubkey::new_unique();
-    let stake_config = Pubkey::new_unique();
-
-    let mut context = setup().start_with_context().await;
-
-    // Set up a stake config account with an incorrect owner.
-    {
-        let rent = context.banks_client.get_rent().await.unwrap();
-        let space = std::mem::size_of::<StakeConfig>();
-        let lamports = rent.minimum_balance(space);
-        context.set_account(
-            &stake_config,
-            &AccountSharedData::new(lamports, space, &Pubkey::new_unique()), // Incorrect owner.
-        );
-    }
-
-    let instruction = finish_voting(&proposal, &stake_config);
-
-    let transaction = Transaction::new_signed_with_payer(
-        &[instruction],
-        Some(&context.payer.pubkey()),
-        &[&context.payer],
-        context.last_blockhash,
-    );
-
-    let err = context
-        .banks_client
-        .process_transaction(transaction)
-        .await
-        .unwrap_err()
-        .unwrap();
-
-    assert_eq!(
-        err,
-        TransactionError::InstructionError(0, InstructionError::InvalidAccountOwner)
-    );
-}
-
-#[tokio::test]
-async fn fail_stake_config_not_initialized() {
-    let proposal = Pubkey::new_unique();
-    let stake_config = Pubkey::new_unique();
-
-    let mut context = setup().start_with_context().await;
-
-    // Set up an uninitialized stake config account.
-    {
-        let rent = context.banks_client.get_rent().await.unwrap();
-        let space = std::mem::size_of::<StakeConfig>();
-        let lamports = rent.minimum_balance(space);
-        context.set_account(
-            &stake_config,
-            &AccountSharedData::new(lamports, space, &paladin_stake_program::id()),
-        );
-    }
-
-    let instruction = finish_voting(&proposal, &stake_config);
-
-    let transaction = Transaction::new_signed_with_payer(
-        &[instruction],
-        Some(&context.payer.pubkey()),
-        &[&context.payer],
-        context.last_blockhash,
-    );
-
-    let err = context
-        .banks_client
-        .process_transaction(transaction)
-        .await
-        .unwrap_err()
-        .unwrap();
-
-    assert_eq!(
-        err,
-        TransactionError::InstructionError(0, InstructionError::UninitializedAccount)
-    );
-}
 
 #[tokio::test]
 async fn fail_proposal_not_initialized() {
@@ -122,7 +41,7 @@ async fn fail_proposal_not_initialized() {
         );
     }
 
-    let instruction = finish_voting(&proposal, &stake_config);
+    let instruction = finish_voting(&proposal);
 
     let transaction = Transaction::new_signed_with_payer(
         &[instruction],
@@ -164,7 +83,7 @@ async fn fail_proposal_not_in_voting_stage() {
     )
     .await;
 
-    let instruction = finish_voting(&proposal, &stake_config);
+    let instruction = finish_voting(&proposal);
 
     let transaction = Transaction::new_signed_with_payer(
         &[instruction],
@@ -213,14 +132,13 @@ async fn fail_proposal_has_cooldown_but_has_not_ended() {
         governance_config,
         /* stake_for */ 0,
         /* stake_against */ 0,
-        /* stake_abstained */ 0,
         ProposalStatus::Voting,
         /* voting_start_timestamp */ NonZeroU64::new(1),
         /* cooldown_timestamp */ NonZeroU64::new(cooldown_timestamp as u64),
     )
     .await;
 
-    let instruction = finish_voting(&proposal, &stake_config);
+    let instruction = finish_voting(&proposal);
 
     let transaction = Transaction::new_signed_with_payer(
         &[instruction],
@@ -255,7 +173,8 @@ async fn success_cooldown_result_is_accepted() {
     let mut governance_config = GovernanceConfig::default();
     governance_config.stake_config_address = stake_config;
     governance_config.cooldown_period_seconds = 10; // 10 seconds.
-    governance_config.proposal_acceptance_threshold = 500_000_000; // 50%
+    governance_config.proposal_minimum_quorum = 500_000_000; // 50%
+    governance_config.proposal_pass_threshold = 500_000_000; // 50%
 
     let total_stake = 100_000_000_000;
 
@@ -273,14 +192,13 @@ async fn success_cooldown_result_is_accepted() {
         governance_config,
         /* stake_for */ total_stake / 2, // 50%, accepted.
         /* stake_against */ 0,
-        /* stake_abstained */ 0,
         ProposalStatus::Voting,
         /* voting_start_timestamp */ NonZeroU64::new(1),
         /* cooldown_timestamp */ NonZeroU64::new(cooldown_timestamp as u64),
     )
     .await;
 
-    let instruction = finish_voting(&proposal, &stake_config);
+    let instruction = finish_voting(&proposal);
 
     let transaction = Transaction::new_signed_with_payer(
         &[instruction],
@@ -314,7 +232,8 @@ async fn success_cooldown_result_is_rejected() {
     let mut governance_config = GovernanceConfig::default();
     governance_config.stake_config_address = stake_config;
     governance_config.cooldown_period_seconds = 10; // 10 seconds.
-    governance_config.proposal_acceptance_threshold = 500_000_000; // 50%
+    governance_config.proposal_minimum_quorum = 500_000_000; // 50%
+    governance_config.proposal_pass_threshold = 500_000_000; // 50%
 
     let total_stake = 100_000_000_000;
 
@@ -331,15 +250,14 @@ async fn success_cooldown_result_is_rejected() {
         /* creation_timestamp */ 0,
         governance_config,
         /* stake_for */ total_stake / 4, // 25%, not accepted.
-        /* stake_against */ 0,
-        /* stake_abstained */ 0,
+        /* stake_against */ total_stake * 3 / 4,
         ProposalStatus::Voting,
         /* voting_start_timestamp */ NonZeroU64::new(1),
         /* cooldown_timestamp */ NonZeroU64::new(cooldown_timestamp as u64),
     )
     .await;
 
-    let instruction = finish_voting(&proposal, &stake_config);
+    let instruction = finish_voting(&proposal);
 
     let transaction = Transaction::new_signed_with_payer(
         &[instruction],
@@ -388,14 +306,13 @@ async fn fail_proposal_vote_period_not_ended() {
         governance_config,
         /* stake_for */ 0,
         /* stake_against */ 0,
-        /* stake_abstained */ 0,
         ProposalStatus::Voting,
         /* voting_start_timestamp */ NonZeroU64::new(voting_start_timestamp as u64),
         /* cooldown_timestamp */ None, // No cooldown.
     )
     .await;
 
-    let instruction = finish_voting(&proposal, &stake_config);
+    let instruction = finish_voting(&proposal);
 
     let transaction = Transaction::new_signed_with_payer(
         &[instruction],
@@ -445,14 +362,13 @@ async fn success_vote_period_ended_result_rejected() {
         governance_config,
         /* stake_for */ 0,
         /* stake_against */ 0,
-        /* stake_abstained */ 0,
         ProposalStatus::Voting,
         /* voting_start_timestamp */ NonZeroU64::new(voting_start_timestamp as u64),
         /* cooldown_timestamp */ None, // No cooldown.
     )
     .await;
 
-    let instruction = finish_voting(&proposal, &stake_config);
+    let instruction = finish_voting(&proposal);
 
     let transaction = Transaction::new_signed_with_payer(
         &[instruction],

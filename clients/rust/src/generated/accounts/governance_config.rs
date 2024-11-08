@@ -13,16 +13,15 @@ use {
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct GovernanceConfig {
     pub cooldown_period_seconds: u64,
-    pub proposal_acceptance_threshold: u32,
-    pub proposal_rejection_threshold: u32,
-    pub signer_bump_seed: u8,
-    pub padding: [u8; 7],
+    pub proposal_minimum_quorum: u32,
+    pub proposal_pass_threshold: u32,
     #[cfg_attr(
         feature = "serde",
         serde(with = "serde_with::As::<serde_with::DisplayFromStr>")
     )]
     pub stake_config_address: Pubkey,
     pub voting_period_seconds: u64,
+    pub stake_per_proposal: u64,
 }
 
 impl GovernanceConfig {

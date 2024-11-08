@@ -14,8 +14,8 @@ import {
 } from '@solana/web3.js';
 import {
   type ParsedBeginVotingInstruction,
-  type ParsedCancelProposalInstruction,
   type ParsedCreateProposalInstruction,
+  type ParsedDeleteProposalInstruction,
   type ParsedFinishVotingInstruction,
   type ParsedInitializeGovernanceInstruction,
   type ParsedProcessInstructionInstruction,
@@ -33,13 +33,14 @@ export enum PaladinGovernanceAccount {
   GovernanceConfig,
   Proposal,
   ProposalVote,
+  Author,
 }
 
 export enum PaladinGovernanceInstruction {
   CreateProposal,
   PushInstruction,
   RemoveInstruction,
-  CancelProposal,
+  DeleteProposal,
   BeginVoting,
   Vote,
   SwitchVote,
@@ -63,7 +64,7 @@ export function identifyPaladinGovernanceInstruction(
     return PaladinGovernanceInstruction.RemoveInstruction;
   }
   if (containsBytes(data, getU8Encoder().encode(3), 0)) {
-    return PaladinGovernanceInstruction.CancelProposal;
+    return PaladinGovernanceInstruction.DeleteProposal;
   }
   if (containsBytes(data, getU8Encoder().encode(4), 0)) {
     return PaladinGovernanceInstruction.BeginVoting;
@@ -104,8 +105,8 @@ export type ParsedPaladinGovernanceInstruction<
       instructionType: PaladinGovernanceInstruction.RemoveInstruction;
     } & ParsedRemoveInstructionInstruction<TProgram>)
   | ({
-      instructionType: PaladinGovernanceInstruction.CancelProposal;
-    } & ParsedCancelProposalInstruction<TProgram>)
+      instructionType: PaladinGovernanceInstruction.DeleteProposal;
+    } & ParsedDeleteProposalInstruction<TProgram>)
   | ({
       instructionType: PaladinGovernanceInstruction.BeginVoting;
     } & ParsedBeginVotingInstruction<TProgram>)

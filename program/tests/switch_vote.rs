@@ -517,13 +517,8 @@ async fn fail_proposal_not_voting() {
         get_proposal_vote_address(&stake, &proposal, &paladin_governance_program::id());
 
     let governance_config = GovernanceConfig {
-        cooldown_period_seconds: 0,
-        proposal_acceptance_threshold: 0,
-        proposal_rejection_threshold: 0,
-        signer_bump_seed: 0,
-        _padding: [0; 7],
         stake_config_address: stake_config,
-        voting_period_seconds: 0,
+        ..Default::default()
     };
 
     let mut context = setup().start_with_context().await;
@@ -590,13 +585,8 @@ async fn fail_proposal_vote_incorrect_address() {
     let proposal_vote = Pubkey::new_unique(); // Incorrect proposal vote address.
 
     let governance_config = GovernanceConfig {
-        cooldown_period_seconds: 0,
-        proposal_acceptance_threshold: 0,
-        proposal_rejection_threshold: 0,
-        signer_bump_seed: 0,
-        _padding: [0; 7],
         stake_config_address: stake_config,
-        voting_period_seconds: 0,
+        ..Default::default()
     };
 
     let mut context = setup().start_with_context().await;
@@ -664,13 +654,8 @@ async fn fail_proposal_vote_not_initialized() {
         get_proposal_vote_address(&stake, &proposal, &paladin_governance_program::id());
 
     let governance_config = GovernanceConfig {
-        cooldown_period_seconds: 0,
-        proposal_acceptance_threshold: 0,
-        proposal_rejection_threshold: 0,
-        signer_bump_seed: 0,
-        _padding: [0; 7],
         stake_config_address: stake_config,
-        voting_period_seconds: 0,
+        ..Default::default()
     };
 
     let mut context = setup().start_with_context().await;
@@ -732,8 +717,8 @@ async fn fail_proposal_vote_not_initialized() {
     );
 }
 
-const ACCEPTANCE_THRESHOLD: u32 = 500_000_000; // 50%
-const REJECTION_THRESHOLD: u32 = 500_000_000; // 50%
+const PASS_THRESHOLD: u32 = 500_000_000; // 50%
+const MINIMUM_QUORUM: u32 = 500_000_000; // 50%
 const COOLDOWN_PERIOD_SECONDS: u64 = 100_000_000;
 const VOTING_PERIOD_SECONDS: u64 = 100_000_000;
 const TOTAL_STAKE: u64 = 100_000_000;
@@ -742,7 +727,6 @@ struct ProposalStarting {
     cooldown_active: bool,
     stake_for: u64,
     stake_against: u64,
-    stake_abstained: u64,
 }
 struct VoteSwitch {
     previous_vote_stake: u64,
@@ -755,9 +739,7 @@ enum Expect {
         cooldown: bool,
         stake_for: u64,
         stake_against: u64,
-        stake_abstained: u64,
     },
-    Terminated,
 }
 
 // TODO: Until we decide whether or not to keep the cooldown running, or to
@@ -770,149 +752,6 @@ enum Expect {
         cooldown_active: false,
         stake_for: TOTAL_STAKE / 4, // 25% of total stake.
         stake_against: TOTAL_STAKE / 4, // 25% of total stake.
-        stake_abstained: TOTAL_STAKE / 4, // 25% of total stake.
-    },
-    VoteSwitch {
-        previous_vote_stake: TOTAL_STAKE / 10, // 10% of total stake.
-        new_vote_stake: TOTAL_STAKE / 10, // 10% of total stake.
-        previous_election: ProposalVoteElection::DidNotVote,
-        new_election: ProposalVoteElection::DidNotVote,
-    },
-    Expect::Cast {
-        cooldown: false,
-        stake_for: TOTAL_STAKE / 4,
-        stake_against: TOTAL_STAKE / 4,
-        stake_abstained: TOTAL_STAKE / 4,
-    };
-    "dnv_to_dnv_same_stake_does_nothing"
-)]
-#[test_case(
-    ProposalStarting {
-        cooldown_active: false,
-        stake_for: TOTAL_STAKE / 4, // 25% of total stake.
-        stake_against: TOTAL_STAKE / 4, // 25% of total stake.
-        stake_abstained: TOTAL_STAKE / 4, // 25% of total stake.
-    },
-    VoteSwitch {
-        previous_vote_stake: TOTAL_STAKE / 10, // 10% of total stake.
-        new_vote_stake: TOTAL_STAKE / 20, // 5% of total stake.
-        previous_election: ProposalVoteElection::DidNotVote,
-        new_election: ProposalVoteElection::DidNotVote,
-    },
-    Expect::Cast {
-        cooldown: false,
-        stake_for: TOTAL_STAKE / 4,
-        stake_against: TOTAL_STAKE / 4,
-        stake_abstained: TOTAL_STAKE / 4 - TOTAL_STAKE / 20, // 20% of total stake.
-    };
-    "dnv_to_dnv_less_stake_decrements_stake_abstained"
-)]
-#[test_case(
-    ProposalStarting {
-        cooldown_active: false,
-        stake_for: TOTAL_STAKE / 4, // 25% of total stake.
-        stake_against: TOTAL_STAKE / 4, // 25% of total stake.
-        stake_abstained: TOTAL_STAKE / 4, // 25% of total stake.
-    },
-    VoteSwitch {
-        previous_vote_stake: TOTAL_STAKE / 20, // 5% of total stake.
-        new_vote_stake: TOTAL_STAKE / 10, // 10% of total stake.
-        previous_election: ProposalVoteElection::DidNotVote,
-        new_election: ProposalVoteElection::DidNotVote,
-    },
-    Expect::Cast {
-        cooldown: false,
-        stake_for: TOTAL_STAKE / 4,
-        stake_against: TOTAL_STAKE / 4,
-        stake_abstained: TOTAL_STAKE / 4 + TOTAL_STAKE / 20, // 30% of total stake.
-    };
-    "dnv_to_dnv_more_stake_increments_stake_abstained"
-)]
-#[test_case(
-    ProposalStarting {
-        cooldown_active: false,
-        stake_for: TOTAL_STAKE / 4, // 25% of total stake.
-        stake_against: TOTAL_STAKE / 4, // 25% of total stake.
-        stake_abstained: TOTAL_STAKE / 4, // 25% of total stake.
-    },
-    VoteSwitch {
-        previous_vote_stake: TOTAL_STAKE / 10, // 10% of total stake.
-        new_vote_stake: TOTAL_STAKE / 10, // 10% of total stake.
-        previous_election: ProposalVoteElection::DidNotVote,
-        new_election: ProposalVoteElection::For,
-    },
-    Expect::Cast {
-        cooldown: false,
-        stake_for: TOTAL_STAKE / 4 + TOTAL_STAKE / 10, // 35% of total stake.
-        stake_against: TOTAL_STAKE / 4, // Unchanged.
-        stake_abstained: TOTAL_STAKE / 4 - TOTAL_STAKE / 10, // 15% of total stake.
-    };
-    "dnv_to_for_decrements_stake_abstained_increments_stake_for"
-)]
-#[test_case(
-    ProposalStarting {
-        cooldown_active: false,
-        stake_for: TOTAL_STAKE / 5 * 2, // 40% of total stake.
-        stake_against: TOTAL_STAKE / 4, // 25% of total stake.
-        stake_abstained: TOTAL_STAKE / 4, // 25% of total stake.
-    },
-    VoteSwitch {
-        previous_vote_stake: TOTAL_STAKE / 10, // 10% of total stake.
-        new_vote_stake: TOTAL_STAKE / 10, // 10% of total stake.
-        previous_election: ProposalVoteElection::DidNotVote,
-        new_election: ProposalVoteElection::For,
-    },
-    Expect::Cast {
-        cooldown: true, // Cooldown activated.
-        stake_for: TOTAL_STAKE / 5 * 2 + TOTAL_STAKE / 10, // 50% of total stake.
-        stake_against: TOTAL_STAKE / 4, // Unchanged.
-        stake_abstained: TOTAL_STAKE / 4 - TOTAL_STAKE / 10, // 15% of total stake.
-    };
-    "dnv_to_for_beyond_treshold_decrements_stake_abstained_increments_stake_for_and_activates_cooldown"
-)]
-#[test_case(
-    ProposalStarting {
-        cooldown_active: false,
-        stake_for: TOTAL_STAKE / 4, // 25% of total stake.
-        stake_against: TOTAL_STAKE / 4, // 25% of total stake.
-        stake_abstained: TOTAL_STAKE / 4, // 25% of total stake.
-    },
-    VoteSwitch {
-        previous_vote_stake: TOTAL_STAKE / 10, // 10% of total stake.
-        new_vote_stake: TOTAL_STAKE / 10, // 10% of total stake.
-        previous_election: ProposalVoteElection::DidNotVote,
-        new_election: ProposalVoteElection::Against,
-    },
-    Expect::Cast {
-        cooldown: false,
-        stake_for: TOTAL_STAKE / 4, // Unchanged.
-        stake_against: TOTAL_STAKE / 4 + TOTAL_STAKE / 10, // 35% of total stake.
-        stake_abstained: TOTAL_STAKE / 4 - TOTAL_STAKE / 10, // 15% of total stake.
-    };
-    "dnv_to_against_decrements_stake_abstained_increments_stake_against"
-)]
-#[test_case(
-    ProposalStarting {
-        cooldown_active: false,
-        stake_for: TOTAL_STAKE / 4, // 25% of total stake.
-        stake_against: TOTAL_STAKE / 5 * 2, // 40% of total stake.
-        stake_abstained: TOTAL_STAKE / 4, // 25% of total stake.
-    },
-    VoteSwitch {
-        previous_vote_stake: TOTAL_STAKE / 10, // 10% of total stake.
-        new_vote_stake: TOTAL_STAKE / 10, // 10% of total stake.
-        previous_election: ProposalVoteElection::DidNotVote,
-        new_election: ProposalVoteElection::Against,
-    },
-    Expect::Terminated;
-    "dnv_to_against_beyond_threshold_terminates"
-)]
-#[test_case(
-    ProposalStarting {
-        cooldown_active: false,
-        stake_for: TOTAL_STAKE / 4, // 25% of total stake.
-        stake_against: TOTAL_STAKE / 4, // 25% of total stake.
-        stake_abstained: TOTAL_STAKE / 4, // 25% of total stake.
     },
     VoteSwitch {
         previous_vote_stake: TOTAL_STAKE / 10, // 10% of total stake.
@@ -924,7 +763,6 @@ enum Expect {
         cooldown: false,
         stake_for: TOTAL_STAKE / 4,
         stake_against: TOTAL_STAKE / 4,
-        stake_abstained: TOTAL_STAKE / 4, // Unchanged.
     };
     "for_to_for_same_stake_does_nothing"
 )]
@@ -933,7 +771,6 @@ enum Expect {
         cooldown_active: false,
         stake_for: TOTAL_STAKE / 4, // 25% of total stake.
         stake_against: TOTAL_STAKE / 4, // 25% of total stake.
-        stake_abstained: TOTAL_STAKE / 4, // 25% of total stake.
     },
     VoteSwitch {
         previous_vote_stake: TOTAL_STAKE / 10, // 10% of total stake.
@@ -945,7 +782,6 @@ enum Expect {
         cooldown: false,
         stake_for: TOTAL_STAKE / 4 - TOTAL_STAKE / 10 + TOTAL_STAKE / 20, // 20% of total stake.
         stake_against: TOTAL_STAKE / 4,
-        stake_abstained: TOTAL_STAKE / 4, // Unchanged.
     };
     "for_to_for_less_stake_decrements_stake_for"
 )]
@@ -954,7 +790,6 @@ enum Expect {
         cooldown_active: false,
         stake_for: TOTAL_STAKE / 4, // 25% of total stake.
         stake_against: TOTAL_STAKE / 4, // 25% of total stake.
-        stake_abstained: TOTAL_STAKE / 4, // 25% of total stake.
     },
     VoteSwitch {
         previous_vote_stake: TOTAL_STAKE / 20, // 5% of total stake.
@@ -966,7 +801,6 @@ enum Expect {
         cooldown: false,
         stake_for: TOTAL_STAKE / 4 - TOTAL_STAKE / 20 + TOTAL_STAKE / 10, // 30% of total stake.
         stake_against: TOTAL_STAKE / 4,
-        stake_abstained: TOTAL_STAKE / 4, // Unchanged.
     };
     "for_to_for_more_stake_increments_stake_for"
 )]
@@ -975,7 +809,6 @@ enum Expect {
         cooldown_active: false,
         stake_for: TOTAL_STAKE / 4, // 25% of total stake.
         stake_against: TOTAL_STAKE / 4, // 25% of total stake.
-        stake_abstained: TOTAL_STAKE / 4, // 25% of total stake.
     },
     VoteSwitch {
         previous_vote_stake: TOTAL_STAKE / 10, // 10% of total stake.
@@ -987,7 +820,6 @@ enum Expect {
         cooldown: false,
         stake_for: TOTAL_STAKE / 4 - TOTAL_STAKE / 10, // 15% of total stake.
         stake_against: TOTAL_STAKE / 4 + TOTAL_STAKE / 10, // 35% of total stake.
-        stake_abstained: TOTAL_STAKE / 4, // Unchanged.
     };
     "for_to_against_deducts_stake_for_increments_stake_against"
 )]
@@ -996,7 +828,6 @@ enum Expect {
         cooldown_active: true, // Cooldown active.
         stake_for: TOTAL_STAKE / 2, // 50% of total stake.
         stake_against: TOTAL_STAKE / 4, // 25% of total stake.
-        stake_abstained: TOTAL_STAKE / 4, // 25% of total stake.
     },
     VoteSwitch {
         previous_vote_stake: TOTAL_STAKE / 10, // 10% of total stake.
@@ -1008,7 +839,6 @@ enum Expect {
         cooldown: true, // Cooldown unchanged.
         stake_for: TOTAL_STAKE / 2 - TOTAL_STAKE / 10, // 40% of total stake.
         stake_against: TOTAL_STAKE / 4 + TOTAL_STAKE / 10, // 35% of total stake.
-        stake_abstained: TOTAL_STAKE / 4, // Unchanged.
     };
     "for_to_against_below_for_threshold_deducts_stake_for_increments_stake_against"
 )]
@@ -1016,45 +846,7 @@ enum Expect {
     ProposalStarting {
         cooldown_active: false,
         stake_for: TOTAL_STAKE / 4, // 25% of total stake.
-        stake_against: TOTAL_STAKE / 5 * 2, // 40% of total stake.
-        stake_abstained: TOTAL_STAKE / 4, // 25% of total stake.
-    },
-    VoteSwitch {
-        previous_vote_stake: TOTAL_STAKE / 10, // 10% of total stake.
-        new_vote_stake: TOTAL_STAKE / 10, // 10% of total stake.
-        previous_election: ProposalVoteElection::For,
-        new_election: ProposalVoteElection::Against,
-    },
-    Expect::Terminated;
-    "for_to_against_beyond_threshold_terminates"
-)]
-#[test_case(
-    ProposalStarting {
-        cooldown_active: false,
-        stake_for: TOTAL_STAKE / 4, // 25% of total stake.
         stake_against: TOTAL_STAKE / 4, // 25% of total stake.
-        stake_abstained: TOTAL_STAKE / 4, // 25% of total stake.
-    },
-    VoteSwitch {
-        previous_vote_stake: TOTAL_STAKE / 10, // 10% of total stake.
-        new_vote_stake: TOTAL_STAKE / 10, // 10% of total stake.
-        previous_election: ProposalVoteElection::For,
-        new_election: ProposalVoteElection::DidNotVote,
-    },
-    Expect::Cast {
-        cooldown: false,
-        stake_for: TOTAL_STAKE / 4 - TOTAL_STAKE / 10, // 15% of total stake.
-        stake_against: TOTAL_STAKE / 4, // Unchanged.
-        stake_abstained: TOTAL_STAKE / 4 + TOTAL_STAKE / 10, // 35% of total stake.
-    };
-    "for_to_dnv_deducts_stake_for_increments_stake_abstained"
-)]
-#[test_case(
-    ProposalStarting {
-        cooldown_active: false,
-        stake_for: TOTAL_STAKE / 4, // 25% of total stake.
-        stake_against: TOTAL_STAKE / 4, // 25% of total stake.
-        stake_abstained: TOTAL_STAKE / 4, // 25% of total stake.
     },
     VoteSwitch {
         previous_vote_stake: TOTAL_STAKE / 10, // 10% of total stake.
@@ -1066,7 +858,6 @@ enum Expect {
         cooldown: false,
         stake_for: TOTAL_STAKE / 4,
         stake_against: TOTAL_STAKE / 4,
-        stake_abstained: TOTAL_STAKE / 4,
     };
     "against_to_against_same_stake_does_nothing"
 )]
@@ -1075,7 +866,6 @@ enum Expect {
         cooldown_active: false,
         stake_for: TOTAL_STAKE / 4, // 25% of total stake.
         stake_against: TOTAL_STAKE / 4, // 25% of total stake.
-        stake_abstained: TOTAL_STAKE / 4, // 25% of total stake.
     },
     VoteSwitch {
         previous_vote_stake: TOTAL_STAKE / 10, // 10% of total stake.
@@ -1087,7 +877,6 @@ enum Expect {
         cooldown: false,
         stake_for: TOTAL_STAKE / 4,
         stake_against: TOTAL_STAKE / 4 - TOTAL_STAKE / 10 + TOTAL_STAKE / 20, // 20% of total stake.
-        stake_abstained: TOTAL_STAKE / 4, // Unchanged.
     };
     "against_to_against_less_stake_decrements_stake_against"
 )]
@@ -1096,7 +885,6 @@ enum Expect {
         cooldown_active: false,
         stake_for: TOTAL_STAKE / 4, // 25% of total stake.
         stake_against: TOTAL_STAKE / 4, // 25% of total stake.
-        stake_abstained: TOTAL_STAKE / 4, // 25% of total stake.
     },
     VoteSwitch {
         previous_vote_stake: TOTAL_STAKE / 20, // 5% of total stake.
@@ -1108,7 +896,6 @@ enum Expect {
         cooldown: false,
         stake_for: TOTAL_STAKE / 4,
         stake_against: TOTAL_STAKE / 4 - TOTAL_STAKE / 20 + TOTAL_STAKE / 10, // 30% of total stake.
-        stake_abstained: TOTAL_STAKE / 4, // Unchanged.
     };
     "against_to_against_more_stake_increments_stake_against"
 )]
@@ -1117,7 +904,6 @@ enum Expect {
         cooldown_active: false,
         stake_for: TOTAL_STAKE / 4, // 25% of total stake.
         stake_against: TOTAL_STAKE / 4, // 25% of total stake.
-        stake_abstained: TOTAL_STAKE / 4, // 25% of total stake.
     },
     VoteSwitch {
         previous_vote_stake: TOTAL_STAKE / 10, // 10% of total stake.
@@ -1129,7 +915,6 @@ enum Expect {
         cooldown: false,
         stake_for: TOTAL_STAKE / 4 + TOTAL_STAKE / 10, // 35% of total stake.
         stake_against: TOTAL_STAKE / 4 - TOTAL_STAKE / 10, // 15% of total stake.
-        stake_abstained: TOTAL_STAKE / 4, // Unchanged.
     };
     "against_to_for_deducts_stake_against_increments_stake_for"
 )]
@@ -1138,7 +923,6 @@ enum Expect {
         cooldown_active: false,
         stake_for: TOTAL_STAKE / 5 * 2, // 40% of total stake.
         stake_against: TOTAL_STAKE / 4, // 25% of total stake.
-        stake_abstained: TOTAL_STAKE / 4, // 25% of total stake.
     },
     VoteSwitch {
         previous_vote_stake: TOTAL_STAKE / 10, // 10% of total stake.
@@ -1150,30 +934,8 @@ enum Expect {
         cooldown: true, // Cooldown activated.
         stake_for: TOTAL_STAKE / 5 * 2 + TOTAL_STAKE / 10, // 50% of total stake.
         stake_against: TOTAL_STAKE / 4 - TOTAL_STAKE / 10, // 15% of total stake.
-        stake_abstained: TOTAL_STAKE / 4, // Unchanged.
     };
     "against_to_for_beyond_threshold_deducts_stake_against_increments_stake_for_activates_cooldown"
-)]
-#[test_case(
-    ProposalStarting {
-        cooldown_active: false,
-        stake_for: TOTAL_STAKE / 4, // 25% of total stake.
-        stake_against: TOTAL_STAKE / 4, // 25% of total stake.
-        stake_abstained: TOTAL_STAKE / 4, // 25% of total stake.
-    },
-    VoteSwitch {
-        previous_vote_stake: TOTAL_STAKE / 10, // 10% of total stake.
-        new_vote_stake: TOTAL_STAKE / 10, // 10% of total stake.
-        previous_election: ProposalVoteElection::Against,
-        new_election: ProposalVoteElection::DidNotVote,
-    },
-    Expect::Cast {
-        cooldown: false,
-        stake_for: TOTAL_STAKE / 4, // Unchanged.
-        stake_against: TOTAL_STAKE / 4 - TOTAL_STAKE / 10, // 15% of total stake.
-        stake_abstained: TOTAL_STAKE / 4 + TOTAL_STAKE / 10, // 35% of total stake.
-    };
-    "against_to_dnv_deducts_stake_against_increments_stake_abstained"
 )]
 #[tokio::test]
 async fn success(proposal_starting: ProposalStarting, switch: VoteSwitch, expect: Expect) {
@@ -1189,12 +951,11 @@ async fn success(proposal_starting: ProposalStarting, switch: VoteSwitch, expect
 
     let governance_config = GovernanceConfig {
         cooldown_period_seconds: COOLDOWN_PERIOD_SECONDS,
-        proposal_acceptance_threshold: ACCEPTANCE_THRESHOLD,
-        proposal_rejection_threshold: REJECTION_THRESHOLD,
-        signer_bump_seed: 0,
-        _padding: [0; 7],
+        proposal_minimum_quorum: MINIMUM_QUORUM,
+        proposal_pass_threshold: PASS_THRESHOLD,
         stake_config_address: stake_config,
         voting_period_seconds: VOTING_PERIOD_SECONDS,
+        stake_per_proposal: 0,
     };
 
     let mut context = setup().start_with_context().await;
@@ -1231,7 +992,6 @@ async fn success(proposal_starting: ProposalStarting, switch: VoteSwitch, expect
             governance_config,
             proposal_starting.stake_for,
             proposal_starting.stake_against,
-            proposal_starting.stake_abstained,
             ProposalStatus::Voting,
             /* voting_start_timestamp */ NonZeroU64::new(clock.unix_timestamp as u64),
             /* cooldown_timestamp */
@@ -1247,7 +1007,6 @@ async fn success(proposal_starting: ProposalStarting, switch: VoteSwitch, expect
             governance_config,
             proposal_starting.stake_for,
             proposal_starting.stake_against,
-            proposal_starting.stake_abstained,
             ProposalStatus::Voting,
             /* voting_start_timestamp */ NonZeroU64::new(clock.unix_timestamp as u64),
         )
@@ -1306,12 +1065,10 @@ async fn success(proposal_starting: ProposalStarting, switch: VoteSwitch, expect
             cooldown,
             stake_for,
             stake_against,
-            stake_abstained,
         } => {
             // Assert the proposal stake matches the expected values.
             assert_eq!(proposal_state.stake_for, stake_for);
             assert_eq!(proposal_state.stake_against, stake_against);
-            assert_eq!(proposal_state.stake_abstained, stake_abstained);
 
             if cooldown {
                 // Assert the cooldown time is set.
@@ -1320,10 +1077,6 @@ async fn success(proposal_starting: ProposalStarting, switch: VoteSwitch, expect
                 // Assert the cooldown time is not set.
                 assert!(proposal_state.cooldown_timestamp.is_none());
             }
-        }
-        Expect::Terminated => {
-            // Assert the proposal was rejected.
-            assert_eq!(proposal_state.status, ProposalStatus::Rejected);
         }
     }
 }
@@ -1348,12 +1101,11 @@ async fn success_voting_closed() {
 
     let governance_config = GovernanceConfig {
         cooldown_period_seconds: 10,
-        proposal_acceptance_threshold: ACCEPTANCE_THRESHOLD,
-        proposal_rejection_threshold: REJECTION_THRESHOLD,
-        signer_bump_seed: 0,
-        _padding: [0; 7],
+        proposal_minimum_quorum: MINIMUM_QUORUM,
+        proposal_pass_threshold: PASS_THRESHOLD,
         stake_config_address: stake_config,
         voting_period_seconds: 10,
+        stake_per_proposal: 0,
     };
 
     let mut context = setup().start_with_context().await;
@@ -1378,7 +1130,6 @@ async fn success_voting_closed() {
         governance_config,
         /* stake_for */ 0,
         /* stake_against */ TOTAL_STAKE,
-        /* stake_abstained */ 0,
         ProposalStatus::Voting,
         /* voting_start_timestamp */ NonZeroU64::new(1), // Wayyy earlier.
     )
@@ -1410,34 +1161,19 @@ async fn success_voting_closed() {
         context.last_blockhash,
     );
 
-    context
+    let err = context
         .banks_client
         .process_transaction(transaction)
         .await
+        .unwrap_err()
         .unwrap();
-
-    let proposal_account = context
-        .banks_client
-        .get_account(proposal)
-        .await
-        .unwrap()
-        .unwrap();
-
-    // Assert the proposal was marked as rejected.
-    let proposal_state = bytemuck::from_bytes::<Proposal>(&proposal_account.data);
-    assert_eq!(proposal_state.status, ProposalStatus::Rejected);
-
-    let proposal_vote_account = context
-        .banks_client
-        .get_account(proposal_vote)
-        .await
-        .unwrap()
-        .unwrap();
-
-    // Assert the proposal vote was _not_ updated.
-    let proposal_vote_state = bytemuck::from_bytes::<ProposalVote>(&proposal_vote_account.data);
-    assert_eq!(proposal_vote_state.stake, prev_vote_stake);
-    assert_eq!(proposal_vote_state.election, prev_election);
+    assert_eq!(
+        err,
+        TransactionError::InstructionError(
+            0,
+            InstructionError::Custom(PaladinGovernanceError::ProposalNotInVotingStage as u32)
+        )
+    )
 }
 
 #[tokio::test]
@@ -1463,12 +1199,11 @@ async fn success_voting_closed_but_cooldown_active() {
 
     let governance_config = GovernanceConfig {
         cooldown_period_seconds: 1_000,
-        proposal_acceptance_threshold: ACCEPTANCE_THRESHOLD,
-        proposal_rejection_threshold: REJECTION_THRESHOLD,
-        signer_bump_seed: 0,
-        _padding: [0; 7],
+        proposal_minimum_quorum: MINIMUM_QUORUM,
+        proposal_pass_threshold: PASS_THRESHOLD,
         stake_config_address: stake_config,
         voting_period_seconds: 10,
+        stake_per_proposal: 0,
     };
 
     let mut context = setup().start_with_context().await;
@@ -1496,7 +1231,6 @@ async fn success_voting_closed_but_cooldown_active() {
         governance_config,
         /* stake_for */ TOTAL_STAKE,
         /* stake_against */ 0,
-        /* stake_abstained */ 0,
         ProposalStatus::Voting,
         /* voting_start_timestamp */ NonZeroU64::new(1), // Wayyy earlier.
         /* cooldown_timestamp */
@@ -1578,16 +1312,14 @@ async fn success_cooldown_has_ended(threshold_met: bool, expected_status: Propos
     let prev_election = ProposalVoteElection::Against;
 
     let new_vote_stake = TOTAL_STAKE / 10 + 100;
-    let new_election = ProposalVoteElection::For;
 
     let governance_config = GovernanceConfig {
         cooldown_period_seconds: 10,
-        proposal_acceptance_threshold: ACCEPTANCE_THRESHOLD,
-        proposal_rejection_threshold: REJECTION_THRESHOLD,
-        signer_bump_seed: 0,
-        _padding: [0; 7],
+        proposal_minimum_quorum: MINIMUM_QUORUM,
+        proposal_pass_threshold: PASS_THRESHOLD,
         stake_config_address: stake_config,
         voting_period_seconds: 1000,
+        stake_per_proposal: 0,
     };
 
     // We'll set up a proposal whose cooldown period has ended.
@@ -1626,8 +1358,7 @@ async fn success_cooldown_has_ended(threshold_met: bool, expected_status: Propos
         /* creation_timestamp */ 0,
         governance_config,
         proposal_stake_for,
-        /* stake_against */ 0,
-        /* stake_abstained */ 0,
+        /* stake_against */ TOTAL_STAKE / 2,
         ProposalStatus::Voting,
         /* voting_start_timestamp */
         NonZeroU64::new(clock.unix_timestamp as u64),
@@ -1646,22 +1377,13 @@ async fn success_cooldown_has_ended(threshold_met: bool, expected_status: Propos
     )
     .await;
 
-    let instruction = paladin_governance_program::instruction::switch_vote(
-        &stake_authority.pubkey(),
-        &stake,
-        &stake_config,
-        &proposal_vote,
-        &proposal,
-        new_election,
-    );
-
+    let instruction = paladin_governance_program::instruction::finish_voting(&proposal);
     let transaction = Transaction::new_signed_with_payer(
         &[instruction],
         Some(&context.payer.pubkey()),
-        &[&context.payer, &stake_authority],
+        &[&context.payer],
         context.last_blockhash,
     );
-
     context
         .banks_client
         .process_transaction(transaction)

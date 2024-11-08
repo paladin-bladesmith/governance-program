@@ -4,35 +4,17 @@
 //!
 //! <https://github.com/kinobi-so/kinobi>
 
-use {
-    crate::{
-        generated::types::{Config, ProposalStatus},
-        hooked::NullableU64,
-    },
-    borsh::{BorshDeserialize, BorshSerialize},
-    solana_program::pubkey::Pubkey,
-};
+use borsh::{BorshDeserialize, BorshSerialize};
 
 #[derive(BorshSerialize, BorshDeserialize, Clone, Debug, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct Proposal {
-    pub discriminator: [u8; 8],
-    #[cfg_attr(
-        feature = "serde",
-        serde(with = "serde_with::As::<serde_with::DisplayFromStr>")
-    )]
-    pub author: Pubkey,
-    pub cooldown_timestamp: NullableU64,
-    pub creation_timestamp: i64,
-    pub governance_config: Config,
-    pub stake_against: u64,
-    pub stake_for: u64,
-    pub status: ProposalStatus,
-    pub padding: [u8; 7],
-    pub voting_start_timestamp: NullableU64,
+pub struct Author {
+    pub active_proposals: u64,
 }
 
-impl Proposal {
+impl Author {
+    pub const LEN: usize = 8;
+
     #[inline(always)]
     pub fn from_bytes(data: &[u8]) -> Result<Self, std::io::Error> {
         let mut data = data;
@@ -40,7 +22,7 @@ impl Proposal {
     }
 }
 
-impl<'a> TryFrom<&solana_program::account_info::AccountInfo<'a>> for Proposal {
+impl<'a> TryFrom<&solana_program::account_info::AccountInfo<'a>> for Author {
     type Error = std::io::Error;
 
     fn try_from(
@@ -52,26 +34,26 @@ impl<'a> TryFrom<&solana_program::account_info::AccountInfo<'a>> for Proposal {
 }
 
 #[cfg(feature = "anchor")]
-impl anchor_lang::AccountDeserialize for Proposal {
+impl anchor_lang::AccountDeserialize for Author {
     fn try_deserialize_unchecked(buf: &mut &[u8]) -> anchor_lang::Result<Self> {
         Ok(Self::deserialize(buf)?)
     }
 }
 
 #[cfg(feature = "anchor")]
-impl anchor_lang::AccountSerialize for Proposal {}
+impl anchor_lang::AccountSerialize for Author {}
 
 #[cfg(feature = "anchor")]
-impl anchor_lang::Owner for Proposal {
+impl anchor_lang::Owner for Author {
     fn owner() -> Pubkey {
         crate::PALADIN_GOVERNANCE_ID
     }
 }
 
 #[cfg(feature = "anchor-idl-build")]
-impl anchor_lang::IdlBuild for Proposal {}
+impl anchor_lang::IdlBuild for Author {}
 
 #[cfg(feature = "anchor-idl-build")]
-impl anchor_lang::Discriminator for Proposal {
+impl anchor_lang::Discriminator for Author {
     const DISCRIMINATOR: [u8; 8] = [0; 8];
 }

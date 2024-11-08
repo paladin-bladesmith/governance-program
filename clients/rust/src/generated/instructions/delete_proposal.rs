@@ -7,14 +7,16 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 
 /// Accounts.
-pub struct CancelProposal {
+pub struct DeleteProposal {
     /// Paladin stake authority account
     pub stake_authority: solana_program::pubkey::Pubkey,
+    /// Stake authority author account
+    pub author: solana_program::pubkey::Pubkey,
     /// Proposal account
     pub proposal: solana_program::pubkey::Pubkey,
 }
 
-impl CancelProposal {
+impl DeleteProposal {
     pub fn instruction(&self) -> solana_program::instruction::Instruction {
         self.instruction_with_remaining_accounts(&[])
     }
@@ -23,17 +25,21 @@ impl CancelProposal {
         &self,
         remaining_accounts: &[solana_program::instruction::AccountMeta],
     ) -> solana_program::instruction::Instruction {
-        let mut accounts = Vec::with_capacity(2 + remaining_accounts.len());
-        accounts.push(solana_program::instruction::AccountMeta::new_readonly(
+        let mut accounts = Vec::with_capacity(3 + remaining_accounts.len());
+        accounts.push(solana_program::instruction::AccountMeta::new(
             self.stake_authority,
             true,
+        ));
+        accounts.push(solana_program::instruction::AccountMeta::new(
+            self.author,
+            false,
         ));
         accounts.push(solana_program::instruction::AccountMeta::new(
             self.proposal,
             false,
         ));
         accounts.extend_from_slice(remaining_accounts);
-        let data = CancelProposalInstructionData::new().try_to_vec().unwrap();
+        let data = DeleteProposalInstructionData::new().try_to_vec().unwrap();
 
         solana_program::instruction::Instruction {
             program_id: crate::PALADIN_GOVERNANCE_ID,
@@ -44,36 +50,38 @@ impl CancelProposal {
 }
 
 #[derive(BorshDeserialize, BorshSerialize)]
-pub struct CancelProposalInstructionData {
+pub struct DeleteProposalInstructionData {
     discriminator: u8,
 }
 
-impl CancelProposalInstructionData {
+impl DeleteProposalInstructionData {
     pub fn new() -> Self {
         Self { discriminator: 3 }
     }
 }
 
-impl Default for CancelProposalInstructionData {
+impl Default for DeleteProposalInstructionData {
     fn default() -> Self {
         Self::new()
     }
 }
 
-/// Instruction builder for `CancelProposal`.
+/// Instruction builder for `DeleteProposal`.
 ///
 /// ### Accounts:
 ///
-///   0. `[signer]` stake_authority
-///   1. `[writable]` proposal
+///   0. `[writable, signer]` stake_authority
+///   1. `[writable]` author
+///   2. `[writable]` proposal
 #[derive(Clone, Debug, Default)]
-pub struct CancelProposalBuilder {
+pub struct DeleteProposalBuilder {
     stake_authority: Option<solana_program::pubkey::Pubkey>,
+    author: Option<solana_program::pubkey::Pubkey>,
     proposal: Option<solana_program::pubkey::Pubkey>,
     __remaining_accounts: Vec<solana_program::instruction::AccountMeta>,
 }
 
-impl CancelProposalBuilder {
+impl DeleteProposalBuilder {
     pub fn new() -> Self {
         Self::default()
     }
@@ -84,6 +92,12 @@ impl CancelProposalBuilder {
         stake_authority: solana_program::pubkey::Pubkey,
     ) -> &mut Self {
         self.stake_authority = Some(stake_authority);
+        self
+    }
+    /// Stake authority author account
+    #[inline(always)]
+    pub fn author(&mut self, author: solana_program::pubkey::Pubkey) -> &mut Self {
+        self.author = Some(author);
         self
     }
     /// Proposal account
@@ -112,8 +126,9 @@ impl CancelProposalBuilder {
     }
     #[allow(clippy::clone_on_copy)]
     pub fn instruction(&self) -> solana_program::instruction::Instruction {
-        let accounts = CancelProposal {
+        let accounts = DeleteProposal {
             stake_authority: self.stake_authority.expect("stake_authority is not set"),
+            author: self.author.expect("author is not set"),
             proposal: self.proposal.expect("proposal is not set"),
         };
 
@@ -121,32 +136,37 @@ impl CancelProposalBuilder {
     }
 }
 
-/// `cancel_proposal` CPI accounts.
-pub struct CancelProposalCpiAccounts<'a, 'b> {
+/// `delete_proposal` CPI accounts.
+pub struct DeleteProposalCpiAccounts<'a, 'b> {
     /// Paladin stake authority account
     pub stake_authority: &'b solana_program::account_info::AccountInfo<'a>,
+    /// Stake authority author account
+    pub author: &'b solana_program::account_info::AccountInfo<'a>,
     /// Proposal account
     pub proposal: &'b solana_program::account_info::AccountInfo<'a>,
 }
 
-/// `cancel_proposal` CPI instruction.
-pub struct CancelProposalCpi<'a, 'b> {
+/// `delete_proposal` CPI instruction.
+pub struct DeleteProposalCpi<'a, 'b> {
     /// The program to invoke.
     pub __program: &'b solana_program::account_info::AccountInfo<'a>,
     /// Paladin stake authority account
     pub stake_authority: &'b solana_program::account_info::AccountInfo<'a>,
+    /// Stake authority author account
+    pub author: &'b solana_program::account_info::AccountInfo<'a>,
     /// Proposal account
     pub proposal: &'b solana_program::account_info::AccountInfo<'a>,
 }
 
-impl<'a, 'b> CancelProposalCpi<'a, 'b> {
+impl<'a, 'b> DeleteProposalCpi<'a, 'b> {
     pub fn new(
         program: &'b solana_program::account_info::AccountInfo<'a>,
-        accounts: CancelProposalCpiAccounts<'a, 'b>,
+        accounts: DeleteProposalCpiAccounts<'a, 'b>,
     ) -> Self {
         Self {
             __program: program,
             stake_authority: accounts.stake_authority,
+            author: accounts.author,
             proposal: accounts.proposal,
         }
     }
@@ -183,10 +203,14 @@ impl<'a, 'b> CancelProposalCpi<'a, 'b> {
             bool,
         )],
     ) -> solana_program::entrypoint::ProgramResult {
-        let mut accounts = Vec::with_capacity(2 + remaining_accounts.len());
-        accounts.push(solana_program::instruction::AccountMeta::new_readonly(
+        let mut accounts = Vec::with_capacity(3 + remaining_accounts.len());
+        accounts.push(solana_program::instruction::AccountMeta::new(
             *self.stake_authority.key,
             true,
+        ));
+        accounts.push(solana_program::instruction::AccountMeta::new(
+            *self.author.key,
+            false,
         ));
         accounts.push(solana_program::instruction::AccountMeta::new(
             *self.proposal.key,
@@ -199,16 +223,17 @@ impl<'a, 'b> CancelProposalCpi<'a, 'b> {
                 is_writable: remaining_account.2,
             })
         });
-        let data = CancelProposalInstructionData::new().try_to_vec().unwrap();
+        let data = DeleteProposalInstructionData::new().try_to_vec().unwrap();
 
         let instruction = solana_program::instruction::Instruction {
             program_id: crate::PALADIN_GOVERNANCE_ID,
             accounts,
             data,
         };
-        let mut account_infos = Vec::with_capacity(2 + 1 + remaining_accounts.len());
+        let mut account_infos = Vec::with_capacity(3 + 1 + remaining_accounts.len());
         account_infos.push(self.__program.clone());
         account_infos.push(self.stake_authority.clone());
+        account_infos.push(self.author.clone());
         account_infos.push(self.proposal.clone());
         remaining_accounts
             .iter()
@@ -222,22 +247,24 @@ impl<'a, 'b> CancelProposalCpi<'a, 'b> {
     }
 }
 
-/// Instruction builder for `CancelProposal` via CPI.
+/// Instruction builder for `DeleteProposal` via CPI.
 ///
 /// ### Accounts:
 ///
-///   0. `[signer]` stake_authority
-///   1. `[writable]` proposal
+///   0. `[writable, signer]` stake_authority
+///   1. `[writable]` author
+///   2. `[writable]` proposal
 #[derive(Clone, Debug)]
-pub struct CancelProposalCpiBuilder<'a, 'b> {
-    instruction: Box<CancelProposalCpiBuilderInstruction<'a, 'b>>,
+pub struct DeleteProposalCpiBuilder<'a, 'b> {
+    instruction: Box<DeleteProposalCpiBuilderInstruction<'a, 'b>>,
 }
 
-impl<'a, 'b> CancelProposalCpiBuilder<'a, 'b> {
+impl<'a, 'b> DeleteProposalCpiBuilder<'a, 'b> {
     pub fn new(program: &'b solana_program::account_info::AccountInfo<'a>) -> Self {
-        let instruction = Box::new(CancelProposalCpiBuilderInstruction {
+        let instruction = Box::new(DeleteProposalCpiBuilderInstruction {
             __program: program,
             stake_authority: None,
+            author: None,
             proposal: None,
             __remaining_accounts: Vec::new(),
         });
@@ -250,6 +277,15 @@ impl<'a, 'b> CancelProposalCpiBuilder<'a, 'b> {
         stake_authority: &'b solana_program::account_info::AccountInfo<'a>,
     ) -> &mut Self {
         self.instruction.stake_authority = Some(stake_authority);
+        self
+    }
+    /// Stake authority author account
+    #[inline(always)]
+    pub fn author(
+        &mut self,
+        author: &'b solana_program::account_info::AccountInfo<'a>,
+    ) -> &mut Self {
+        self.instruction.author = Some(author);
         self
     }
     /// Proposal account
@@ -303,13 +339,15 @@ impl<'a, 'b> CancelProposalCpiBuilder<'a, 'b> {
         &self,
         signers_seeds: &[&[&[u8]]],
     ) -> solana_program::entrypoint::ProgramResult {
-        let instruction = CancelProposalCpi {
+        let instruction = DeleteProposalCpi {
             __program: self.instruction.__program,
 
             stake_authority: self
                 .instruction
                 .stake_authority
                 .expect("stake_authority is not set"),
+
+            author: self.instruction.author.expect("author is not set"),
 
             proposal: self.instruction.proposal.expect("proposal is not set"),
         };
@@ -321,9 +359,10 @@ impl<'a, 'b> CancelProposalCpiBuilder<'a, 'b> {
 }
 
 #[derive(Clone, Debug)]
-struct CancelProposalCpiBuilderInstruction<'a, 'b> {
+struct DeleteProposalCpiBuilderInstruction<'a, 'b> {
     __program: &'b solana_program::account_info::AccountInfo<'a>,
     stake_authority: Option<&'b solana_program::account_info::AccountInfo<'a>>,
+    author: Option<&'b solana_program::account_info::AccountInfo<'a>>,
     proposal: Option<&'b solana_program::account_info::AccountInfo<'a>>,
     /// Additional instruction accounts `(AccountInfo, is_writable, is_signer)`.
     __remaining_accounts: Vec<(

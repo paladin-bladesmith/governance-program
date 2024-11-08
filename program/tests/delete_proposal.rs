@@ -5,10 +5,10 @@ mod setup;
 use {
     paladin_governance_program::{
         error::PaladinGovernanceError,
-        instruction::cancel_proposal,
-        state::{GovernanceConfig, Proposal, ProposalStatus},
+        instruction::delete_proposal,
+        state::{Author, GovernanceConfig, Proposal, ProposalStatus},
     },
-    setup::{setup, setup_proposal},
+    setup::{setup, setup_author, setup_proposal},
     solana_program_test::*,
     solana_sdk::{
         account::AccountSharedData,
@@ -27,7 +27,7 @@ async fn fail_stake_authority_not_signer() {
 
     let mut context = setup().start_with_context().await;
 
-    let mut instruction = cancel_proposal(&stake_authority.pubkey(), &proposal);
+    let mut instruction = delete_proposal(stake_authority.pubkey(), proposal);
     instruction.accounts[0].is_signer = false; // Stake authority not signer.
 
     let transaction = Transaction::new_signed_with_payer(
@@ -68,7 +68,7 @@ async fn fail_proposal_incorrect_owner() {
         );
     }
 
-    let instruction = cancel_proposal(&stake_authority.pubkey(), &proposal);
+    let instruction = delete_proposal(stake_authority.pubkey(), proposal);
 
     let transaction = Transaction::new_signed_with_payer(
         &[instruction],
@@ -108,7 +108,7 @@ async fn fail_proposal_not_initialized() {
         );
     }
 
-    let instruction = cancel_proposal(&stake_authority.pubkey(), &proposal);
+    let instruction = delete_proposal(stake_authority.pubkey(), proposal);
 
     let transaction = Transaction::new_signed_with_payer(
         &[instruction],
@@ -136,6 +136,7 @@ async fn fail_stake_authority_not_author() {
     let proposal = Pubkey::new_unique();
 
     let mut context = setup().start_with_context().await;
+    setup_author(&mut context, &stake_authority.pubkey(), 1).await;
     setup_proposal(
         &mut context,
         &proposal,
@@ -146,7 +147,7 @@ async fn fail_stake_authority_not_author() {
     )
     .await;
 
-    let instruction = cancel_proposal(&stake_authority.pubkey(), &proposal);
+    let instruction = delete_proposal(stake_authority.pubkey(), proposal);
 
     let transaction = Transaction::new_signed_with_payer(
         &[instruction],
@@ -174,6 +175,7 @@ async fn fail_proposal_immutable() {
     let proposal = Pubkey::new_unique();
 
     let mut context = setup().start_with_context().await;
+    setup_author(&mut context, &stake_authority.pubkey(), 1).await;
     setup_proposal(
         &mut context,
         &proposal,
@@ -184,7 +186,7 @@ async fn fail_proposal_immutable() {
     )
     .await;
 
-    let instruction = cancel_proposal(&stake_authority.pubkey(), &proposal);
+    let instruction = delete_proposal(stake_authority.pubkey(), proposal);
 
     let transaction = Transaction::new_signed_with_payer(
         &[instruction],
@@ -204,7 +206,7 @@ async fn fail_proposal_immutable() {
         err,
         TransactionError::InstructionError(
             0,
-            InstructionError::Custom(PaladinGovernanceError::ProposalIsImmutable as u32)
+            InstructionError::Custom(PaladinGovernanceError::ProposalIsActive as u32)
         )
     );
 }
@@ -215,6 +217,7 @@ async fn success() {
     let proposal = Pubkey::new_unique();
 
     let mut context = setup().start_with_context().await;
+    setup_author(&mut context, &stake_authority.pubkey(), 1).await;
     setup_proposal(
         &mut context,
         &proposal,
@@ -225,28 +228,53 @@ async fn success() {
     )
     .await;
 
-    let instruction = cancel_proposal(&stake_authority.pubkey(), &proposal);
+    // Sanity - Open proposal account is zero.
+    let author = paladin_governance_program::state::get_proposal_author_address(
+        &stake_authority.pubkey(),
+        &paladin_governance_program::ID,
+    );
+    let author = context
+        .banks_client
+        .get_account(author)
+        .await
+        .unwrap()
+        .unwrap();
+    let author = bytemuck::from_bytes::<Author>(&author.data);
+    assert_eq!(author.active_proposals, 1);
 
+    // Act - Execute delete proposal transaction.
+    let instruction = delete_proposal(stake_authority.pubkey(), proposal);
     let transaction = Transaction::new_signed_with_payer(
         &[instruction],
         Some(&context.payer.pubkey()),
         &[&context.payer, &stake_authority],
         context.last_blockhash,
     );
-
     context
         .banks_client
         .process_transaction(transaction)
         .await
         .unwrap();
 
-    // Assert the proposal was marked with cancelled status.
-    let proposal_account = context
+    // Assert - The proposal was deleted.
+    assert!(context
         .banks_client
         .get_account(proposal)
         .await
         .unwrap()
+        .is_none());
+
+    // Assert - Open proposal account is zero.
+    let author = paladin_governance_program::state::get_proposal_author_address(
+        &stake_authority.pubkey(),
+        &paladin_governance_program::ID,
+    );
+    let author = context
+        .banks_client
+        .get_account(author)
+        .await
+        .unwrap()
         .unwrap();
-    let proposal_state = bytemuck::from_bytes::<Proposal>(&proposal_account.data);
-    assert_eq!(proposal_state.status, ProposalStatus::Cancelled);
+    let author = bytemuck::from_bytes::<Author>(&author.data);
+    assert_eq!(author.active_proposals, 0);
 }

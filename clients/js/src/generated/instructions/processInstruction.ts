@@ -23,7 +23,6 @@ import {
   type IInstruction,
   type IInstructionWithAccounts,
   type IInstructionWithData,
-  type ReadonlyAccount,
   type WritableAccount,
 } from '@solana/web3.js';
 import { PALADIN_GOVERNANCE_PROGRAM_ADDRESS } from '../programs';
@@ -39,7 +38,7 @@ export type ProcessInstructionInstruction<
   IInstructionWithAccounts<
     [
       TAccountProposal extends string
-        ? ReadonlyAccount<TAccountProposal>
+        ? WritableAccount<TAccountProposal>
         : TAccountProposal,
       TAccountProposalTransaction extends string
         ? WritableAccount<TAccountProposalTransaction>
@@ -110,7 +109,7 @@ export function getProcessInstructionInstruction<
 
   // Original accounts.
   const originalAccounts = {
-    proposal: { value: input.proposal ?? null, isWritable: false },
+    proposal: { value: input.proposal ?? null, isWritable: true },
     proposalTransaction: {
       value: input.proposalTransaction ?? null,
       isWritable: true,
