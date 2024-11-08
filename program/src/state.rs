@@ -189,8 +189,6 @@ pub struct GovernanceConfig {
     pub proposal_minimum_quorum: u32,
     /// The minimum required threshold of cast votes (in 1e9 scaled format) that
     /// must be `For` for the proposal to pass.
-    ///
-    /// Valid values are between `5000` and `10_000`.
     pub proposal_pass_threshold: u32,
     /// The Paladin stake config account that this governance config account
     /// corresponds to.
