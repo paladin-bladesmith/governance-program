@@ -33,7 +33,7 @@ async fn fail_stake_authority_not_signer() {
     let proposal_transaction_address =
         get_proposal_transaction_address(&proposal_address, &paladin_governance_program::id());
 
-    let mut context = setup().start_with_context().await;
+    let context = setup().start_with_context().await;
 
     let mut instruction = push_instruction(
         &stake_authority.pubkey(),

@@ -1,3 +1,4 @@
+#![allow(non_local_definitions)]
 //! Program error types.
 
 use {

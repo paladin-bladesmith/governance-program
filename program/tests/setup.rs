@@ -8,13 +8,14 @@ use {
         ProposalInstruction, ProposalStatus, ProposalTransaction, ProposalVote,
         ProposalVoteElection,
     },
-    paladin_stake_program::state::{Config as StakeConfig, ValidatorStake},
+    paladin_stake_program::state::{Config as StakeConfig, Delegation, ValidatorStake},
     solana_program_test::*,
     solana_sdk::{
         account::{Account, AccountSharedData},
         clock::UnixTimestamp,
         pubkey::Pubkey,
     },
+    spl_discriminator::SplDiscriminate,
     std::num::NonZeroU64,
 };
 
@@ -29,11 +30,21 @@ pub fn setup() -> ProgramTest {
 pub async fn setup_stake(
     context: &mut ProgramTestContext,
     stake_address: &Pubkey,
-    authority_address: &Pubkey,
-    validator_vote_address: &Pubkey,
+    authority_address: Pubkey,
+    validator_vote: Pubkey,
     amount: u64,
 ) {
-    let mut state = ValidatorStake::new(*authority_address, *validator_vote_address);
+    let mut state = ValidatorStake {
+        _discriminator: ValidatorStake::SPL_DISCRIMINATOR.into(),
+        delegation: Delegation {
+            active_amount: amount,
+            effective_amount: amount,
+            authority: authority_address,
+            validator_vote,
+            ..Default::default()
+        },
+        total_staked_lamports_amount: 0,
+    };
     state.delegation.active_amount = amount;
     state.delegation.effective_amount = amount;
     let data = bytemuck::bytes_of(&state).to_vec();
@@ -77,17 +88,20 @@ pub async fn setup_stake_config(
     stake_config_address: &Pubkey,
     total_stake: u64,
 ) {
-    let mut state = StakeConfig::new(
-        /* authority */ Some(Pubkey::new_unique()).try_into().unwrap(),
-        /* slash_authority */ Some(Pubkey::new_unique()).try_into().unwrap(),
-        /* vault */ Pubkey::new_unique(),
-        /* cooldown_time_seconds */ 0,
-        /* max_deactivation_basis_points */ 0,
-        /* sync_rewards_lamports */ 0,
-        /* vault_authority_bump */ 0,
-        /* lamports_last */ 0,
-    );
-    state.token_amount_effective = total_stake;
+    let state = StakeConfig {
+        discriminator: StakeConfig::SPL_DISCRIMINATOR.into(),
+        authority: Some(Pubkey::new_unique()).try_into().unwrap(),
+        slash_authority: Some(Pubkey::new_unique()).try_into().unwrap(),
+        vault: Pubkey::new_unique(),
+        cooldown_time_seconds: 0,
+        max_deactivation_basis_points: 0,
+        sync_rewards_lamports: 0,
+        vault_authority_bump: 0,
+        lamports_last: 0,
+        token_amount_effective: total_stake,
+        accumulated_stake_rewards_per_token: 0.into(),
+        _padding: [0; 5],
+    };
 
     let data = bytemuck::bytes_of(&state).to_vec();
 

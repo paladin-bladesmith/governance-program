@@ -25,7 +25,7 @@ async fn fail_stake_authority_not_signer() {
     let stake_authority = Keypair::new();
     let proposal = Pubkey::new_unique();
 
-    let mut context = setup().start_with_context().await;
+    let context = setup().start_with_context().await;
 
     let mut instruction = delete_proposal(stake_authority.pubkey(), proposal);
     instruction.accounts[0].is_signer = false; // Stake authority not signer.

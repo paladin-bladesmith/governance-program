@@ -40,7 +40,7 @@ async fn fail_stake_authority_not_signer() {
         get_proposal_transaction_address(&proposal, &paladin_governance_program::id());
     let governance = Pubkey::new_unique(); // PDA doesn't matter here.
 
-    let mut context = setup().start_with_context().await;
+    let context = setup().start_with_context().await;
 
     let mut instruction = create_proposal(
         &stake_authority.pubkey(),
@@ -198,8 +198,8 @@ async fn fail_stake_incorrect_stake_authority() {
     setup_stake(
         &mut context,
         &stake,
-        &Pubkey::new_unique(), // Incorrect stake authority.
-        &validator_vote,
+        Pubkey::new_unique(), // Incorrect stake authority.
+        validator_vote,
         0,
     )
     .await;
@@ -249,8 +249,8 @@ async fn fail_governance_incorrect_owner() {
     setup_stake(
         &mut context,
         &stake,
-        &stake_authority.pubkey(),
-        &validator_vote,
+        stake_authority.pubkey(),
+        validator_vote,
         0,
     )
     .await;
@@ -311,8 +311,8 @@ async fn fail_governance_not_initialized() {
     setup_stake(
         &mut context,
         &stake,
-        &stake_authority.pubkey(),
-        &validator_vote,
+        stake_authority.pubkey(),
+        validator_vote,
         0,
     )
     .await;
@@ -376,8 +376,8 @@ async fn fail_proposal_incorrect_owner() {
     setup_stake(
         &mut context,
         &stake,
-        &stake_authority.pubkey(),
-        &validator_vote,
+        stake_authority.pubkey(),
+        validator_vote,
         0,
     )
     .await;
@@ -435,8 +435,8 @@ async fn fail_proposal_not_enough_space() {
     setup_stake(
         &mut context,
         &stake,
-        &stake_authority.pubkey(),
-        /* validator_vote_address */ &Pubkey::new_unique(), // Unused here.
+        stake_authority.pubkey(),
+        /* validator_vote_address */ Pubkey::new_unique(), // Unused here.
         0,
     )
     .await;
@@ -502,8 +502,8 @@ async fn fail_proposal_already_initialized() {
     setup_stake(
         &mut context,
         &stake,
-        &stake_authority.pubkey(),
-        &validator_vote,
+        stake_authority.pubkey(),
+        validator_vote,
         0,
     )
     .await;
@@ -569,8 +569,8 @@ async fn fail_proposal_transaction_incorrect_address() {
     setup_stake(
         &mut context,
         &stake,
-        &stake_authority.pubkey(),
-        &validator_vote,
+        stake_authority.pubkey(),
+        validator_vote,
         0,
     )
     .await;
@@ -646,8 +646,8 @@ async fn fail_proposal_transaction_already_initialized() {
     setup_stake(
         &mut context,
         &stake,
-        &stake_authority.pubkey(),
-        &validator_vote,
+        stake_authority.pubkey(),
+        validator_vote,
         0,
     )
     .await;
@@ -726,8 +726,8 @@ async fn fail_proposal_too_many_active_proposals() {
     setup_stake(
         &mut context,
         &stake,
-        &stake_authority.pubkey(),
-        &validator_vote,
+        stake_authority.pubkey(),
+        validator_vote,
         0,
     )
     .await;
@@ -809,8 +809,8 @@ async fn success() {
     setup_stake(
         &mut context,
         &stake,
-        &stake_authority.pubkey(),
-        &validator_vote,
+        stake_authority.pubkey(),
+        validator_vote,
         0,
     )
     .await;

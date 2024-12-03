@@ -35,7 +35,7 @@ async fn fail_stake_authority_not_signer() {
 
     let instruction_index = 0u32;
 
-    let mut context = setup().start_with_context().await;
+    let context = setup().start_with_context().await;
 
     let mut instruction = remove_instruction(
         &stake_authority.pubkey(),

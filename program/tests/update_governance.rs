@@ -53,7 +53,7 @@ async fn fail_treasury_not_signer() {
     let governance =
         get_governance_address(&stake_config_address, &paladin_governance_program::id());
 
-    let mut context = setup().start_with_context().await;
+    let context = setup().start_with_context().await;
 
     // Try just invoking the instruction directly.
     let mut instruction = update_governance(

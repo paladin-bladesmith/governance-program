@@ -43,7 +43,7 @@ async fn fail_stake_authority_not_signer() {
     let proposal_vote =
         get_proposal_vote_address(&stake, &proposal, &paladin_governance_program::id());
 
-    let mut context = setup().start_with_context().await;
+    let context = setup().start_with_context().await;
 
     let mut instruction = paladin_governance_program::instruction::switch_vote(
         &stake_authority.pubkey(),
@@ -201,8 +201,8 @@ async fn fail_stake_incorrect_stake_authority() {
     setup_stake(
         &mut context,
         &stake,
-        &Pubkey::new_unique(), // Incorrect stake_authority.
-        &validator_vote,
+        Pubkey::new_unique(), // Incorrect stake_authority.
+        validator_vote,
         0,
     )
     .await;
@@ -252,8 +252,8 @@ async fn fail_stake_config_incorrect_owner() {
     setup_stake(
         &mut context,
         &stake,
-        &stake_authority.pubkey(),
-        &validator_vote,
+        stake_authority.pubkey(),
+        validator_vote,
         0,
     )
     .await;
@@ -323,8 +323,8 @@ async fn fail_stake_config_not_initialized() {
     setup_stake(
         &mut context,
         &stake,
-        &stake_authority.pubkey(),
-        &validator_vote,
+        stake_authority.pubkey(),
+        validator_vote,
         0,
     )
     .await;
@@ -395,8 +395,8 @@ async fn fail_proposal_incorrect_owner() {
     setup_stake(
         &mut context,
         &stake,
-        &stake_authority.pubkey(),
-        &validator_vote,
+        stake_authority.pubkey(),
+        validator_vote,
         0,
     )
     .await;
@@ -458,8 +458,8 @@ async fn fail_proposal_not_initialized() {
     setup_stake(
         &mut context,
         &stake,
-        &stake_authority.pubkey(),
-        &validator_vote,
+        stake_authority.pubkey(),
+        validator_vote,
         0,
     )
     .await;
@@ -526,8 +526,8 @@ async fn fail_proposal_not_voting() {
     setup_stake(
         &mut context,
         &stake,
-        &stake_authority.pubkey(),
-        &validator_vote,
+        stake_authority.pubkey(),
+        validator_vote,
         0,
     )
     .await;
@@ -594,8 +594,8 @@ async fn fail_proposal_vote_incorrect_address() {
     setup_stake(
         &mut context,
         &stake,
-        &stake_authority.pubkey(),
-        &validator_vote,
+        stake_authority.pubkey(),
+        validator_vote,
         0,
     )
     .await;
@@ -663,8 +663,8 @@ async fn fail_proposal_vote_not_initialized() {
     setup_stake(
         &mut context,
         &stake,
-        &stake_authority.pubkey(),
-        &validator_vote,
+        stake_authority.pubkey(),
+        validator_vote,
         0,
     )
     .await;
@@ -965,8 +965,8 @@ async fn success(proposal_starting: ProposalStarting, switch: VoteSwitch, expect
     setup_stake(
         &mut context,
         &stake,
-        &stake_authority.pubkey(),
-        &validator_vote,
+        stake_authority.pubkey(),
+        validator_vote,
         switch.new_vote_stake,
     )
     .await;
@@ -1114,8 +1114,8 @@ async fn success_voting_closed() {
     setup_stake(
         &mut context,
         &stake,
-        &stake_authority.pubkey(),
-        &validator_vote,
+        stake_authority.pubkey(),
+        validator_vote,
         new_vote_stake,
     )
     .await;
@@ -1213,8 +1213,8 @@ async fn success_voting_closed_but_cooldown_active() {
     setup_stake(
         &mut context,
         &stake,
-        &stake_authority.pubkey(),
-        &validator_vote,
+        stake_authority.pubkey(),
+        validator_vote,
         new_vote_stake,
     )
     .await;
@@ -1343,8 +1343,8 @@ async fn success_cooldown_has_ended(threshold_met: bool, expected_status: Propos
     setup_stake(
         &mut context,
         &stake,
-        &stake_authority.pubkey(),
-        &validator_vote,
+        stake_authority.pubkey(),
+        validator_vote,
         new_vote_stake,
     )
     .await;

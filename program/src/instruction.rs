@@ -311,6 +311,7 @@ pub enum PaladinGovernanceInstruction {
         description = "Proposal account"
     )]
     FinishVoting,
+    #[allow(clippy::doc_lazy_continuation)]
     ///
     /// Process an instruction in an accepted governance proposal.
     ///
