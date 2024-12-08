@@ -37,57 +37,70 @@ pub const SEED_PREFIX_PROPOSAL_VOTE: &[u8] = b"proposal_vote";
 pub const SEED_PREFIX_PROPOSAL_TRANSACTION: &[u8] = b"proposal_transaction";
 
 /// Derive the address of the treasury account.
-pub fn get_treasury_address(stake_config_address: &Pubkey, program_id: &Pubkey) -> Pubkey {
-    get_treasury_address_and_bump_seed(stake_config_address, program_id).0
+pub fn get_treasury_address(governance_config: &Pubkey, program_id: &Pubkey) -> Pubkey {
+    get_treasury_address_and_bump_seed(governance_config, program_id).0
 }
 
 /// Derive the address of the treasury account, with bump seed.
 pub fn get_treasury_address_and_bump_seed(
-    stake_config_address: &Pubkey,
+    governance_config: &Pubkey,
     program_id: &Pubkey,
 ) -> (Pubkey, u8) {
-    Pubkey::find_program_address(&collect_treasury_seeds(stake_config_address), program_id)
+    Pubkey::find_program_address(&collect_treasury_seeds(governance_config), program_id)
 }
 
-pub(crate) fn collect_treasury_seeds(stake_config_address: &Pubkey) -> [&[u8]; 2] {
-    [SEED_PREFIX_TREASURY, stake_config_address.as_ref()]
+pub(crate) fn collect_treasury_seeds(governance_config: &Pubkey) -> [&[u8]; 2] {
+    [SEED_PREFIX_TREASURY, governance_config.as_ref()]
 }
 
 pub(crate) fn collect_treasury_signer_seeds<'a>(
-    stake_config_address: &'a Pubkey,
+    governance_config: &'a Pubkey,
     bump_seed: &'a [u8],
 ) -> [&'a [u8]; 3] {
-    [
-        SEED_PREFIX_TREASURY,
-        stake_config_address.as_ref(),
-        bump_seed,
-    ]
+    [SEED_PREFIX_TREASURY, governance_config.as_ref(), bump_seed]
 }
 
 /// Derive the address of the governance config account.
-pub fn get_governance_address(stake_config_address: &Pubkey, program_id: &Pubkey) -> Pubkey {
-    get_governance_address_and_bump_seed(stake_config_address, program_id).0
+pub fn get_governance_address(
+    stake_config_address: &Pubkey,
+    governance_id: &u64,
+    program_id: &Pubkey,
+) -> Pubkey {
+    get_governance_address_and_bump_seed(stake_config_address, governance_id, program_id).0
 }
 
 /// Derive the address of the governance config account, with bump seed.
 pub fn get_governance_address_and_bump_seed(
     stake_config_address: &Pubkey,
+    governance_id: &u64,
     program_id: &Pubkey,
 ) -> (Pubkey, u8) {
-    Pubkey::find_program_address(&collect_governance_seeds(stake_config_address), program_id)
+    Pubkey::find_program_address(
+        &collect_governance_seeds(stake_config_address, governance_id),
+        program_id,
+    )
 }
 
-pub(crate) fn collect_governance_seeds(stake_config_address: &Pubkey) -> [&[u8]; 2] {
-    [SEED_PREFIX_GOVERNANCE, stake_config_address.as_ref()]
-}
-
-pub(crate) fn collect_governance_signer_seeds<'a>(
+pub(crate) fn collect_governance_seeds<'a>(
     stake_config_address: &'a Pubkey,
-    bump_seed: &'a [u8],
+    governance_id: &'a u64,
 ) -> [&'a [u8]; 3] {
     [
         SEED_PREFIX_GOVERNANCE,
         stake_config_address.as_ref(),
+        bytemuck::bytes_of(governance_id),
+    ]
+}
+
+pub(crate) fn collect_governance_signer_seeds<'a>(
+    stake_config_address: &'a Pubkey,
+    governance_id: &'a u64,
+    bump_seed: &'a [u8],
+) -> [&'a [u8]; 4] {
+    [
+        SEED_PREFIX_GOVERNANCE,
+        stake_config_address.as_ref(),
+        bytemuck::bytes_of(governance_id),
         bump_seed,
     ]
 }
@@ -200,6 +213,8 @@ pub struct GovernanceConfig {
     /// Note that if a user has less than this amount of stake, they will not be
     /// able to create a proposal.
     pub stake_per_proposal: u64,
+    /// The address this config resides at.
+    pub governance_config: Pubkey,
 }
 
 impl GovernanceConfig {

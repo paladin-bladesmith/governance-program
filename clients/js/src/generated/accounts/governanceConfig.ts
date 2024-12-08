@@ -32,6 +32,12 @@ import {
   type MaybeAccount,
   type MaybeEncodedAccount,
 } from '@solana/web3.js';
+import {
+  getConfigDecoder,
+  getConfigEncoder,
+  type Config,
+  type ConfigArgs,
+} from '../types';
 
 export type GovernanceConfig = {
   cooldownPeriodSeconds: bigint;
@@ -40,6 +46,7 @@ export type GovernanceConfig = {
   stakeConfigAddress: Address;
   votingPeriodSeconds: bigint;
   stakePerProposal: bigint;
+  governanceConfig: Config;
 };
 
 export type GovernanceConfigArgs = {
@@ -49,6 +56,7 @@ export type GovernanceConfigArgs = {
   stakeConfigAddress: Address;
   votingPeriodSeconds: number | bigint;
   stakePerProposal: number | bigint;
+  governanceConfig: ConfigArgs;
 };
 
 export function getGovernanceConfigEncoder(): Encoder<GovernanceConfigArgs> {
@@ -59,6 +67,7 @@ export function getGovernanceConfigEncoder(): Encoder<GovernanceConfigArgs> {
     ['stakeConfigAddress', getAddressEncoder()],
     ['votingPeriodSeconds', getU64Encoder()],
     ['stakePerProposal', getU64Encoder()],
+    ['governanceConfig', getConfigEncoder()],
   ]);
 }
 
@@ -70,6 +79,7 @@ export function getGovernanceConfigDecoder(): Decoder<GovernanceConfig> {
     ['stakeConfigAddress', getAddressDecoder()],
     ['votingPeriodSeconds', getU64Decoder()],
     ['stakePerProposal', getU64Decoder()],
+    ['governanceConfig', getConfigDecoder()],
   ]);
 }
 
@@ -147,5 +157,5 @@ export async function fetchAllMaybeGovernanceConfig(
 }
 
 export function getGovernanceConfigSize(): number {
-  return 64;
+  return 96;
 }

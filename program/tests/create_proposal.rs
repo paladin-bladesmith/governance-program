@@ -639,6 +639,7 @@ async fn fail_proposal_transaction_already_initialized() {
         stake_config_address: stake_config,
         voting_period_seconds: 100_000_000,
         stake_per_proposal: 0,
+        governance_config: governance,
     };
 
     let mut context = setup().start_with_context().await;
@@ -719,6 +720,7 @@ async fn fail_proposal_too_many_active_proposals() {
         stake_config_address: stake_config,
         voting_period_seconds: 100_000_000,
         stake_per_proposal: 1,
+        governance_config: governance,
     };
 
     let mut context = setup().start_with_context().await;
@@ -802,6 +804,7 @@ async fn success() {
         stake_config_address: stake_config,
         voting_period_seconds: 100_000_000,
         stake_per_proposal: 0,
+        governance_config: governance,
     };
 
     let mut context = setup().start_with_context().await;

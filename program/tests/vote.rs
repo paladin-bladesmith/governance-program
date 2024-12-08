@@ -6,8 +6,8 @@ use {
     paladin_governance_program::{
         error::PaladinGovernanceError,
         state::{
-            get_proposal_vote_address, GovernanceConfig, Proposal, ProposalStatus, ProposalVote,
-            ProposalVoteElection,
+            get_governance_address, get_proposal_vote_address, GovernanceConfig, Proposal,
+            ProposalStatus, ProposalVote, ProposalVoteElection,
         },
     },
     paladin_stake_program::state::{
@@ -788,6 +788,7 @@ async fn success(vote: Vote, expect: Expect) {
     let stake_config = Pubkey::new_unique();
     let proposal = Pubkey::new_unique();
 
+    let governance = get_governance_address(&stake_config, &0, &paladin_stake_program::ID);
     let stake =
         find_validator_stake_pda(&validator_vote, &stake_config, &paladin_stake_program::id()).0;
     let proposal_vote =
@@ -800,6 +801,7 @@ async fn success(vote: Vote, expect: Expect) {
         stake_config_address: stake_config,
         voting_period_seconds: VOTING_PERIOD_SECONDS,
         stake_per_proposal: 0,
+        governance_config: governance,
     };
 
     let mut context = setup().start_with_context().await;
@@ -907,6 +909,7 @@ async fn error_voting_closed() {
     let stake_config = Pubkey::new_unique();
     let proposal = Pubkey::new_unique();
 
+    let governance = get_governance_address(&stake_config, &0, &paladin_stake_program::ID);
     let stake =
         find_validator_stake_pda(&validator_vote, &stake_config, &paladin_stake_program::id()).0;
     let proposal_vote =
@@ -922,6 +925,7 @@ async fn error_voting_closed() {
         stake_config_address: stake_config,
         voting_period_seconds: 10,
         stake_per_proposal: 0,
+        governance_config: governance,
     };
 
     let mut context = setup().start_with_context().await;
@@ -1002,6 +1006,7 @@ async fn success_voting_closed_but_cooldown_active() {
     let stake_config = Pubkey::new_unique();
     let proposal = Pubkey::new_unique();
 
+    let governance = get_governance_address(&stake_config, &0, &paladin_stake_program::ID);
     let stake =
         find_validator_stake_pda(&validator_vote, &stake_config, &paladin_stake_program::id()).0;
     let proposal_vote =
@@ -1017,6 +1022,7 @@ async fn success_voting_closed_but_cooldown_active() {
         stake_config_address: stake_config,
         voting_period_seconds: 10,
         stake_per_proposal: 0,
+        governance_config: governance,
     };
 
     let mut context = setup().start_with_context().await;
@@ -1116,6 +1122,7 @@ async fn success_cooldown_has_ended(threshold_met: bool, expected_status: Propos
     let stake_config = Pubkey::new_unique();
     let proposal = Pubkey::new_unique();
 
+    let governance = get_governance_address(&stake_config, &0, &paladin_stake_program::ID);
     let stake =
         find_validator_stake_pda(&validator_vote, &stake_config, &paladin_stake_program::id()).0;
     let proposal_vote =
@@ -1128,6 +1135,7 @@ async fn success_cooldown_has_ended(threshold_met: bool, expected_status: Propos
         stake_config_address: stake_config,
         voting_period_seconds: 1_000,
         stake_per_proposal: 0,
+        governance_config: governance,
     };
 
     let vote_stake = TOTAL_STAKE / 10;

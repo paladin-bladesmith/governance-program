@@ -77,6 +77,7 @@ impl Default for InitializeGovernanceInstructionData {
 #[derive(BorshSerialize, BorshDeserialize, Clone, Debug, Eq, PartialEq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct InitializeGovernanceInstructionArgs {
+    pub governance_id: u64,
     pub cooldown_period_seconds: u64,
     pub proposal_minimum_quorum: u32,
     pub proposal_pass_threshold: u32,
@@ -97,6 +98,7 @@ pub struct InitializeGovernanceBuilder {
     governance_config: Option<solana_program::pubkey::Pubkey>,
     stake_config: Option<solana_program::pubkey::Pubkey>,
     system_program: Option<solana_program::pubkey::Pubkey>,
+    governance_id: Option<u64>,
     cooldown_period_seconds: Option<u64>,
     proposal_minimum_quorum: Option<u32>,
     proposal_pass_threshold: Option<u32>,
@@ -129,6 +131,11 @@ impl InitializeGovernanceBuilder {
     #[inline(always)]
     pub fn system_program(&mut self, system_program: solana_program::pubkey::Pubkey) -> &mut Self {
         self.system_program = Some(system_program);
+        self
+    }
+    #[inline(always)]
+    pub fn governance_id(&mut self, governance_id: u64) -> &mut Self {
+        self.governance_id = Some(governance_id);
         self
     }
     #[inline(always)]
@@ -186,6 +193,10 @@ impl InitializeGovernanceBuilder {
                 .unwrap_or(solana_program::pubkey!("11111111111111111111111111111111")),
         };
         let args = InitializeGovernanceInstructionArgs {
+            governance_id: self
+                .governance_id
+                .clone()
+                .expect("governance_id is not set"),
             cooldown_period_seconds: self
                 .cooldown_period_seconds
                 .clone()
@@ -350,6 +361,7 @@ impl<'a, 'b> InitializeGovernanceCpiBuilder<'a, 'b> {
             governance_config: None,
             stake_config: None,
             system_program: None,
+            governance_id: None,
             cooldown_period_seconds: None,
             proposal_minimum_quorum: None,
             proposal_pass_threshold: None,
@@ -384,6 +396,11 @@ impl<'a, 'b> InitializeGovernanceCpiBuilder<'a, 'b> {
         system_program: &'b solana_program::account_info::AccountInfo<'a>,
     ) -> &mut Self {
         self.instruction.system_program = Some(system_program);
+        self
+    }
+    #[inline(always)]
+    pub fn governance_id(&mut self, governance_id: u64) -> &mut Self {
+        self.instruction.governance_id = Some(governance_id);
         self
     }
     #[inline(always)]
@@ -454,6 +471,11 @@ impl<'a, 'b> InitializeGovernanceCpiBuilder<'a, 'b> {
         signers_seeds: &[&[&[u8]]],
     ) -> solana_program::entrypoint::ProgramResult {
         let args = InitializeGovernanceInstructionArgs {
+            governance_id: self
+                .instruction
+                .governance_id
+                .clone()
+                .expect("governance_id is not set"),
             cooldown_period_seconds: self
                 .instruction
                 .cooldown_period_seconds
@@ -512,6 +534,7 @@ struct InitializeGovernanceCpiBuilderInstruction<'a, 'b> {
     governance_config: Option<&'b solana_program::account_info::AccountInfo<'a>>,
     stake_config: Option<&'b solana_program::account_info::AccountInfo<'a>>,
     system_program: Option<&'b solana_program::account_info::AccountInfo<'a>>,
+    governance_id: Option<u64>,
     cooldown_period_seconds: Option<u64>,
     proposal_minimum_quorum: Option<u32>,
     proposal_pass_threshold: Option<u32>,

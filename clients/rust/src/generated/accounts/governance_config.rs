@@ -5,6 +5,7 @@
 //! <https://github.com/kinobi-so/kinobi>
 
 use {
+    crate::generated::types::Config,
     borsh::{BorshDeserialize, BorshSerialize},
     solana_program::pubkey::Pubkey,
 };
@@ -22,10 +23,11 @@ pub struct GovernanceConfig {
     pub stake_config_address: Pubkey,
     pub voting_period_seconds: u64,
     pub stake_per_proposal: u64,
+    pub governance_config: Config,
 }
 
 impl GovernanceConfig {
-    pub const LEN: usize = 64;
+    pub const LEN: usize = 96;
 
     #[inline(always)]
     pub fn from_bytes(data: &[u8]) -> Result<Self, std::io::Error> {

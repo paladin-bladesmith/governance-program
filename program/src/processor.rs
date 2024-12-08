@@ -985,12 +985,12 @@ fn process_process_instruction(
     // Execute the instruction.
     {
         let (_treasury_address, signer_bump_seed) = get_treasury_address_and_bump_seed(
-            &proposal_state.governance_config.stake_config_address,
+            &proposal_state.governance_config.governance_config,
             program_id,
         );
         let bump_seed = [signer_bump_seed];
         let treasury_signer_seeds = collect_treasury_signer_seeds(
-            &proposal_state.governance_config.stake_config_address,
+            &proposal_state.governance_config.governance_config,
             &bump_seed,
         );
 
@@ -1024,9 +1024,11 @@ fn process_process_instruction(
 /// Processes a
 /// [InitializeGovernance](enum.PaladinGovernanceInstruction.html)
 /// instruction.
+#[allow(clippy::too_many_arguments)]
 fn process_initialize_governance(
     program_id: &Pubkey,
     accounts: &[AccountInfo],
+    governance_id: u64,
     cooldown_period_seconds: u64,
     proposal_minimum_quorum: u32,
     proposal_pass_threshold: u32,
@@ -1044,10 +1046,10 @@ fn process_initialize_governance(
     // Create the governance config account.
     {
         let (governance_address, signer_bump_seed) =
-            get_governance_address_and_bump_seed(stake_config_info.key, program_id);
+            get_governance_address_and_bump_seed(stake_config_info.key, &governance_id, program_id);
         let bump_seed = [signer_bump_seed];
         let governance_signer_seeds =
-            collect_governance_signer_seeds(stake_config_info.key, &bump_seed);
+            collect_governance_signer_seeds(stake_config_info.key, &governance_id, &bump_seed);
 
         // Ensure the provided governance address is the correct address
         // derived from the program.
@@ -1088,6 +1090,7 @@ fn process_initialize_governance(
                 stake_config_address: *stake_config_info.key,
                 voting_period_seconds,
                 stake_per_proposal,
+                governance_config: governance_address,
             };
     }
 
@@ -1097,9 +1100,11 @@ fn process_initialize_governance(
 /// Processes an
 /// [UpdateGovernance](enum.PaladinGovernanceInstruction.html)
 /// instruction.
+#[allow(clippy::too_many_arguments)]
 fn process_update_governance(
     program_id: &Pubkey,
     accounts: &[AccountInfo],
+    governance_id: u64,
     cooldown_period_seconds: u64,
     proposal_minimum_quorum: u32,
     proposal_pass_threshold: u32,
@@ -1121,25 +1126,20 @@ fn process_update_governance(
     let mut data = governance_info.try_borrow_mut_data()?;
     let state = bytemuck::try_from_bytes_mut::<GovernanceConfig>(&mut data)
         .map_err(|_| ProgramError::InvalidAccountData)?;
-
     let stake_config_address = state.stake_config_address;
-
-    // Ensure the provided treasury account has the correct address derived
-    // from the stake config.
-    if !treasury_info
-        .key
-        .eq(&get_treasury_address(&stake_config_address, program_id))
-    {
-        return Err(PaladinGovernanceError::IncorrectTreasuryAddress.into());
-    }
 
     // Ensure the provided governance account has the correct address derived
     // from the stake config.
-    if !governance_info
-        .key
-        .eq(&get_governance_address(&stake_config_address, program_id))
-    {
+    let governance_address =
+        get_governance_address(&stake_config_address, &governance_id, program_id);
+    if governance_info.key != &governance_address {
         return Err(PaladinGovernanceError::IncorrectGovernanceConfigAddress.into());
+    }
+
+    // Ensure the provided treasury account has the correct address derived
+    // from the stake config.
+    if treasury_info.key != &get_treasury_address(&governance_address, program_id) {
+        return Err(PaladinGovernanceError::IncorrectTreasuryAddress.into());
     }
 
     // Update the governance config.
@@ -1204,6 +1204,7 @@ pub fn process(program_id: &Pubkey, accounts: &[AccountInfo], input: &[u8]) -> P
             process_process_instruction(program_id, accounts, instruction_index)
         }
         PaladinGovernanceInstruction::InitializeGovernance {
+            governance_id,
             cooldown_period_seconds,
             proposal_minimum_quorum,
             proposal_pass_threshold,
@@ -1214,6 +1215,7 @@ pub fn process(program_id: &Pubkey, accounts: &[AccountInfo], input: &[u8]) -> P
             process_initialize_governance(
                 program_id,
                 accounts,
+                governance_id,
                 cooldown_period_seconds,
                 proposal_minimum_quorum,
                 proposal_pass_threshold,
@@ -1222,6 +1224,7 @@ pub fn process(program_id: &Pubkey, accounts: &[AccountInfo], input: &[u8]) -> P
             )
         }
         PaladinGovernanceInstruction::UpdateGovernance {
+            governance_id,
             cooldown_period_seconds,
             proposal_minimum_quorum,
             proposal_pass_threshold,
@@ -1232,6 +1235,7 @@ pub fn process(program_id: &Pubkey, accounts: &[AccountInfo], input: &[u8]) -> P
             process_update_governance(
                 program_id,
                 accounts,
+                governance_id,
                 cooldown_period_seconds,
                 proposal_minimum_quorum,
                 proposal_pass_threshold,

@@ -25,6 +25,7 @@ use {
 fn proposal_transaction_with_update_governance_instruction(
     treasury_address: &Pubkey,
     governance_config_address: &Pubkey,
+    governance_id: u64,
     cooldown_period_seconds: u64,
     proposal_acceptance_threshold: u32,
     proposal_rejection_threshold: u32,
@@ -35,6 +36,7 @@ fn proposal_transaction_with_update_governance_instruction(
         instructions: vec![(&update_governance(
             treasury_address,
             governance_config_address,
+            governance_id,
             cooldown_period_seconds,
             proposal_acceptance_threshold,
             proposal_rejection_threshold,
@@ -49,9 +51,9 @@ fn proposal_transaction_with_update_governance_instruction(
 async fn fail_treasury_not_signer() {
     let stake_config_address = Pubkey::new_unique();
 
-    let treasury = get_treasury_address(&stake_config_address, &paladin_governance_program::id());
     let governance =
-        get_governance_address(&stake_config_address, &paladin_governance_program::id());
+        get_governance_address(&stake_config_address, &0, &paladin_governance_program::id());
+    let treasury = get_treasury_address(&governance, &paladin_governance_program::id());
 
     let context = setup().start_with_context().await;
 
@@ -59,6 +61,7 @@ async fn fail_treasury_not_signer() {
     let mut instruction = update_governance(
         &treasury,
         &governance,
+        /* governance_id */ 0,
         /* cooldown_period_seconds */ 0,
         /* proposal_acceptance_threshold */ 0,
         /* proposal_rejection_threshold */ 0,
@@ -91,9 +94,9 @@ async fn fail_treasury_not_signer() {
 async fn fail_governance_incorrect_owner() {
     let stake_config_address = Pubkey::new_unique();
 
-    let treasury = get_treasury_address(&stake_config_address, &paladin_governance_program::id());
     let governance =
-        get_governance_address(&stake_config_address, &paladin_governance_program::id());
+        get_governance_address(&stake_config_address, &0, &paladin_governance_program::id());
+    let treasury = get_treasury_address(&governance, &paladin_governance_program::id());
 
     let proposal_address = Pubkey::new_unique();
     let proposal_transaction_address =
@@ -106,6 +109,7 @@ async fn fail_governance_incorrect_owner() {
         stake_config_address,
         voting_period_seconds: 0,
         stake_per_proposal: 0,
+        governance_config: governance,
     };
 
     let new_cooldown_period_seconds = 1;
@@ -130,6 +134,7 @@ async fn fail_governance_incorrect_owner() {
         proposal_transaction_with_update_governance_instruction(
             &treasury,
             &governance,
+            0,
             new_cooldown_period_seconds,
             new_proposal_minimum_quoroum,
             new_proposal_pass_threshold,
@@ -185,9 +190,9 @@ async fn fail_governance_incorrect_owner() {
 async fn fail_governance_not_initialized() {
     let stake_config_address = Pubkey::new_unique();
 
-    let treasury = get_treasury_address(&stake_config_address, &paladin_governance_program::id());
     let governance =
-        get_governance_address(&stake_config_address, &paladin_governance_program::id());
+        get_governance_address(&stake_config_address, &0, &paladin_governance_program::id());
+    let treasury = get_treasury_address(&governance, &paladin_governance_program::id());
 
     let proposal_address = Pubkey::new_unique();
     let proposal_transaction_address =
@@ -200,6 +205,7 @@ async fn fail_governance_not_initialized() {
         stake_config_address,
         voting_period_seconds: 0,
         stake_per_proposal: 0,
+        governance_config: governance,
     };
 
     let new_cooldown_period_seconds = 1;
@@ -224,6 +230,7 @@ async fn fail_governance_not_initialized() {
         proposal_transaction_with_update_governance_instruction(
             &treasury,
             &governance,
+            0,
             new_cooldown_period_seconds,
             new_proposal_minimum_quoroum,
             new_proposal_pass_threshold,
@@ -280,7 +287,7 @@ async fn fail_treasury_incorrect_address() {
 
     let treasury = Pubkey::new_unique(); // Incorrect address.
     let governance =
-        get_governance_address(&stake_config_address, &paladin_governance_program::id());
+        get_governance_address(&stake_config_address, &0, &paladin_governance_program::id());
 
     let proposal_address = Pubkey::new_unique();
     let proposal_transaction_address =
@@ -293,6 +300,7 @@ async fn fail_treasury_incorrect_address() {
         stake_config_address,
         voting_period_seconds: 0,
         stake_per_proposal: 0,
+        governance_config: governance,
     };
 
     let new_cooldown_period_seconds = 1;
@@ -318,6 +326,7 @@ async fn fail_treasury_incorrect_address() {
         proposal_transaction_with_update_governance_instruction(
             &treasury,
             &governance,
+            0,
             new_cooldown_period_seconds,
             new_proposal_minimum_quoroum,
             new_proposal_pass_threshold,
@@ -362,8 +371,8 @@ async fn fail_treasury_incorrect_address() {
 async fn fail_governance_incorrect_address() {
     let stake_config_address = Pubkey::new_unique();
 
-    let treasury = get_treasury_address(&stake_config_address, &paladin_governance_program::id());
     let governance = Pubkey::new_unique(); // Incorrect address.
+    let treasury = get_treasury_address(&governance, &paladin_governance_program::id());
 
     let proposal_address = Pubkey::new_unique();
     let proposal_transaction_address =
@@ -376,6 +385,7 @@ async fn fail_governance_incorrect_address() {
         stake_config_address,
         voting_period_seconds: 0,
         stake_per_proposal: 0,
+        governance_config: governance,
     };
 
     let new_cooldown_period_seconds = 1;
@@ -401,6 +411,7 @@ async fn fail_governance_incorrect_address() {
         proposal_transaction_with_update_governance_instruction(
             &treasury,
             &governance,
+            0,
             new_cooldown_period_seconds,
             new_proposal_minimum_quoroum,
             new_proposal_pass_threshold,
@@ -450,9 +461,9 @@ async fn fail_governance_incorrect_address() {
 async fn success() {
     let stake_config_address = Pubkey::new_unique();
 
-    let treasury = get_treasury_address(&stake_config_address, &paladin_governance_program::id());
     let governance =
-        get_governance_address(&stake_config_address, &paladin_governance_program::id());
+        get_governance_address(&stake_config_address, &0, &paladin_governance_program::id());
+    let treasury = get_treasury_address(&governance, &paladin_governance_program::id());
 
     let proposal_address = Pubkey::new_unique();
     let proposal_transaction_address =
@@ -465,6 +476,7 @@ async fn success() {
         stake_config_address,
         voting_period_seconds: 0,
         stake_per_proposal: 0,
+        governance_config: governance,
     };
 
     let new_cooldown_period_seconds = 1;
@@ -490,6 +502,7 @@ async fn success() {
         proposal_transaction_with_update_governance_instruction(
             &treasury,
             &governance,
+            0,
             new_cooldown_period_seconds,
             new_proposal_minimum_quoroum,
             new_proposal_pass_threshold,

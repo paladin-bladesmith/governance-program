@@ -55,6 +55,7 @@ export type UpdateGovernanceInstruction<
 
 export type UpdateGovernanceInstructionData = {
   discriminator: number;
+  governanceId: bigint;
   cooldownPeriodSeconds: bigint;
   proposalMinimumQuorum: number;
   proposalPassThreshold: number;
@@ -63,6 +64,7 @@ export type UpdateGovernanceInstructionData = {
 };
 
 export type UpdateGovernanceInstructionDataArgs = {
+  governanceId: number | bigint;
   cooldownPeriodSeconds: number | bigint;
   proposalMinimumQuorum: number;
   proposalPassThreshold: number;
@@ -74,6 +76,7 @@ export function getUpdateGovernanceInstructionDataEncoder(): Encoder<UpdateGover
   return transformEncoder(
     getStructEncoder([
       ['discriminator', getU8Encoder()],
+      ['governanceId', getU64Encoder()],
       ['cooldownPeriodSeconds', getU64Encoder()],
       ['proposalMinimumQuorum', getU32Encoder()],
       ['proposalPassThreshold', getU32Encoder()],
@@ -87,6 +90,7 @@ export function getUpdateGovernanceInstructionDataEncoder(): Encoder<UpdateGover
 export function getUpdateGovernanceInstructionDataDecoder(): Decoder<UpdateGovernanceInstructionData> {
   return getStructDecoder([
     ['discriminator', getU8Decoder()],
+    ['governanceId', getU64Decoder()],
     ['cooldownPeriodSeconds', getU64Decoder()],
     ['proposalMinimumQuorum', getU32Decoder()],
     ['proposalPassThreshold', getU32Decoder()],
@@ -113,6 +117,7 @@ export type UpdateGovernanceInput<
   treasury: TransactionSigner<TAccountTreasury>;
   /** Governance config account */
   governanceConfig: Address<TAccountGovernanceConfig>;
+  governanceId: UpdateGovernanceInstructionDataArgs['governanceId'];
   cooldownPeriodSeconds: UpdateGovernanceInstructionDataArgs['cooldownPeriodSeconds'];
   proposalMinimumQuorum: UpdateGovernanceInstructionDataArgs['proposalMinimumQuorum'];
   proposalPassThreshold: UpdateGovernanceInstructionDataArgs['proposalPassThreshold'];
