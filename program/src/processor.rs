@@ -58,16 +58,10 @@ fn calculate_voter_turnout(
         return Ok(0);
     }
 
-    // Compute the total voting stake.
-    let voted_stake = proposal_state
-        .stake_for
-        .checked_add(proposal_state.stake_against)
-        .ok_or(ProgramError::ArithmeticOverflow)?;
-
     // Calculation: stake / total_stake
     //
     // Scaled by 1e9 to store 9 decimal places of precision.
-    (voted_stake as u128)
+    (proposal_state.stake_for as u128)
         .checked_mul(THRESHOLD_SCALING_FACTOR)
         .and_then(|scaled_stake| scaled_stake.checked_div(total_stake as u128))
         .and_then(|result| u32::try_from(result).ok())
