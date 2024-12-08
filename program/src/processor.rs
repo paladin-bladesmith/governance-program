@@ -37,7 +37,7 @@ use {
     std::num::NonZeroU64,
 };
 
-const THRESHOLD_SCALING_FACTOR: u128 = 1_000_000_000; // 1e9
+const THRESHOLD_SCALING_FACTOR: u128 = 10u128.pow(9); // 1e9
 
 #[allow(clippy::arithmetic_side_effects)]
 fn calculate_maximum_proposals(governance_config: &GovernanceConfig, author_stake: u64) -> u64 {
@@ -50,15 +50,24 @@ fn calculate_maximum_proposals(governance_config: &GovernanceConfig, author_stak
     author_stake / governance_config.stake_per_proposal
 }
 
-fn calculate_voter_turnout(stake: u64, total_stake: u64) -> Result<u32, ProgramError> {
+fn calculate_voter_turnout(
+    proposal_state: &Proposal,
+    total_stake: u64,
+) -> Result<u32, ProgramError> {
     if total_stake == 0 {
         return Ok(0);
     }
 
+    // Compute the total voting stake.
+    let voted_stake = proposal_state
+        .stake_for
+        .checked_add(proposal_state.stake_against)
+        .ok_or(ProgramError::ArithmeticOverflow)?;
+
     // Calculation: stake / total_stake
     //
     // Scaled by 1e9 to store 9 decimal places of precision.
-    (stake as u128)
+    (voted_stake as u128)
         .checked_mul(THRESHOLD_SCALING_FACTOR)
         .and_then(|scaled_stake| scaled_stake.checked_div(total_stake as u128))
         .and_then(|result| u32::try_from(result).ok())
@@ -702,14 +711,6 @@ fn process_vote(
                 .stake_for
                 .checked_add(stake)
                 .ok_or(ProgramError::ArithmeticOverflow)?;
-
-            // If we have met quorum and the cooldown has not started yet, start it.
-            if calculate_voter_turnout(stake, total_stake)?
-                >= governance_config.proposal_minimum_quorum
-                && proposal_state.cooldown_timestamp.is_none()
-            {
-                proposal_state.cooldown_timestamp = NonZeroU64::new(clock.unix_timestamp as u64);
-            }
         }
         ProposalVoteElection::Against => {
             // The vote was against. Increase the stake against the proposal.
@@ -718,6 +719,14 @@ fn process_vote(
                 .checked_add(stake)
                 .ok_or(ProgramError::ArithmeticOverflow)?;
         }
+    }
+
+    // If we have met quorum and the cooldown has not started yet, start it.
+    if calculate_voter_turnout(&proposal_state, total_stake)?
+        >= governance_config.proposal_minimum_quorum
+        && proposal_state.cooldown_timestamp.is_none()
+    {
+        proposal_state.cooldown_timestamp = NonZeroU64::new(clock.unix_timestamp as u64);
     }
 
     Ok(())
@@ -837,6 +846,7 @@ fn process_switch_vote(
         }
     }
 
+    // Add the new stake based on new election.
     match new_election {
         ProposalVoteElection::For => {
             // New vote is in favor. Increment stake for.
@@ -844,14 +854,6 @@ fn process_switch_vote(
                 .stake_for
                 .checked_add(stake)
                 .ok_or(ProgramError::ArithmeticOverflow)?;
-
-            // If we have met quorum and the cooldown has not started yet, start it.
-            if calculate_voter_turnout(proposal_state.stake_for, total_stake)?
-                >= governance_config.proposal_minimum_quorum
-                && proposal_state.cooldown_timestamp.is_none()
-            {
-                proposal_state.cooldown_timestamp = NonZeroU64::new(clock.unix_timestamp as u64);
-            }
         }
         ProposalVoteElection::Against => {
             // New vote is against. Increment stake against.
@@ -860,6 +862,14 @@ fn process_switch_vote(
                 .checked_add(stake)
                 .ok_or(ProgramError::ArithmeticOverflow)?;
         }
+    }
+
+    // If we have met quorum and the cooldown has not started yet, start it.
+    if calculate_voter_turnout(proposal_state, total_stake)?
+        >= governance_config.proposal_minimum_quorum
+        && proposal_state.cooldown_timestamp.is_none()
+    {
+        proposal_state.cooldown_timestamp = NonZeroU64::new(clock.unix_timestamp as u64);
     }
 
     Ok(())
@@ -1257,11 +1267,15 @@ mod tests {
         fn test_calculate_proposal_vote_threshold(
             (stake, total_stake) in total_and_intermediate(u64::MAX)
         ) {
+            let mut proposal_state = Box::new([0; std::mem::size_of::<Proposal>()]);
+            let proposal_state = bytemuck::from_bytes_mut::<Proposal>(&mut proposal_state[..]);
+            proposal_state.stake_for = stake;
+
             // Calculate.
             //
             // Since we've configured limits on the input values, we can safely
             // unwrap the result.
-            let result = calculate_voter_turnout(stake, total_stake).unwrap();
+            let result = calculate_voter_turnout(proposal_state, total_stake).unwrap();
             // Evaluate.
             if total_stake == 0 {
                 prop_assert_eq!(result, 0);
