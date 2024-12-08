@@ -24,32 +24,27 @@ program's `InitializeGovernance` instruction and updated using the program's
 can only be done through an accepted governance proposal.
 
 ```rust
-struct GovernanceConfig {
+pub struct GovernanceConfig {
     /// The cooldown period that begins when a proposal reaches the
     /// `proposal_acceptance_threshold` and upon its conclusion will execute
     /// the proposal's instruction.
     pub cooldown_period_seconds: u64,
-    /// The minimum required threshold (percentage) of proposal acceptance to
-    /// begin the cooldown period.
-    ///
-    /// Stored as a `u32`, which includes a scaling factor of `1e9` to
-    /// represent the threshold with 9 decimal places of precision.
-    pub proposal_acceptance_threshold: u32,
-    /// The minimum required threshold (percentage) of proposal rejection to
-    /// terminate the proposal.
-    ///
-    /// Stored as a `u32`, which includes a scaling factor of `1e9` to
-    /// represent the threshold with 9 decimal places of precision.
-    pub proposal_rejection_threshold: u32,
-    /// The signing bump seed, used to sign transactions for this governance
-    /// config account with `invoke_signed`. Stored here to save on compute.
-    pub signer_bump_seed: u8,
-    _padding: [u8; 7],
+    /// The minimum amount of effective stake (in 1e9 scaled format) that must
+    /// vote for the proposal to be considered valid.
+    pub proposal_minimum_quorum: u32,
+    /// The minimum required threshold of cast votes (in 1e9 scaled format) that
+    /// must be `For` for the proposal to pass.
+    pub proposal_pass_threshold: u32,
     /// The Paladin stake config account that this governance config account
     /// corresponds to.
     pub stake_config_address: Pubkey,
     /// The voting period for proposals.
     pub voting_period_seconds: u64,
+    /// The required stake per active proposal for a user.
+    ///
+    /// Note that if a user has less than this amount of stake, they will not be
+    /// able to create a proposal.
+    pub stake_per_proposal: u64,
 }
 ```
 
@@ -74,8 +69,6 @@ pub struct Proposal {
     pub creation_timestamp: UnixTimestamp,
     /// The governance config for this proposal.
     pub governance_config: GovernanceConfig,
-    /// Amount of stake that did not vote.
-    pub stake_abstained: u64,
     /// Amount of stake against the proposal.
     pub stake_against: u64,
     /// Amount of stake in favor of the proposal.
@@ -164,8 +157,6 @@ the absence of a vote can also be tallied, if so desired.
 
 ```rust
 enum ProposalVoteElection {
-    /// Validator did not vote.
-    DidNotVote,
     /// Validator voted in favor of the proposal.
     For,
     /// Validator voted against the proposal.
@@ -182,27 +173,9 @@ have one vote PDA per proposal.
 
 ### Cooldown Period
 
-Paladin Governance voting makes use of a "cooldown" mechanism for finalizing
-vote tallies. When the votes in favor of the proposal reach the
-`proposal_acceptance_threshold` set by the governance config, a cooldown timer
-is started. When the cooldown timer expires, the proposal is marked as
-accepted.
-
-The only way a proposal in cooldown can be rejected is if the votes shift by a
-large enough margin to push the votes against the proposal past the
-`proposal_rejection_threshold`. In this case, the proposal is rejected.
-
-Regardless of cooldown, if a proposal's votes against push beyond the
-`proposal_rejection_threshold`, the proposal is rejected.
-
-The cooldown period cannot be reset once it begins. The proposal will result in
-either `Accepted` or `Rejected` as the result of an initiated cooldown period.
-
-Voting is also restricted to a global voting period, set by the governance
-configuration, which will terminate a proposal as `Rejected` if a cooldown is
-never reached. If the vote period ends while a cooldown is active, the cooldown
-period will be allowed to finish. In other words, all cooldown periods have a
-constant time period, as determined by the governance config.
+Once the number of votes for pass `proposal_minimum_quorum`, the cooldown is
+started. At the end of the quorum, if the share of votes for is above
+`proposal_pass_threshold` then the proposal is accepted, else it is rejected.
 
 ## Processing Accepted Proposals
 
