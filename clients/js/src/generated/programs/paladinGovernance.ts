@@ -27,7 +27,7 @@ import {
 } from '../instructions';
 
 export const PALADIN_GOVERNANCE_PROGRAM_ADDRESS =
-  'C1iuSykZ3SbTPmzZy66L57yQm6xnAtVdqEgYw2V39ptJ' as Address<'C1iuSykZ3SbTPmzZy66L57yQm6xnAtVdqEgYw2V39ptJ'>;
+  '8WAFLJeTHWK9a4tZYonvVRJPVFWRnDpejSrabNYR1QGf' as Address<'8WAFLJeTHWK9a4tZYonvVRJPVFWRnDpejSrabNYR1QGf'>;
 
 export enum PaladinGovernanceAccount {
   GovernanceConfig,
@@ -93,7 +93,7 @@ export function identifyPaladinGovernanceInstruction(
 }
 
 export type ParsedPaladinGovernanceInstruction<
-  TProgram extends string = 'C1iuSykZ3SbTPmzZy66L57yQm6xnAtVdqEgYw2V39ptJ',
+  TProgram extends string = '8WAFLJeTHWK9a4tZYonvVRJPVFWRnDpejSrabNYR1QGf',
 > =
   | ({
       instructionType: PaladinGovernanceInstruction.CreateProposal;
