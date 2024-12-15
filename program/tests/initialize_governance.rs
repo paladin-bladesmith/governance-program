@@ -6,6 +6,7 @@ use {
     paladin_governance_program::{
         error::PaladinGovernanceError,
         instruction::initialize_governance,
+        processor::THRESHOLD_SCALING_FACTOR,
         state::{get_governance_address, GovernanceConfig},
     },
     paladin_stake_program::state::Config as StakeConfig,
@@ -44,8 +45,8 @@ async fn fail_stake_config_incorrect_owner() {
         &stake_config,
         /* governance_id */ 0,
         /* cooldown_period_seconds */ 0,
-        /* proposal_acceptance_threshold */ 0,
-        /* proposal_rejection_threshold */ 0,
+        /* proposal_minimum_quorum */ THRESHOLD_SCALING_FACTOR / 1000,
+        /* proposal_pass_threshold */ THRESHOLD_SCALING_FACTOR / 2,
         /* voting_period_seconds */ 0,
         /* stake_per_proposal */ 0,
     );
@@ -93,8 +94,8 @@ async fn fail_stake_config_not_initialized() {
         &stake_config,
         /* governance_id */ 0,
         /* cooldown_period_seconds */ 0,
-        /* proposal_acceptance_threshold */ 0,
-        /* proposal_rejection_threshold */ 0,
+        /* proposal_minimum_quorum */ THRESHOLD_SCALING_FACTOR / 1000,
+        /* proposal_pass_threshold */ THRESHOLD_SCALING_FACTOR / 2,
         /* voting_period_seconds */ 0,
         /* stake_per_proposal */ 0,
     );
@@ -132,8 +133,8 @@ async fn fail_governance_incorrect_address() {
         &stake_config,
         /* governance_id */ 0,
         /* cooldown_period_seconds */ 0,
-        /* proposal_acceptance_threshold */ 0,
-        /* proposal_rejection_threshold */ 0,
+        /* proposal_minimum_quorum */ THRESHOLD_SCALING_FACTOR / 1000,
+        /* proposal_pass_threshold */ THRESHOLD_SCALING_FACTOR / 2,
         /* voting_period_seconds */ 0,
         /* stake_per_proposal */ 0,
     );
@@ -188,8 +189,8 @@ async fn fail_governance_already_initialized() {
         &stake_config,
         /* governance_id */ 0,
         /* cooldown_period_seconds */ 0,
-        /* proposal_acceptance_threshold */ 0,
-        /* proposal_rejection_threshold */ 0,
+        /* proposal_minimum_quorum */ THRESHOLD_SCALING_FACTOR / 1000,
+        /* proposal_pass_threshold */ THRESHOLD_SCALING_FACTOR / 2,
         /* voting_period_seconds */ 0,
         /* stake_per_proposal */ 0,
     );
@@ -237,8 +238,8 @@ async fn success() {
         &stake_config,
         /* governance_id */ 0,
         /* cooldown_period_seconds */ 0,
-        /* proposal_acceptance_threshold */ 0,
-        /* proposal_rejection_threshold */ 0,
+        /* proposal_minimum_quorum */ THRESHOLD_SCALING_FACTOR / 1000,
+        /* proposal_pass_threshold */ THRESHOLD_SCALING_FACTOR / 2,
         /* voting_period_seconds */ 0,
         /* stake_per_proposal */ 0,
     );
@@ -265,8 +266,14 @@ async fn success() {
         .unwrap();
     let governance_state = bytemuck::from_bytes::<GovernanceConfig>(&governance_account.data);
     assert_eq!(governance_state.cooldown_period_seconds, 0);
-    assert_eq!(governance_state.proposal_minimum_quorum, 0);
-    assert_eq!(governance_state.proposal_pass_threshold, 0);
+    assert_eq!(
+        governance_state.proposal_minimum_quorum,
+        THRESHOLD_SCALING_FACTOR / 1000
+    );
+    assert_eq!(
+        governance_state.proposal_pass_threshold,
+        THRESHOLD_SCALING_FACTOR / 2
+    );
     assert_eq!(governance_state.stake_per_proposal, 0);
     assert_eq!(governance_state.stake_config_address, stake_config);
 }
@@ -300,8 +307,8 @@ async fn setup_second_governance_same_stake_config() {
         &stake_config,
         /* governance_id */ 0,
         /* cooldown_period_seconds */ 100,
-        /* proposal_acceptance_threshold */ 200,
-        /* proposal_rejection_threshold */ 300,
+        /* proposal_minimum_quorum */ THRESHOLD_SCALING_FACTOR / 1000,
+        /* proposal_pass_threshold */ THRESHOLD_SCALING_FACTOR / 2,
         /* voting_period_seconds */ 400,
         /* stake_per_proposal */ 500,
     );
@@ -321,8 +328,8 @@ async fn setup_second_governance_same_stake_config() {
         &stake_config,
         /* governance_id */ 1,
         /* cooldown_period_seconds */ 1000,
-        /* proposal_acceptance_threshold */ 2000,
-        /* proposal_rejection_threshold */ 3000,
+        /* proposal_minimum_quorum */ THRESHOLD_SCALING_FACTOR / 1000,
+        /* proposal_pass_threshold */ THRESHOLD_SCALING_FACTOR / 2,
         /* voting_period_seconds */ 4000,
         /* stake_per_proposal */ 5000,
     );
@@ -353,15 +360,27 @@ async fn setup_second_governance_same_stake_config() {
         .unwrap();
     let governance_state_0 = bytemuck::from_bytes::<GovernanceConfig>(&governance_account_0.data);
     assert_eq!(governance_state_0.cooldown_period_seconds, 100);
-    assert_eq!(governance_state_0.proposal_minimum_quorum, 200);
-    assert_eq!(governance_state_0.proposal_pass_threshold, 300);
+    assert_eq!(
+        governance_state_0.proposal_minimum_quorum,
+        THRESHOLD_SCALING_FACTOR / 1000
+    );
+    assert_eq!(
+        governance_state_0.proposal_pass_threshold,
+        THRESHOLD_SCALING_FACTOR / 2
+    );
     assert_eq!(governance_state_0.voting_period_seconds, 400);
     assert_eq!(governance_state_0.stake_per_proposal, 500);
     assert_eq!(governance_state_0.stake_config_address, stake_config);
     let governance_state_1 = bytemuck::from_bytes::<GovernanceConfig>(&governance_account_1.data);
     assert_eq!(governance_state_1.cooldown_period_seconds, 1000);
-    assert_eq!(governance_state_1.proposal_minimum_quorum, 2000);
-    assert_eq!(governance_state_1.proposal_pass_threshold, 3000);
+    assert_eq!(
+        governance_state_1.proposal_minimum_quorum,
+        THRESHOLD_SCALING_FACTOR / 1000
+    );
+    assert_eq!(
+        governance_state_1.proposal_pass_threshold,
+        THRESHOLD_SCALING_FACTOR / 2
+    );
     assert_eq!(governance_state_1.voting_period_seconds, 4000);
     assert_eq!(governance_state_1.stake_per_proposal, 5000);
     assert_eq!(governance_state_1.stake_config_address, stake_config);

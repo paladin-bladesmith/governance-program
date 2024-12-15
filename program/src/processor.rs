@@ -37,7 +37,7 @@ use {
     std::num::NonZeroU64,
 };
 
-const THRESHOLD_SCALING_FACTOR: u128 = 10u128.pow(9); // 1e9
+pub const THRESHOLD_SCALING_FACTOR: u32 = 10u32.pow(9); // 1e9
 
 #[allow(clippy::arithmetic_side_effects)]
 fn calculate_maximum_proposals(governance_config: &GovernanceConfig, author_stake: u64) -> u64 {
@@ -61,8 +61,8 @@ fn calculate_voter_turnout(
     // Calculation: stake / total_stake
     //
     // Scaled by 1e9 to store 9 decimal places of precision.
-    (proposal_state.stake_for as u128)
-        .checked_mul(THRESHOLD_SCALING_FACTOR)
+    u128::from(proposal_state.stake_for)
+        .checked_mul(u128::from(THRESHOLD_SCALING_FACTOR))
         .and_then(|scaled_stake| scaled_stake.checked_div(total_stake as u128))
         .and_then(|result| u32::try_from(result).ok())
         .ok_or(ProgramError::ArithmeticOverflow)
@@ -79,8 +79,8 @@ fn calculate_for_percentage(stake_for: u64, stake_against: u64) -> Result<u32, P
     // Calculation: stake_for / total_stake
     //
     // Scaled by 1e9 to store 9 decimal places of precision.
-    (stake_for as u128)
-        .checked_mul(THRESHOLD_SCALING_FACTOR)
+    u128::from(stake_for)
+        .checked_mul(u128::from(THRESHOLD_SCALING_FACTOR))
         .and_then(|scaled_for| scaled_for.checked_div(total_stake as u128))
         .and_then(|result| u32::try_from(result).ok())
         .ok_or(ProgramError::ArithmeticOverflow)
@@ -1035,8 +1035,22 @@ fn process_initialize_governance(
     voting_period_seconds: u64,
     stake_per_proposal: u64,
 ) -> ProgramResult {
-    let accounts_iter = &mut accounts.iter();
+    // Sanity check arguments.
+    // 0.1% <= proposal_minimum_quorum < 100%.
+    assert!(
+        ((THRESHOLD_SCALING_FACTOR / 1000)..THRESHOLD_SCALING_FACTOR)
+            .contains(&proposal_minimum_quorum),
+        "invalid proposal_minimum_quorum"
+    );
+    // 10% <= proposal_pass_threshold < 100%.
+    assert!(
+        ((THRESHOLD_SCALING_FACTOR / 10)..THRESHOLD_SCALING_FACTOR)
+            .contains(&proposal_pass_threshold),
+        "invalid proposal_pass_threshold"
+    );
 
+    // Load accounts.
+    let accounts_iter = &mut accounts.iter();
     let governance_info = next_account_info(accounts_iter)?;
     let stake_config_info = next_account_info(accounts_iter)?;
     let _system_program_info = next_account_info(accounts_iter)?;
@@ -1280,8 +1294,8 @@ mod tests {
             } else {
                 // The scaling multiplication and subsequent division should
                 // always succeed, thanks to the limits on the input values.
-                let scaled_stake_ratio = (stake as u128)
-                    .checked_mul(THRESHOLD_SCALING_FACTOR)
+                let scaled_stake_ratio = u128::from(stake)
+                    .checked_mul(u128::from(THRESHOLD_SCALING_FACTOR))
                     .and_then(|scaled_stake| scaled_stake.checked_div(total_stake as u128))
                     .unwrap();
 
