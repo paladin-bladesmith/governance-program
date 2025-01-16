@@ -651,7 +651,11 @@ fn process_vote(
     // voting period expires, but a cooldown period still has time remaining,
     // the proposal will remain open for voting until the cooldown period ends.
     // Cooldown periods end only in an accepted or rejected proposal.
-    if proposal_state.cooldown_timestamp.is_none() && proposal_state.voting_has_ended(&clock) {
+    if proposal_state.voting_has_ended(&clock)
+        && proposal_state
+            .cooldown_timestamp
+            .map_or(true, |_| proposal_state.cooldown_has_ended(&clock))
+    {
         return Err(PaladinGovernanceError::ProposalNotInVotingStage.into());
     }
 
@@ -783,7 +787,11 @@ fn process_switch_vote(
     // voting period expires, but a cooldown period still has time remaining,
     // the proposal will remain open for voting until the cooldown period ends.
     // Cooldown periods end only in an accepted or rejected proposal.
-    if proposal_state.cooldown_timestamp.is_none() && proposal_state.voting_has_ended(&clock) {
+    if proposal_state.voting_has_ended(&clock)
+        && proposal_state
+            .cooldown_timestamp
+            .map_or(true, |_| proposal_state.cooldown_has_ended(&clock))
+    {
         return Err(PaladinGovernanceError::ProposalNotInVotingStage.into());
     }
 
