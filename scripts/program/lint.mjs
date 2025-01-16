@@ -11,7 +11,6 @@ import {
 // Configure additional arguments here, e.g.:
 // ['--arg1', '--arg2', ...cliArguments()]
 const lintArgs = [
-  '-Zunstable-options',
   '--features',
   'bpf-entrypoint,test-sbf',
   '--',
