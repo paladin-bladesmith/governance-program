@@ -1,5 +1,4 @@
 //! Program processor.
-
 use {
     crate::{
         error::PaladinGovernanceError,
@@ -543,8 +542,10 @@ fn process_delete_proposal(program_id: &Pubkey, accounts: &[AccountInfo]) -> Pro
         .ok_or(ProgramError::ArithmeticOverflow)?;
 
     // Delete the proposal & refund the rent.
+    drop(proposal_data);
     let rent = proposal_info.lamports();
     **proposal_info.lamports.borrow_mut() = 0;
+    proposal_info.realloc(0, true)?;
     // NB: The runtime will revert us if we overflow as the sum of balances
     // before/after will not match.
     #[allow(clippy::arithmetic_side_effects)]
