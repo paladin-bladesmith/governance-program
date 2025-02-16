@@ -311,7 +311,7 @@ pub enum PaladinGovernanceInstruction {
         description = "Proposal account"
     )]
     FinishVoting,
-    /// Delete's a vote account and recovers its rent once the proposal has
+    /// Deletes a vote account and recovers its rent once the proposal has
     /// been finalized.
     #[account(0, name = "proposal")]
     #[account(1, writable, name = "vote")]
