@@ -22,31 +22,34 @@ export const PALADIN_GOVERNANCE_ERROR__INCORRECT_STAKE_CONFIG = 0x1; // 1
 export const PALADIN_GOVERNANCE_ERROR__INCORRECT_PROPOSAL_TRANSACTION_ADDRESS = 0x2; // 2
 /** IncorrectProposalVoteAddress: Incorrect proposal vote address. */
 export const PALADIN_GOVERNANCE_ERROR__INCORRECT_PROPOSAL_VOTE_ADDRESS = 0x3; // 3
+/** IncorrectProposalAddress: Incorrect proposal address. */
+export const PALADIN_GOVERNANCE_ERROR__INCORRECT_PROPOSAL_ADDRESS = 0x4; // 4
 /** IncorrectGovernanceConfigAddress: Incorrect governance config address. */
-export const PALADIN_GOVERNANCE_ERROR__INCORRECT_GOVERNANCE_CONFIG_ADDRESS = 0x4; // 4
+export const PALADIN_GOVERNANCE_ERROR__INCORRECT_GOVERNANCE_CONFIG_ADDRESS = 0x5; // 5
 /** IncorrectTreasuryAddress: Incorrect treasury address. */
-export const PALADIN_GOVERNANCE_ERROR__INCORRECT_TREASURY_ADDRESS = 0x5; // 5
+export const PALADIN_GOVERNANCE_ERROR__INCORRECT_TREASURY_ADDRESS = 0x6; // 6
 /** ProposalNotInVotingStage: Proposal not in voting stage. */
-export const PALADIN_GOVERNANCE_ERROR__PROPOSAL_NOT_IN_VOTING_STAGE = 0x6; // 6
+export const PALADIN_GOVERNANCE_ERROR__PROPOSAL_NOT_IN_VOTING_STAGE = 0x7; // 7
 /** ProposalIsImmutable: Proposal is immutable. */
-export const PALADIN_GOVERNANCE_ERROR__PROPOSAL_IS_IMMUTABLE = 0x7; // 7
+export const PALADIN_GOVERNANCE_ERROR__PROPOSAL_IS_IMMUTABLE = 0x8; // 8
 /** ProposalIsActive: Proposal is active. */
-export const PALADIN_GOVERNANCE_ERROR__PROPOSAL_IS_ACTIVE = 0x8; // 8
+export const PALADIN_GOVERNANCE_ERROR__PROPOSAL_IS_ACTIVE = 0x9; // 9
 /** ProposalNotAccepted: Proposal not accepted. */
-export const PALADIN_GOVERNANCE_ERROR__PROPOSAL_NOT_ACCEPTED = 0x9; // 9
+export const PALADIN_GOVERNANCE_ERROR__PROPOSAL_NOT_ACCEPTED = 0xa; // 10
 /** ProposalVotingPeriodStillActive: Proposal voting period still active. */
-export const PALADIN_GOVERNANCE_ERROR__PROPOSAL_VOTING_PERIOD_STILL_ACTIVE = 0xa; // 10
+export const PALADIN_GOVERNANCE_ERROR__PROPOSAL_VOTING_PERIOD_STILL_ACTIVE = 0xb; // 11
 /** InvalidTransactionIndex: Invalid transaction index. */
-export const PALADIN_GOVERNANCE_ERROR__INVALID_TRANSACTION_INDEX = 0xb; // 11
+export const PALADIN_GOVERNANCE_ERROR__INVALID_TRANSACTION_INDEX = 0xc; // 12
 /** InstructionAlreadyExecuted: Instruction already executed. */
-export const PALADIN_GOVERNANCE_ERROR__INSTRUCTION_ALREADY_EXECUTED = 0xc; // 12
+export const PALADIN_GOVERNANCE_ERROR__INSTRUCTION_ALREADY_EXECUTED = 0xd; // 13
 /** PreviousInstructionHasNotBeenExecuted: Previous instruction has not been executed. */
-export const PALADIN_GOVERNANCE_ERROR__PREVIOUS_INSTRUCTION_HAS_NOT_BEEN_EXECUTED = 0xd; // 13
+export const PALADIN_GOVERNANCE_ERROR__PREVIOUS_INSTRUCTION_HAS_NOT_BEEN_EXECUTED = 0xe; // 14
 /** TooManyActiveProposals: Author has too many active proposals. */
-export const PALADIN_GOVERNANCE_ERROR__TOO_MANY_ACTIVE_PROPOSALS = 0xe; // 14
+export const PALADIN_GOVERNANCE_ERROR__TOO_MANY_ACTIVE_PROPOSALS = 0xf; // 15
 
 export type PaladinGovernanceError =
   | typeof PALADIN_GOVERNANCE_ERROR__INCORRECT_GOVERNANCE_CONFIG_ADDRESS
+  | typeof PALADIN_GOVERNANCE_ERROR__INCORRECT_PROPOSAL_ADDRESS
   | typeof PALADIN_GOVERNANCE_ERROR__INCORRECT_PROPOSAL_TRANSACTION_ADDRESS
   | typeof PALADIN_GOVERNANCE_ERROR__INCORRECT_PROPOSAL_VOTE_ADDRESS
   | typeof PALADIN_GOVERNANCE_ERROR__INCORRECT_STAKE_CONFIG
@@ -68,6 +71,7 @@ let paladinGovernanceErrorMessages:
 if (process.env.NODE_ENV !== 'production') {
   paladinGovernanceErrorMessages = {
     [PALADIN_GOVERNANCE_ERROR__INCORRECT_GOVERNANCE_CONFIG_ADDRESS]: `Incorrect governance config address.`,
+    [PALADIN_GOVERNANCE_ERROR__INCORRECT_PROPOSAL_ADDRESS]: `Incorrect proposal address.`,
     [PALADIN_GOVERNANCE_ERROR__INCORRECT_PROPOSAL_TRANSACTION_ADDRESS]: `Incorrect proposal transaction address.`,
     [PALADIN_GOVERNANCE_ERROR__INCORRECT_PROPOSAL_VOTE_ADDRESS]: `Incorrect proposal vote address.`,
     [PALADIN_GOVERNANCE_ERROR__INCORRECT_STAKE_CONFIG]: `Incorrect stake config.`,

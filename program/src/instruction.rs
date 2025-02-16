@@ -311,8 +311,13 @@ pub enum PaladinGovernanceInstruction {
         description = "Proposal account"
     )]
     FinishVoting,
+    /// Deletes a vote account and recovers its rent once the proposal has
+    /// been finalized.
+    #[account(0, name = "proposal")]
+    #[account(1, writable, name = "vote")]
+    #[account(2, writable, name = "authority")]
+    DeleteVote,
     #[allow(clippy::doc_lazy_continuation)]
-    ///
     /// Process an instruction in an accepted governance proposal.
     ///
     /// Given an accepted proposal and one of its instructions, executes it.
@@ -446,8 +451,9 @@ impl PaladinGovernanceInstruction {
             Self::Vote { election } => vec![5, (*election).into()],
             Self::SwitchVote { new_election } => vec![6, (*new_election).into()],
             Self::FinishVoting => vec![7],
+            Self::DeleteVote => vec![8],
             Self::ProcessInstruction { instruction_index } => {
-                let mut buf = vec![8];
+                let mut buf = vec![9];
                 buf.extend_from_slice(&instruction_index.to_le_bytes());
                 buf
             }
@@ -459,7 +465,7 @@ impl PaladinGovernanceInstruction {
                 voting_period_seconds,
                 stake_per_proposal,
             } => {
-                let mut buf = vec![9];
+                let mut buf = vec![10];
                 buf.extend_from_slice(&governance_id.to_le_bytes());
                 buf.extend_from_slice(&cooldown_period_seconds.to_le_bytes());
                 buf.extend_from_slice(&proposal_minimum_quorum.to_le_bytes());
@@ -476,7 +482,7 @@ impl PaladinGovernanceInstruction {
                 voting_period_seconds,
                 stake_per_proposal,
             } => {
-                let mut buf = vec![10];
+                let mut buf = vec![11];
                 buf.extend_from_slice(&governance_id.to_le_bytes());
                 buf.extend_from_slice(&cooldown_period_seconds.to_le_bytes());
                 buf.extend_from_slice(&proposal_minimum_quorum.to_le_bytes());
@@ -531,11 +537,12 @@ impl PaladinGovernanceInstruction {
                 Ok(Self::SwitchVote { new_election })
             }
             Some((&7, _)) => Ok(Self::FinishVoting),
-            Some((&8, rest)) if rest.len() == 4 => {
+            Some((&8, _)) => Ok(Self::DeleteVote),
+            Some((&9, rest)) if rest.len() == 4 => {
                 let instruction_index = u32::from_le_bytes(rest.try_into().unwrap());
                 Ok(Self::ProcessInstruction { instruction_index })
             }
-            Some((&9, rest)) if rest.len() == 40 => {
+            Some((&10, rest)) if rest.len() == 40 => {
                 let rest = array_ref![rest, 0, 40];
                 let (
                     governance_id,
@@ -562,7 +569,7 @@ impl PaladinGovernanceInstruction {
                     stake_per_proposal,
                 })
             }
-            Some((&10, rest)) if rest.len() == 40 => {
+            Some((&11, rest)) if rest.len() == 40 => {
                 let rest = array_ref![rest, 0, 40];
                 let (
                     governance_id,
@@ -733,6 +740,20 @@ pub fn switch_vote(
         AccountMeta::new(*proposal_address, false),
     ];
     let data = PaladinGovernanceInstruction::SwitchVote { new_election }.pack();
+    Instruction::new_with_bytes(crate::id(), &data, accounts)
+}
+
+/// Creates a
+/// [SwitchVote](enum.PaladinGovernanceInstruction.html)
+/// instruction.
+pub fn delete_vote(proposal: Pubkey, vote: Pubkey, authority: Pubkey) -> Instruction {
+    let accounts = vec![
+        AccountMeta::new_readonly(proposal, false),
+        AccountMeta::new(vote, false),
+        AccountMeta::new(authority, false),
+    ];
+    let data = PaladinGovernanceInstruction::DeleteVote.pack();
+
     Instruction::new_with_bytes(crate::id(), &data, accounts)
 }
 

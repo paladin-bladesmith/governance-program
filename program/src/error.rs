@@ -27,6 +27,9 @@ pub enum PaladinGovernanceError {
     /// Incorrect proposal vote address.
     #[error("Incorrect proposal vote address.")]
     IncorrectProposalVoteAddress,
+    /// Incorrect proposal address.
+    #[error("Incorrect proposal address.")]
+    IncorrectProposalAddress,
     /// Incorrect governance config address.
     #[error("Incorrect governance config address.")]
     IncorrectGovernanceConfigAddress,

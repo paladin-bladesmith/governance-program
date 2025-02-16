@@ -978,9 +978,9 @@ async fn success(proposal_starting: ProposalStarting, switch: VoteSwitch, expect
     setup_proposal_vote(
         &mut context,
         &proposal_vote,
-        &proposal,
+        proposal,
         switch.previous_vote_stake,
-        &stake_authority.pubkey(),
+        stake_authority.pubkey(),
         switch.previous_election,
     )
     .await;
@@ -1047,12 +1047,13 @@ async fn success(proposal_starting: ProposalStarting, switch: VoteSwitch, expect
         .unwrap();
     assert_eq!(
         bytemuck::from_bytes::<ProposalVote>(&vote_account.data),
-        &ProposalVote::new(
-            &proposal,
-            switch.new_vote_stake,
-            &stake_authority.pubkey(),
-            switch.new_election
-        )
+        &ProposalVote {
+            proposal,
+            stake: switch.new_vote_stake,
+            authority: stake_authority.pubkey(),
+            election: switch.new_election,
+            _padding: Default::default(),
+        },
     );
 
     let proposal_account = context
@@ -1144,9 +1145,9 @@ async fn success_voting_closed() {
     setup_proposal_vote(
         &mut context,
         &proposal_vote,
-        &proposal,
+        proposal,
         prev_vote_stake,
-        &stake_authority.pubkey(),
+        stake_authority.pubkey(),
         prev_election,
     )
     .await;
@@ -1250,9 +1251,9 @@ async fn success_voting_closed_but_cooldown_active() {
     setup_proposal_vote(
         &mut context,
         &proposal_vote,
-        &proposal,
+        proposal,
         prev_vote_stake,
-        &stake_authority.pubkey(),
+        stake_authority.pubkey(),
         prev_election,
     )
     .await;
@@ -1382,9 +1383,9 @@ async fn success_cooldown_has_ended(threshold_met: bool, expected_status: Propos
     setup_proposal_vote(
         &mut context,
         &proposal_vote,
-        &proposal,
+        proposal,
         prev_vote_stake,
-        &stake_authority.pubkey(),
+        stake_authority.pubkey(),
         prev_election,
     )
     .await;

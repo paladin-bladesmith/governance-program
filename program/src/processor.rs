@@ -29,7 +29,7 @@ use {
         program_error::ProgramError,
         pubkey::Pubkey,
         rent::Rent,
-        system_instruction,
+        system_instruction, system_program,
         sysvar::Sysvar,
     },
     spl_discriminator::{ArrayDiscriminator, SplDiscriminate},
@@ -528,11 +528,8 @@ fn process_delete_proposal(program_id: &Pubkey, accounts: &[AccountInfo]) -> Pro
     proposal_state.check_author(stake_authority_info.key)?;
 
     // Ensure the proposal is eligible for deletion.
-    match proposal_state.status {
-        ProposalStatus::Draft | ProposalStatus::Rejected | ProposalStatus::Processed => {}
-        ProposalStatus::Voting | ProposalStatus::Accepted => {
-            return Err(PaladinGovernanceError::ProposalIsActive.into())
-        }
+    if proposal_state.status.is_active() {
+        return Err(PaladinGovernanceError::ProposalIsActive.into());
     }
 
     // Decrease the user's active proposal count.
@@ -696,7 +693,13 @@ fn process_vote(
         // Write the data.
         let mut data = proposal_vote_info.try_borrow_mut_data()?;
         *bytemuck::try_from_bytes_mut(&mut data).map_err(|_| ProgramError::InvalidAccountData)? =
-            ProposalVote::new(proposal_info.key, stake, stake_authority_info.key, election);
+            ProposalVote {
+                proposal: *proposal_info.key,
+                stake,
+                authority: *stake_authority_info.key,
+                election,
+                _padding: Default::default(),
+            };
     }
 
     match election {
@@ -921,6 +924,60 @@ fn process_finish_voting(program_id: &Pubkey, accounts: &[AccountInfo]) -> Progr
             }
         }
     }
+}
+
+/// Processes a
+/// [FinishVoting](enum.PaladinGovernanceInstruction.html)
+/// instruction.
+fn process_delete_vote(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
+    let accounts_iter = &mut accounts.iter();
+    let proposal_info = next_account_info(accounts_iter)?;
+    let vote_info = next_account_info(accounts_iter)?;
+    let authority_info = next_account_info(accounts_iter)?;
+
+    // Validate the proposal.
+    {
+        let proposal_data = proposal_info.data.borrow();
+        if !proposal_data.is_empty() {
+            // Ensure the proposal is not active..
+            check_proposal_exists(program_id, proposal_info)?;
+            let proposal_data = proposal_info.try_borrow_data()?;
+            let proposal_state = bytemuck::try_from_bytes::<Proposal>(&proposal_data)
+                .map_err(|_| ProgramError::InvalidAccountData)?;
+            if proposal_state.status.is_active() {
+                return Err(PaladinGovernanceError::ProposalIsActive.into());
+            }
+        }
+    }
+
+    // Validate the vote account.
+    const _: () = assert!(std::mem::size_of::<ProposalVote>() != std::mem::size_of::<Proposal>());
+    let (proposal, authority) = {
+        let vote = vote_info.data.borrow();
+        let vote = bytemuck::from_bytes::<ProposalVote>(&vote);
+
+        (vote.proposal, vote.authority)
+    };
+    if &proposal != proposal_info.key {
+        return Err(PaladinGovernanceError::IncorrectProposalAddress.into());
+    }
+    if &authority != authority_info.key {
+        return Err(ProgramError::IncorrectAuthority);
+    }
+
+    // Refund the rent.
+    let authority_lamports = authority_info
+        .lamports()
+        .checked_add(vote_info.lamports())
+        .unwrap();
+    **authority_info.lamports.borrow_mut() = authority_lamports;
+
+    // Close the vote account.
+    vote_info.realloc(0, true)?;
+    **vote_info.lamports.borrow_mut() = 0;
+    vote_info.assign(&system_program::ID);
+
+    Ok(())
 }
 
 /// Processes a
@@ -1213,6 +1270,10 @@ pub fn process(program_id: &Pubkey, accounts: &[AccountInfo], input: &[u8]) -> P
         PaladinGovernanceInstruction::FinishVoting => {
             msg!("Instruction: FinishVoting");
             process_finish_voting(program_id, accounts)
+        }
+        PaladinGovernanceInstruction::DeleteVote => {
+            msg!("Instruction: DeleteVote");
+            process_delete_vote(program_id, accounts)
         }
         PaladinGovernanceInstruction::ProcessInstruction { instruction_index } => {
             msg!("Instruction: ProcessInstruction");

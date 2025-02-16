@@ -17,13 +17,13 @@ pub struct ProposalVote {
         feature = "serde",
         serde(with = "serde_with::As::<serde_with::DisplayFromStr>")
     )]
-    pub proposal_address: Pubkey,
+    pub proposal: Pubkey,
     pub stake: u64,
     #[cfg_attr(
         feature = "serde",
         serde(with = "serde_with::As::<serde_with::DisplayFromStr>")
     )]
-    pub stake_address: Pubkey,
+    pub authority: Pubkey,
     pub election: ProposalVoteElection,
     pub padding: [u8; 7],
 }
