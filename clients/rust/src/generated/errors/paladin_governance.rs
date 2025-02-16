@@ -20,39 +20,42 @@ pub enum PaladinGovernanceError {
     /// 3 - Incorrect proposal vote address.
     #[error("Incorrect proposal vote address.")]
     IncorrectProposalVoteAddress = 0x3,
-    /// 4 - Incorrect governance config address.
+    /// 4 - Incorrect proposal address.
+    #[error("Incorrect proposal address.")]
+    IncorrectProposalAddress = 0x4,
+    /// 5 - Incorrect governance config address.
     #[error("Incorrect governance config address.")]
-    IncorrectGovernanceConfigAddress = 0x4,
-    /// 5 - Incorrect treasury address.
+    IncorrectGovernanceConfigAddress = 0x5,
+    /// 6 - Incorrect treasury address.
     #[error("Incorrect treasury address.")]
-    IncorrectTreasuryAddress = 0x5,
-    /// 6 - Proposal not in voting stage.
+    IncorrectTreasuryAddress = 0x6,
+    /// 7 - Proposal not in voting stage.
     #[error("Proposal not in voting stage.")]
-    ProposalNotInVotingStage = 0x6,
-    /// 7 - Proposal is immutable.
+    ProposalNotInVotingStage = 0x7,
+    /// 8 - Proposal is immutable.
     #[error("Proposal is immutable.")]
-    ProposalIsImmutable = 0x7,
-    /// 8 - Proposal is active.
+    ProposalIsImmutable = 0x8,
+    /// 9 - Proposal is active.
     #[error("Proposal is active.")]
-    ProposalIsActive = 0x8,
-    /// 9 - Proposal not accepted.
+    ProposalIsActive = 0x9,
+    /// 10 - Proposal not accepted.
     #[error("Proposal not accepted.")]
-    ProposalNotAccepted = 0x9,
-    /// 10 - Proposal voting period still active.
+    ProposalNotAccepted = 0xA,
+    /// 11 - Proposal voting period still active.
     #[error("Proposal voting period still active.")]
-    ProposalVotingPeriodStillActive = 0xA,
-    /// 11 - Invalid transaction index.
+    ProposalVotingPeriodStillActive = 0xB,
+    /// 12 - Invalid transaction index.
     #[error("Invalid transaction index.")]
-    InvalidTransactionIndex = 0xB,
-    /// 12 - Instruction already executed.
+    InvalidTransactionIndex = 0xC,
+    /// 13 - Instruction already executed.
     #[error("Instruction already executed.")]
-    InstructionAlreadyExecuted = 0xC,
-    /// 13 - Previous instruction has not been executed.
+    InstructionAlreadyExecuted = 0xD,
+    /// 14 - Previous instruction has not been executed.
     #[error("Previous instruction has not been executed.")]
-    PreviousInstructionHasNotBeenExecuted = 0xD,
-    /// 14 - Author has too many active proposals.
+    PreviousInstructionHasNotBeenExecuted = 0xE,
+    /// 15 - Author has too many active proposals.
     #[error("Author has too many active proposals.")]
-    TooManyActiveProposals = 0xE,
+    TooManyActiveProposals = 0xF,
 }
 
 impl solana_program::program_error::PrintProgramError for PaladinGovernanceError {

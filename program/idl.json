@@ -359,6 +359,31 @@
       }
     },
     {
+      "name": "DeleteVote",
+      "accounts": [
+        {
+          "name": "proposal",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "vote",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "authority",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": [],
+      "discriminant": {
+        "type": "u8",
+        "value": 8
+      }
+    },
+    {
       "name": "ProcessInstruction",
       "accounts": [
         {
@@ -386,7 +411,7 @@
       ],
       "discriminant": {
         "type": "u8",
-        "value": 8
+        "value": 9
       }
     },
     {
@@ -445,7 +470,7 @@
       ],
       "discriminant": {
         "type": "u8",
-        "value": 9
+        "value": 10
       }
     },
     {
@@ -496,7 +521,7 @@
       ],
       "discriminant": {
         "type": "u8",
-        "value": 10
+        "value": 11
       }
     }
   ],
@@ -615,7 +640,7 @@
         "kind": "struct",
         "fields": [
           {
-            "name": "proposalAddress",
+            "name": "proposal",
             "type": "publicKey"
           },
           {
@@ -623,7 +648,7 @@
             "type": "u64"
           },
           {
-            "name": "stakeAddress",
+            "name": "authority",
             "type": "publicKey"
           },
           {
@@ -783,56 +808,61 @@
     },
     {
       "code": 4,
+      "name": "IncorrectProposalAddress",
+      "msg": "Incorrect proposal address."
+    },
+    {
+      "code": 5,
       "name": "IncorrectGovernanceConfigAddress",
       "msg": "Incorrect governance config address."
     },
     {
-      "code": 5,
+      "code": 6,
       "name": "IncorrectTreasuryAddress",
       "msg": "Incorrect treasury address."
     },
     {
-      "code": 6,
+      "code": 7,
       "name": "ProposalNotInVotingStage",
       "msg": "Proposal not in voting stage."
     },
     {
-      "code": 7,
+      "code": 8,
       "name": "ProposalIsImmutable",
       "msg": "Proposal is immutable."
     },
     {
-      "code": 8,
+      "code": 9,
       "name": "ProposalIsActive",
       "msg": "Proposal is active."
     },
     {
-      "code": 9,
+      "code": 10,
       "name": "ProposalNotAccepted",
       "msg": "Proposal not accepted."
     },
     {
-      "code": 10,
+      "code": 11,
       "name": "ProposalVotingPeriodStillActive",
       "msg": "Proposal voting period still active."
     },
     {
-      "code": 11,
+      "code": 12,
       "name": "InvalidTransactionIndex",
       "msg": "Invalid transaction index."
     },
     {
-      "code": 12,
+      "code": 13,
       "name": "InstructionAlreadyExecuted",
       "msg": "Instruction already executed."
     },
     {
-      "code": 13,
+      "code": 14,
       "name": "PreviousInstructionHasNotBeenExecuted",
       "msg": "Previous instruction has not been executed."
     },
     {
-      "code": 14,
+      "code": 15,
       "name": "TooManyActiveProposals",
       "msg": "Author has too many active proposals."
     }

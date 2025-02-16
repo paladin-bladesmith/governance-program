@@ -42,26 +42,26 @@ import {
 } from '../types';
 
 export type ProposalVote = {
-  proposalAddress: Address;
+  proposal: Address;
   stake: bigint;
-  stakeAddress: Address;
+  authority: Address;
   election: ProposalVoteElection;
   padding: Array<number>;
 };
 
 export type ProposalVoteArgs = {
-  proposalAddress: Address;
+  proposal: Address;
   stake: number | bigint;
-  stakeAddress: Address;
+  authority: Address;
   election: ProposalVoteElectionArgs;
   padding: Array<number>;
 };
 
 export function getProposalVoteEncoder(): Encoder<ProposalVoteArgs> {
   return getStructEncoder([
-    ['proposalAddress', getAddressEncoder()],
+    ['proposal', getAddressEncoder()],
     ['stake', getU64Encoder()],
-    ['stakeAddress', getAddressEncoder()],
+    ['authority', getAddressEncoder()],
     ['election', getProposalVoteElectionEncoder()],
     ['padding', getArrayEncoder(getU8Encoder(), { size: 7 })],
   ]);
@@ -69,9 +69,9 @@ export function getProposalVoteEncoder(): Encoder<ProposalVoteArgs> {
 
 export function getProposalVoteDecoder(): Decoder<ProposalVote> {
   return getStructDecoder([
-    ['proposalAddress', getAddressDecoder()],
+    ['proposal', getAddressDecoder()],
     ['stake', getU64Decoder()],
-    ['stakeAddress', getAddressDecoder()],
+    ['authority', getAddressDecoder()],
     ['election', getProposalVoteElectionDecoder()],
     ['padding', getArrayDecoder(getU8Decoder(), { size: 7 })],
   ]);

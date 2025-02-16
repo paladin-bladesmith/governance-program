@@ -16,6 +16,7 @@ import {
   type ParsedBeginVotingInstruction,
   type ParsedCreateProposalInstruction,
   type ParsedDeleteProposalInstruction,
+  type ParsedDeleteVoteInstruction,
   type ParsedFinishVotingInstruction,
   type ParsedInitializeGovernanceInstruction,
   type ParsedProcessInstructionInstruction,
@@ -45,6 +46,7 @@ export enum PaladinGovernanceInstruction {
   Vote,
   SwitchVote,
   FinishVoting,
+  DeleteVote,
   ProcessInstruction,
   InitializeGovernance,
   UpdateGovernance,
@@ -79,12 +81,15 @@ export function identifyPaladinGovernanceInstruction(
     return PaladinGovernanceInstruction.FinishVoting;
   }
   if (containsBytes(data, getU8Encoder().encode(8), 0)) {
-    return PaladinGovernanceInstruction.ProcessInstruction;
+    return PaladinGovernanceInstruction.DeleteVote;
   }
   if (containsBytes(data, getU8Encoder().encode(9), 0)) {
-    return PaladinGovernanceInstruction.InitializeGovernance;
+    return PaladinGovernanceInstruction.ProcessInstruction;
   }
   if (containsBytes(data, getU8Encoder().encode(10), 0)) {
+    return PaladinGovernanceInstruction.InitializeGovernance;
+  }
+  if (containsBytes(data, getU8Encoder().encode(11), 0)) {
     return PaladinGovernanceInstruction.UpdateGovernance;
   }
   throw new Error(
@@ -119,6 +124,9 @@ export type ParsedPaladinGovernanceInstruction<
   | ({
       instructionType: PaladinGovernanceInstruction.FinishVoting;
     } & ParsedFinishVotingInstruction<TProgram>)
+  | ({
+      instructionType: PaladinGovernanceInstruction.DeleteVote;
+    } & ParsedDeleteVoteInstruction<TProgram>)
   | ({
       instructionType: PaladinGovernanceInstruction.ProcessInstruction;
     } & ParsedProcessInstructionInstruction<TProgram>)
