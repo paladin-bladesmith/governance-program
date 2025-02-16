@@ -944,23 +944,33 @@ fn process_delete_vote(program_id: &Pubkey, accounts: &[AccountInfo]) -> Program
             let proposal_data = proposal_info.try_borrow_data()?;
             let proposal_state = bytemuck::try_from_bytes::<Proposal>(&proposal_data)
                 .map_err(|_| ProgramError::InvalidAccountData)?;
-            assert!(!proposal_state.status.is_active());
+            if proposal_state.status.is_active() {
+                return Err(PaladinGovernanceError::ProposalIsActive.into());
+            }
         }
     }
 
     // Validate the vote account.
     const _: () = assert!(std::mem::size_of::<ProposalVote>() != std::mem::size_of::<Proposal>());
-    let (proposal_address, proposal_authority) = {
+    let (proposal, authority) = {
         let vote = vote_info.data.borrow();
         let vote = bytemuck::from_bytes::<ProposalVote>(&vote);
 
         (vote.proposal, vote.authority)
     };
-    assert_eq!(&proposal_address, proposal_info.key);
-    assert_eq!(&proposal_authority, authority_info.key);
+    if &proposal != proposal_info.key {
+        return Err(PaladinGovernanceError::IncorrectProposalAddress.into());
+    }
+    if &authority != authority_info.key {
+        return Err(ProgramError::IncorrectAuthority);
+    }
 
     // Refund the rent.
-    **authority_info.lamports.borrow_mut() += vote_info.lamports();
+    let authority_lamports = authority_info
+        .lamports()
+        .checked_add(vote_info.lamports())
+        .unwrap();
+    **authority_info.lamports.borrow_mut() = authority_lamports;
 
     // Close the vote account.
     vote_info.realloc(0, true)?;

@@ -314,8 +314,8 @@ pub enum PaladinGovernanceInstruction {
     /// Delete's a vote account and recovers its' rent once the proposal has
     /// been finalized.
     #[account(0, name = "proposal")]
-    #[account(1, name = "vote")]
-    #[account(2, name = "authority")]
+    #[account(1, writable, name = "vote")]
+    #[account(2, writable, name = "authority")]
     DeleteVote,
     #[allow(clippy::doc_lazy_continuation)]
     /// Process an instruction in an accepted governance proposal.
@@ -740,6 +740,20 @@ pub fn switch_vote(
         AccountMeta::new(*proposal_address, false),
     ];
     let data = PaladinGovernanceInstruction::SwitchVote { new_election }.pack();
+    Instruction::new_with_bytes(crate::id(), &data, accounts)
+}
+
+/// Creates a
+/// [SwitchVote](enum.PaladinGovernanceInstruction.html)
+/// instruction.
+pub fn delete_vote(proposal: Pubkey, vote: Pubkey, authority: Pubkey) -> Instruction {
+    let accounts = vec![
+        AccountMeta::new_readonly(proposal, false),
+        AccountMeta::new(vote, false),
+        AccountMeta::new(authority, false),
+    ];
+    let data = PaladinGovernanceInstruction::DeleteVote.pack();
+
     Instruction::new_with_bytes(crate::id(), &data, accounts)
 }
 
