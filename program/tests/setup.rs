@@ -278,12 +278,18 @@ pub async fn setup_proposal_transaction(
 pub async fn setup_proposal_vote(
     context: &mut ProgramTestContext,
     proposal_vote_address: &Pubkey,
-    proposal_address: &Pubkey,
+    proposal_address: Pubkey,
     stake: u64,
-    stake_authority_address: &Pubkey,
+    stake_authority_address: Pubkey,
     election: ProposalVoteElection,
 ) {
-    let state = ProposalVote::new(proposal_address, stake, stake_authority_address, election);
+    let state = ProposalVote {
+        proposal: proposal_address,
+        stake,
+        authority: stake_authority_address,
+        election,
+        _padding: Default::default(),
+    };
     let data = bytemuck::bytes_of(&state).to_vec();
 
     let rent = context.banks_client.get_rent().await.unwrap();

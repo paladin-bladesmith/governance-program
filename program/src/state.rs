@@ -326,6 +326,15 @@ pub enum ProposalStatus {
     Processed,
 }
 
+impl ProposalStatus {
+    pub fn is_active(&self) -> bool {
+        match self {
+            ProposalStatus::Voting | ProposalStatus::Accepted => true,
+            ProposalStatus::Draft | ProposalStatus::Rejected | ProposalStatus::Processed => false,
+        }
+    }
+}
+
 unsafe impl Pod for ProposalStatus {}
 unsafe impl Zeroable for ProposalStatus {}
 
@@ -432,32 +441,14 @@ unsafe impl Zeroable for ProposalVoteElection {}
 #[repr(C)]
 pub struct ProposalVote {
     /// Proposal address.
-    pub proposal_address: Pubkey,
+    pub proposal: Pubkey,
     /// Amount of stake.
     pub stake: u64,
     /// Authority address.
-    pub stake_address: Pubkey,
+    pub authority: Pubkey,
     /// Vote election.
     pub election: ProposalVoteElection,
-    _padding: [u8; 7],
-}
-
-impl ProposalVote {
-    /// Create a new [ProposalVote](struct.ProposalVote.html).
-    pub fn new(
-        proposal_address: &Pubkey,
-        stake: u64,
-        stake_address: &Pubkey,
-        election: ProposalVoteElection,
-    ) -> Self {
-        Self {
-            proposal_address: *proposal_address,
-            stake,
-            stake_address: *stake_address,
-            election,
-            _padding: [0; 7],
-        }
-    }
+    pub _padding: [u8; 7],
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Pod, ShankAccount, SplDiscriminate, Zeroable)]

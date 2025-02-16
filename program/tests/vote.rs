@@ -683,9 +683,9 @@ async fn fail_proposal_vote_already_initialized() {
     setup_proposal_vote(
         &mut context,
         &proposal_vote,
-        &proposal,
+        proposal,
         0,
-        &stake_authority.pubkey(),
+        stake_authority.pubkey(),
         ProposalVoteElection::For,
     )
     .await;
@@ -870,7 +870,13 @@ async fn success(vote: Vote, expect: Expect) {
         .unwrap();
     assert_eq!(
         bytemuck::from_bytes::<ProposalVote>(&proposal_vote_account.data),
-        &ProposalVote::new(&proposal, vote_stake, &stake_authority.pubkey(), election)
+        &ProposalVote {
+            proposal,
+            stake: vote_stake,
+            authority: stake_authority.pubkey(),
+            election,
+            _padding: Default::default()
+        }
     );
 
     let proposal_account = context
@@ -1109,7 +1115,13 @@ async fn success_voting_closed_but_cooldown_active() {
         .unwrap();
     assert_eq!(
         bytemuck::from_bytes::<ProposalVote>(&proposal_vote_account.data),
-        &ProposalVote::new(&proposal, vote_stake, &stake_authority.pubkey(), election)
+        &ProposalVote {
+            proposal: proposal,
+            stake: vote_stake,
+            authority: stake_authority.pubkey(),
+            election,
+            _padding: Default::default()
+        }
     );
 }
 
