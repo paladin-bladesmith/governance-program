@@ -15,8 +15,9 @@ use {
         },
     },
     borsh::BorshDeserialize,
-    paladin_stake_program::state::{
-        find_validator_stake_pda, Config as StakeConfig, ValidatorStake,
+    paladin_stake_program::{
+        require,
+        state::{find_validator_stake_pda, Config as StakeConfig, ValidatorStake},
     },
     solana_program::{
         account_info::{next_account_info, AccountInfo},
@@ -409,6 +410,13 @@ fn process_push_instruction(
     // Reallocate the account.
     let new_len = get_instance_packed_len(&proposal_transaction_state)?;
     proposal_transaction_info.realloc(new_len, true)?;
+
+    // Ensure the account is still rent exempt.
+    let rent = Rent::get().unwrap().minimum_balance(new_len);
+    require!(
+        proposal_transaction_info.lamports() >= rent,
+        ProgramError::AccountNotRentExempt,
+    );
 
     // Write the data.
     borsh::to_writer(
