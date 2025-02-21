@@ -166,6 +166,12 @@ pub enum PaladinGovernanceInstruction {
         name = "proposal",
         description = "Proposal account"
     )]
+    #[account(
+        3,
+        writable,
+        name = "proposal_transaction",
+        description = "Proposal transaction account"
+    )]
     DeleteProposal,
     /// Finalize a draft governance proposal and begin voting.
     ///
@@ -681,6 +687,14 @@ pub fn delete_proposal(stake_authority_address: Pubkey, proposal_address: Pubkey
             false,
         ),
         AccountMeta::new(proposal_address, false),
+        AccountMeta::new(
+            crate::state::get_proposal_transaction_address_and_bump_seed(
+                &proposal_address,
+                &crate::id(),
+            )
+            .0,
+            false,
+        ),
     ];
     let data = PaladinGovernanceInstruction::DeleteProposal.pack();
     Instruction::new_with_bytes(crate::id(), &data, accounts)

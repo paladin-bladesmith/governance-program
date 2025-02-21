@@ -184,6 +184,14 @@
           "docs": [
             "Proposal account"
           ]
+        },
+        {
+          "name": "proposalTransaction",
+          "isMut": true,
+          "isSigner": false,
+          "docs": [
+            "Proposal transaction account"
+          ]
         }
       ],
       "args": [],

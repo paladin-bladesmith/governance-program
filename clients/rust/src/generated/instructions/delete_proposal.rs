@@ -14,6 +14,8 @@ pub struct DeleteProposal {
     pub author: solana_program::pubkey::Pubkey,
     /// Proposal account
     pub proposal: solana_program::pubkey::Pubkey,
+    /// Proposal transaction account
+    pub proposal_transaction: solana_program::pubkey::Pubkey,
 }
 
 impl DeleteProposal {
@@ -25,7 +27,7 @@ impl DeleteProposal {
         &self,
         remaining_accounts: &[solana_program::instruction::AccountMeta],
     ) -> solana_program::instruction::Instruction {
-        let mut accounts = Vec::with_capacity(3 + remaining_accounts.len());
+        let mut accounts = Vec::with_capacity(4 + remaining_accounts.len());
         accounts.push(solana_program::instruction::AccountMeta::new(
             self.stake_authority,
             true,
@@ -36,6 +38,10 @@ impl DeleteProposal {
         ));
         accounts.push(solana_program::instruction::AccountMeta::new(
             self.proposal,
+            false,
+        ));
+        accounts.push(solana_program::instruction::AccountMeta::new(
+            self.proposal_transaction,
             false,
         ));
         accounts.extend_from_slice(remaining_accounts);
@@ -73,11 +79,13 @@ impl Default for DeleteProposalInstructionData {
 ///   0. `[writable, signer]` stake_authority
 ///   1. `[writable]` author
 ///   2. `[writable]` proposal
+///   3. `[writable]` proposal_transaction
 #[derive(Clone, Debug, Default)]
 pub struct DeleteProposalBuilder {
     stake_authority: Option<solana_program::pubkey::Pubkey>,
     author: Option<solana_program::pubkey::Pubkey>,
     proposal: Option<solana_program::pubkey::Pubkey>,
+    proposal_transaction: Option<solana_program::pubkey::Pubkey>,
     __remaining_accounts: Vec<solana_program::instruction::AccountMeta>,
 }
 
@@ -106,6 +114,15 @@ impl DeleteProposalBuilder {
         self.proposal = Some(proposal);
         self
     }
+    /// Proposal transaction account
+    #[inline(always)]
+    pub fn proposal_transaction(
+        &mut self,
+        proposal_transaction: solana_program::pubkey::Pubkey,
+    ) -> &mut Self {
+        self.proposal_transaction = Some(proposal_transaction);
+        self
+    }
     /// Add an aditional account to the instruction.
     #[inline(always)]
     pub fn add_remaining_account(
@@ -130,6 +147,9 @@ impl DeleteProposalBuilder {
             stake_authority: self.stake_authority.expect("stake_authority is not set"),
             author: self.author.expect("author is not set"),
             proposal: self.proposal.expect("proposal is not set"),
+            proposal_transaction: self
+                .proposal_transaction
+                .expect("proposal_transaction is not set"),
         };
 
         accounts.instruction_with_remaining_accounts(&self.__remaining_accounts)
@@ -144,6 +164,8 @@ pub struct DeleteProposalCpiAccounts<'a, 'b> {
     pub author: &'b solana_program::account_info::AccountInfo<'a>,
     /// Proposal account
     pub proposal: &'b solana_program::account_info::AccountInfo<'a>,
+    /// Proposal transaction account
+    pub proposal_transaction: &'b solana_program::account_info::AccountInfo<'a>,
 }
 
 /// `delete_proposal` CPI instruction.
@@ -156,6 +178,8 @@ pub struct DeleteProposalCpi<'a, 'b> {
     pub author: &'b solana_program::account_info::AccountInfo<'a>,
     /// Proposal account
     pub proposal: &'b solana_program::account_info::AccountInfo<'a>,
+    /// Proposal transaction account
+    pub proposal_transaction: &'b solana_program::account_info::AccountInfo<'a>,
 }
 
 impl<'a, 'b> DeleteProposalCpi<'a, 'b> {
@@ -168,6 +192,7 @@ impl<'a, 'b> DeleteProposalCpi<'a, 'b> {
             stake_authority: accounts.stake_authority,
             author: accounts.author,
             proposal: accounts.proposal,
+            proposal_transaction: accounts.proposal_transaction,
         }
     }
     #[inline(always)]
@@ -203,7 +228,7 @@ impl<'a, 'b> DeleteProposalCpi<'a, 'b> {
             bool,
         )],
     ) -> solana_program::entrypoint::ProgramResult {
-        let mut accounts = Vec::with_capacity(3 + remaining_accounts.len());
+        let mut accounts = Vec::with_capacity(4 + remaining_accounts.len());
         accounts.push(solana_program::instruction::AccountMeta::new(
             *self.stake_authority.key,
             true,
@@ -214,6 +239,10 @@ impl<'a, 'b> DeleteProposalCpi<'a, 'b> {
         ));
         accounts.push(solana_program::instruction::AccountMeta::new(
             *self.proposal.key,
+            false,
+        ));
+        accounts.push(solana_program::instruction::AccountMeta::new(
+            *self.proposal_transaction.key,
             false,
         ));
         remaining_accounts.iter().for_each(|remaining_account| {
@@ -230,11 +259,12 @@ impl<'a, 'b> DeleteProposalCpi<'a, 'b> {
             accounts,
             data,
         };
-        let mut account_infos = Vec::with_capacity(3 + 1 + remaining_accounts.len());
+        let mut account_infos = Vec::with_capacity(4 + 1 + remaining_accounts.len());
         account_infos.push(self.__program.clone());
         account_infos.push(self.stake_authority.clone());
         account_infos.push(self.author.clone());
         account_infos.push(self.proposal.clone());
+        account_infos.push(self.proposal_transaction.clone());
         remaining_accounts
             .iter()
             .for_each(|remaining_account| account_infos.push(remaining_account.0.clone()));
@@ -254,6 +284,7 @@ impl<'a, 'b> DeleteProposalCpi<'a, 'b> {
 ///   0. `[writable, signer]` stake_authority
 ///   1. `[writable]` author
 ///   2. `[writable]` proposal
+///   3. `[writable]` proposal_transaction
 #[derive(Clone, Debug)]
 pub struct DeleteProposalCpiBuilder<'a, 'b> {
     instruction: Box<DeleteProposalCpiBuilderInstruction<'a, 'b>>,
@@ -266,6 +297,7 @@ impl<'a, 'b> DeleteProposalCpiBuilder<'a, 'b> {
             stake_authority: None,
             author: None,
             proposal: None,
+            proposal_transaction: None,
             __remaining_accounts: Vec::new(),
         });
         Self { instruction }
@@ -295,6 +327,15 @@ impl<'a, 'b> DeleteProposalCpiBuilder<'a, 'b> {
         proposal: &'b solana_program::account_info::AccountInfo<'a>,
     ) -> &mut Self {
         self.instruction.proposal = Some(proposal);
+        self
+    }
+    /// Proposal transaction account
+    #[inline(always)]
+    pub fn proposal_transaction(
+        &mut self,
+        proposal_transaction: &'b solana_program::account_info::AccountInfo<'a>,
+    ) -> &mut Self {
+        self.instruction.proposal_transaction = Some(proposal_transaction);
         self
     }
     /// Add an additional account to the instruction.
@@ -350,6 +391,11 @@ impl<'a, 'b> DeleteProposalCpiBuilder<'a, 'b> {
             author: self.instruction.author.expect("author is not set"),
 
             proposal: self.instruction.proposal.expect("proposal is not set"),
+
+            proposal_transaction: self
+                .instruction
+                .proposal_transaction
+                .expect("proposal_transaction is not set"),
         };
         instruction.invoke_signed_with_remaining_accounts(
             signers_seeds,
@@ -364,6 +410,7 @@ struct DeleteProposalCpiBuilderInstruction<'a, 'b> {
     stake_authority: Option<&'b solana_program::account_info::AccountInfo<'a>>,
     author: Option<&'b solana_program::account_info::AccountInfo<'a>>,
     proposal: Option<&'b solana_program::account_info::AccountInfo<'a>>,
+    proposal_transaction: Option<&'b solana_program::account_info::AccountInfo<'a>>,
     /// Additional instruction accounts `(AccountInfo, is_writable, is_signer)`.
     __remaining_accounts: Vec<(
         &'b solana_program::account_info::AccountInfo<'a>,

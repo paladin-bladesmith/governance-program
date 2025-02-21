@@ -510,6 +510,7 @@ fn process_delete_proposal(program_id: &Pubkey, accounts: &[AccountInfo]) -> Pro
     let stake_authority_info = next_account_info(accounts_iter)?;
     let author_info = next_account_info(accounts_iter)?;
     let proposal_info = next_account_info(accounts_iter)?;
+    let proposal_transaction_info = next_account_info(accounts_iter)?;
 
     // Ensure the stake authority is a signer.
     if !stake_authority_info.is_signer {
@@ -540,6 +541,13 @@ fn process_delete_proposal(program_id: &Pubkey, accounts: &[AccountInfo]) -> Pro
         return Err(PaladinGovernanceError::ProposalIsActive.into());
     }
 
+    // Validate the proposal transaction account.
+    let (proposal_transaction_address, _) =
+        get_proposal_transaction_address_and_bump_seed(proposal_info.key, program_id);
+    if proposal_transaction_info.key != &proposal_transaction_address {
+        return Err(PaladinGovernanceError::IncorrectProposalTransactionAddress.into());
+    }
+
     // Decrease the user's active proposal count.
     author_state.active_proposals = author_state
         .active_proposals
@@ -548,15 +556,17 @@ fn process_delete_proposal(program_id: &Pubkey, accounts: &[AccountInfo]) -> Pro
 
     // Delete the proposal & refund the rent.
     drop(proposal_data);
-    let rent = proposal_info.lamports();
-    **proposal_info.lamports.borrow_mut() = 0;
-    proposal_info.realloc(0, true)?;
     // NB: The runtime will revert us if we overflow as the sum of balances
     // before/after will not match.
     #[allow(clippy::arithmetic_side_effects)]
     {
-        **stake_authority_info.lamports.borrow_mut() += rent;
+        **stake_authority_info.lamports.borrow_mut() +=
+            proposal_info.lamports() + proposal_transaction_info.lamports();
     }
+    **proposal_info.lamports.borrow_mut() = 0;
+    **proposal_transaction_info.lamports.borrow_mut() = 0;
+    proposal_info.realloc(0, true)?;
+    proposal_transaction_info.realloc(0, true)?;
 
     Ok(())
 }

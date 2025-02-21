@@ -34,6 +34,7 @@ export type DeleteProposalInstruction<
   TAccountStakeAuthority extends string | IAccountMeta<string> = string,
   TAccountAuthor extends string | IAccountMeta<string> = string,
   TAccountProposal extends string | IAccountMeta<string> = string,
+  TAccountProposalTransaction extends string | IAccountMeta<string> = string,
   TRemainingAccounts extends readonly IAccountMeta<string>[] = [],
 > = IInstruction<TProgram> &
   IInstructionWithData<Uint8Array> &
@@ -49,6 +50,9 @@ export type DeleteProposalInstruction<
       TAccountProposal extends string
         ? WritableAccount<TAccountProposal>
         : TAccountProposal,
+      TAccountProposalTransaction extends string
+        ? WritableAccount<TAccountProposalTransaction>
+        : TAccountProposalTransaction,
       ...TRemainingAccounts,
     ]
   >;
@@ -82,6 +86,7 @@ export type DeleteProposalInput<
   TAccountStakeAuthority extends string = string,
   TAccountAuthor extends string = string,
   TAccountProposal extends string = string,
+  TAccountProposalTransaction extends string = string,
 > = {
   /** Paladin stake authority account */
   stakeAuthority: TransactionSigner<TAccountStakeAuthority>;
@@ -89,23 +94,28 @@ export type DeleteProposalInput<
   author: Address<TAccountAuthor>;
   /** Proposal account */
   proposal: Address<TAccountProposal>;
+  /** Proposal transaction account */
+  proposalTransaction: Address<TAccountProposalTransaction>;
 };
 
 export function getDeleteProposalInstruction<
   TAccountStakeAuthority extends string,
   TAccountAuthor extends string,
   TAccountProposal extends string,
+  TAccountProposalTransaction extends string,
 >(
   input: DeleteProposalInput<
     TAccountStakeAuthority,
     TAccountAuthor,
-    TAccountProposal
+    TAccountProposal,
+    TAccountProposalTransaction
   >
 ): DeleteProposalInstruction<
   typeof PALADIN_GOVERNANCE_PROGRAM_ADDRESS,
   TAccountStakeAuthority,
   TAccountAuthor,
-  TAccountProposal
+  TAccountProposal,
+  TAccountProposalTransaction
 > {
   // Program address.
   const programAddress = PALADIN_GOVERNANCE_PROGRAM_ADDRESS;
@@ -115,6 +125,10 @@ export function getDeleteProposalInstruction<
     stakeAuthority: { value: input.stakeAuthority ?? null, isWritable: true },
     author: { value: input.author ?? null, isWritable: true },
     proposal: { value: input.proposal ?? null, isWritable: true },
+    proposalTransaction: {
+      value: input.proposalTransaction ?? null,
+      isWritable: true,
+    },
   };
   const accounts = originalAccounts as Record<
     keyof typeof originalAccounts,
@@ -127,6 +141,7 @@ export function getDeleteProposalInstruction<
       getAccountMeta(accounts.stakeAuthority),
       getAccountMeta(accounts.author),
       getAccountMeta(accounts.proposal),
+      getAccountMeta(accounts.proposalTransaction),
     ],
     programAddress,
     data: getDeleteProposalInstructionDataEncoder().encode({}),
@@ -134,7 +149,8 @@ export function getDeleteProposalInstruction<
     typeof PALADIN_GOVERNANCE_PROGRAM_ADDRESS,
     TAccountStakeAuthority,
     TAccountAuthor,
-    TAccountProposal
+    TAccountProposal,
+    TAccountProposalTransaction
   >;
 
   return instruction;
@@ -152,6 +168,8 @@ export type ParsedDeleteProposalInstruction<
     author: TAccountMetas[1];
     /** Proposal account */
     proposal: TAccountMetas[2];
+    /** Proposal transaction account */
+    proposalTransaction: TAccountMetas[3];
   };
   data: DeleteProposalInstructionData;
 };
@@ -164,7 +182,7 @@ export function parseDeleteProposalInstruction<
     IInstructionWithAccounts<TAccountMetas> &
     IInstructionWithData<Uint8Array>
 ): ParsedDeleteProposalInstruction<TProgram, TAccountMetas> {
-  if (instruction.accounts.length < 3) {
+  if (instruction.accounts.length < 4) {
     // TODO: Coded error.
     throw new Error('Not enough accounts');
   }
@@ -180,6 +198,7 @@ export function parseDeleteProposalInstruction<
       stakeAuthority: getNextAccount(),
       author: getNextAccount(),
       proposal: getNextAccount(),
+      proposalTransaction: getNextAccount(),
     },
     data: getDeleteProposalInstructionDataDecoder().decode(instruction.data),
   };
