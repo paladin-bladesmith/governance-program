@@ -57,7 +57,7 @@ export type DeleteVoteInstructionDataArgs = {};
 export function getDeleteVoteInstructionDataEncoder(): Encoder<DeleteVoteInstructionDataArgs> {
   return transformEncoder(
     getStructEncoder([['discriminator', getU8Encoder()]]),
-    (value) => ({ ...value, discriminator: 8 })
+    (value) => ({ ...value, discriminator: 9 })
   );
 }
 

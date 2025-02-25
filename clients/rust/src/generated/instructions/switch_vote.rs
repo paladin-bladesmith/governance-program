@@ -75,7 +75,7 @@ pub struct SwitchVoteInstructionData {
 
 impl SwitchVoteInstructionData {
     pub fn new() -> Self {
-        Self { discriminator: 6 }
+        Self { discriminator: 7 }
     }
 }
 

@@ -66,7 +66,7 @@ pub struct PushInstructionInstructionData {
 
 impl PushInstructionInstructionData {
     pub fn new() -> Self {
-        Self { discriminator: 1 }
+        Self { discriminator: 2 }
     }
 }
 

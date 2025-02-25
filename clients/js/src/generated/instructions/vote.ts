@@ -87,7 +87,7 @@ export function getVoteInstructionDataEncoder(): Encoder<VoteInstructionDataArgs
       ['discriminator', getU8Encoder()],
       ['election', getProposalVoteElectionEncoder()],
     ]),
-    (value) => ({ ...value, discriminator: 5 })
+    (value) => ({ ...value, discriminator: 6 })
   );
 }
 

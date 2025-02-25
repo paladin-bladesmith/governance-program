@@ -18,81 +18,90 @@ import {
   type Decoder,
   type Encoder,
   type IAccountMeta,
-  type IAccountSignerMeta,
   type IInstruction,
   type IInstructionWithAccounts,
   type IInstructionWithData,
-  type ReadonlySignerAccount,
-  type TransactionSigner,
+  type ReadonlyAccount,
   type WritableAccount,
 } from '@solana/web3.js';
 import { PALADIN_GOVERNANCE_PROGRAM_ADDRESS } from '../programs';
 import { getAccountMetaFactory, type ResolvedAccount } from '../shared';
 
-export type BeginVotingInstruction<
+export type InitializeAuthorInstruction<
   TProgram extends string = typeof PALADIN_GOVERNANCE_PROGRAM_ADDRESS,
   TAccountStakeAuthority extends string | IAccountMeta<string> = string,
-  TAccountProposal extends string | IAccountMeta<string> = string,
+  TAccountAuthor extends string | IAccountMeta<string> = string,
+  TAccountSystemProgram extends
+    | string
+    | IAccountMeta<string> = '11111111111111111111111111111111',
   TRemainingAccounts extends readonly IAccountMeta<string>[] = [],
 > = IInstruction<TProgram> &
   IInstructionWithData<Uint8Array> &
   IInstructionWithAccounts<
     [
       TAccountStakeAuthority extends string
-        ? ReadonlySignerAccount<TAccountStakeAuthority> &
-            IAccountSignerMeta<TAccountStakeAuthority>
+        ? ReadonlyAccount<TAccountStakeAuthority>
         : TAccountStakeAuthority,
-      TAccountProposal extends string
-        ? WritableAccount<TAccountProposal>
-        : TAccountProposal,
+      TAccountAuthor extends string
+        ? WritableAccount<TAccountAuthor>
+        : TAccountAuthor,
+      TAccountSystemProgram extends string
+        ? ReadonlyAccount<TAccountSystemProgram>
+        : TAccountSystemProgram,
       ...TRemainingAccounts,
     ]
   >;
 
-export type BeginVotingInstructionData = { discriminator: number };
+export type InitializeAuthorInstructionData = { discriminator: number };
 
-export type BeginVotingInstructionDataArgs = {};
+export type InitializeAuthorInstructionDataArgs = {};
 
-export function getBeginVotingInstructionDataEncoder(): Encoder<BeginVotingInstructionDataArgs> {
+export function getInitializeAuthorInstructionDataEncoder(): Encoder<InitializeAuthorInstructionDataArgs> {
   return transformEncoder(
     getStructEncoder([['discriminator', getU8Encoder()]]),
-    (value) => ({ ...value, discriminator: 5 })
+    (value) => ({ ...value, discriminator: 0 })
   );
 }
 
-export function getBeginVotingInstructionDataDecoder(): Decoder<BeginVotingInstructionData> {
+export function getInitializeAuthorInstructionDataDecoder(): Decoder<InitializeAuthorInstructionData> {
   return getStructDecoder([['discriminator', getU8Decoder()]]);
 }
 
-export function getBeginVotingInstructionDataCodec(): Codec<
-  BeginVotingInstructionDataArgs,
-  BeginVotingInstructionData
+export function getInitializeAuthorInstructionDataCodec(): Codec<
+  InitializeAuthorInstructionDataArgs,
+  InitializeAuthorInstructionData
 > {
   return combineCodec(
-    getBeginVotingInstructionDataEncoder(),
-    getBeginVotingInstructionDataDecoder()
+    getInitializeAuthorInstructionDataEncoder(),
+    getInitializeAuthorInstructionDataDecoder()
   );
 }
 
-export type BeginVotingInput<
+export type InitializeAuthorInput<
   TAccountStakeAuthority extends string = string,
-  TAccountProposal extends string = string,
+  TAccountAuthor extends string = string,
+  TAccountSystemProgram extends string = string,
 > = {
-  /** Paladin stake authority account */
-  stakeAuthority: TransactionSigner<TAccountStakeAuthority>;
-  /** Proposal account */
-  proposal: Address<TAccountProposal>;
+  stakeAuthority: Address<TAccountStakeAuthority>;
+  author: Address<TAccountAuthor>;
+  systemProgram?: Address<TAccountSystemProgram>;
 };
 
-export function getBeginVotingInstruction<
+export function getInitializeAuthorInstruction<
   TAccountStakeAuthority extends string,
-  TAccountProposal extends string,
+  TAccountAuthor extends string,
+  TAccountSystemProgram extends string,
 >(
-  input: BeginVotingInput<TAccountStakeAuthority, TAccountProposal>
-): BeginVotingInstruction<
+  input: InitializeAuthorInput<
+    TAccountStakeAuthority,
+    TAccountAuthor,
+    TAccountSystemProgram
+  >
+): InitializeAuthorInstruction<
   typeof PALADIN_GOVERNANCE_PROGRAM_ADDRESS,
   TAccountStakeAuthority,
-  TAccountProposal
+  TAccountAuthor,
+  TAccountSystemProgram
 > {
   // Program address.
   const programAddress = PALADIN_GOVERNANCE_PROGRAM_ADDRESS;
@@ -100,53 +109,61 @@ export function getBeginVotingInstruction<
   // Original accounts.
   const originalAccounts = {
     stakeAuthority: { value: input.stakeAuthority ?? null, isWritable: false },
-    proposal: { value: input.proposal ?? null, isWritable: true },
+    author: { value: input.author ?? null, isWritable: true },
+    systemProgram: { value: input.systemProgram ?? null, isWritable: false },
   };
   const accounts = originalAccounts as Record<
     keyof typeof originalAccounts,
     ResolvedAccount
   >;
 
+  // Resolve default values.
+  if (!accounts.systemProgram.value) {
+    accounts.systemProgram.value =
+      '11111111111111111111111111111111' as Address<'11111111111111111111111111111111'>;
+  }
+
   const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
   const instruction = {
     accounts: [
       getAccountMeta(accounts.stakeAuthority),
-      getAccountMeta(accounts.proposal),
+      getAccountMeta(accounts.author),
+      getAccountMeta(accounts.systemProgram),
     ],
     programAddress,
-    data: getBeginVotingInstructionDataEncoder().encode({}),
-  } as BeginVotingInstruction<
+    data: getInitializeAuthorInstructionDataEncoder().encode({}),
+  } as InitializeAuthorInstruction<
     typeof PALADIN_GOVERNANCE_PROGRAM_ADDRESS,
     TAccountStakeAuthority,
-    TAccountProposal
+    TAccountAuthor,
+    TAccountSystemProgram
   >;
 
   return instruction;
 }
 
-export type ParsedBeginVotingInstruction<
+export type ParsedInitializeAuthorInstruction<
   TProgram extends string = typeof PALADIN_GOVERNANCE_PROGRAM_ADDRESS,
   TAccountMetas extends readonly IAccountMeta[] = readonly IAccountMeta[],
 > = {
   programAddress: Address<TProgram>;
   accounts: {
-    /** Paladin stake authority account */
     stakeAuthority: TAccountMetas[0];
-    /** Proposal account */
-    proposal: TAccountMetas[1];
+    author: TAccountMetas[1];
+    systemProgram: TAccountMetas[2];
   };
-  data: BeginVotingInstructionData;
+  data: InitializeAuthorInstructionData;
 };
 
-export function parseBeginVotingInstruction<
+export function parseInitializeAuthorInstruction<
   TProgram extends string,
   TAccountMetas extends readonly IAccountMeta[],
 >(
   instruction: IInstruction<TProgram> &
     IInstructionWithAccounts<TAccountMetas> &
     IInstructionWithData<Uint8Array>
-): ParsedBeginVotingInstruction<TProgram, TAccountMetas> {
-  if (instruction.accounts.length < 2) {
+): ParsedInitializeAuthorInstruction<TProgram, TAccountMetas> {
+  if (instruction.accounts.length < 3) {
     // TODO: Coded error.
     throw new Error('Not enough accounts');
   }
@@ -160,8 +177,9 @@ export function parseBeginVotingInstruction<
     programAddress: instruction.programAddress,
     accounts: {
       stakeAuthority: getNextAccount(),
-      proposal: getNextAccount(),
+      author: getNextAccount(),
+      systemProgram: getNextAccount(),
     },
-    data: getBeginVotingInstructionDataDecoder().decode(instruction.data),
+    data: getInitializeAuthorInstructionDataDecoder().decode(instruction.data),
   };
 }

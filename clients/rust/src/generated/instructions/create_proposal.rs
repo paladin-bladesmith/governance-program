@@ -79,7 +79,7 @@ pub struct CreateProposalInstructionData {
 
 impl CreateProposalInstructionData {
     pub fn new() -> Self {
-        Self { discriminator: 0 }
+        Self { discriminator: 1 }
     }
 }
 

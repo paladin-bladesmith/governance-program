@@ -54,7 +54,7 @@ pub struct DeleteVoteInstructionData {
 
 impl DeleteVoteInstructionData {
     pub fn new() -> Self {
-        Self { discriminator: 8 }
+        Self { discriminator: 9 }
     }
 }
 

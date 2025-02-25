@@ -64,7 +64,7 @@ pub struct RemoveInstructionInstructionData {
 
 impl RemoveInstructionInstructionData {
     pub fn new() -> Self {
-        Self { discriminator: 2 }
+        Self { discriminator: 3 }
     }
 }
 

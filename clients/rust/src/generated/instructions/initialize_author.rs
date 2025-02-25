@@ -4,57 +4,33 @@
 //!
 //! <https://github.com/kinobi-so/kinobi>
 
-use {
-    crate::generated::types::ProposalVoteElection,
-    borsh::{BorshDeserialize, BorshSerialize},
-};
+use borsh::{BorshDeserialize, BorshSerialize};
 
 /// Accounts.
-pub struct Vote {
-    /// Paladin stake authority account
+pub struct InitializeAuthor {
     pub stake_authority: solana_program::pubkey::Pubkey,
-    /// Paladin stake account
-    pub stake: solana_program::pubkey::Pubkey,
-    /// Paladin stake config account
-    pub stake_config: solana_program::pubkey::Pubkey,
-    /// Proposal vote account
-    pub vote: solana_program::pubkey::Pubkey,
-    /// Proposal account
-    pub proposal: solana_program::pubkey::Pubkey,
-    /// System program
+
+    pub author: solana_program::pubkey::Pubkey,
+
     pub system_program: solana_program::pubkey::Pubkey,
 }
 
-impl Vote {
-    pub fn instruction(
-        &self,
-        args: VoteInstructionArgs,
-    ) -> solana_program::instruction::Instruction {
-        self.instruction_with_remaining_accounts(args, &[])
+impl InitializeAuthor {
+    pub fn instruction(&self) -> solana_program::instruction::Instruction {
+        self.instruction_with_remaining_accounts(&[])
     }
     #[allow(clippy::vec_init_then_push)]
     pub fn instruction_with_remaining_accounts(
         &self,
-        args: VoteInstructionArgs,
         remaining_accounts: &[solana_program::instruction::AccountMeta],
     ) -> solana_program::instruction::Instruction {
-        let mut accounts = Vec::with_capacity(6 + remaining_accounts.len());
+        let mut accounts = Vec::with_capacity(3 + remaining_accounts.len());
         accounts.push(solana_program::instruction::AccountMeta::new_readonly(
             self.stake_authority,
-            true,
-        ));
-        accounts.push(solana_program::instruction::AccountMeta::new_readonly(
-            self.stake, false,
-        ));
-        accounts.push(solana_program::instruction::AccountMeta::new_readonly(
-            self.stake_config,
             false,
         ));
         accounts.push(solana_program::instruction::AccountMeta::new(
-            self.vote, false,
-        ));
-        accounts.push(solana_program::instruction::AccountMeta::new(
-            self.proposal,
+            self.author,
             false,
         ));
         accounts.push(solana_program::instruction::AccountMeta::new_readonly(
@@ -62,9 +38,7 @@ impl Vote {
             false,
         ));
         accounts.extend_from_slice(remaining_accounts);
-        let mut data = VoteInstructionData::new().try_to_vec().unwrap();
-        let mut args = args.try_to_vec().unwrap();
-        data.append(&mut args);
+        let data = InitializeAuthorInstructionData::new().try_to_vec().unwrap();
 
         solana_program::instruction::Instruction {
             program_id: crate::PALADIN_GOVERNANCE_ID,
@@ -75,56 +49,42 @@ impl Vote {
 }
 
 #[derive(BorshDeserialize, BorshSerialize)]
-pub struct VoteInstructionData {
+pub struct InitializeAuthorInstructionData {
     discriminator: u8,
 }
 
-impl VoteInstructionData {
+impl InitializeAuthorInstructionData {
     pub fn new() -> Self {
-        Self { discriminator: 6 }
+        Self { discriminator: 0 }
     }
 }
 
-impl Default for VoteInstructionData {
+impl Default for InitializeAuthorInstructionData {
     fn default() -> Self {
         Self::new()
     }
 }
 
-#[derive(BorshSerialize, BorshDeserialize, Clone, Debug, Eq, PartialEq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct VoteInstructionArgs {
-    pub election: ProposalVoteElection,
-}
-
-/// Instruction builder for `Vote`.
+/// Instruction builder for `InitializeAuthor`.
 ///
 /// ### Accounts:
 ///
-///   0. `[signer]` stake_authority
-///   1. `[]` stake
-///   2. `[]` stake_config
-///   3. `[writable]` vote
-///   4. `[writable]` proposal
-///   5. `[optional]` system_program (default to
+///   0. `[]` stake_authority
+///   1. `[writable]` author
+///   2. `[optional]` system_program (default to
 ///      `11111111111111111111111111111111`)
 #[derive(Clone, Debug, Default)]
-pub struct VoteBuilder {
+pub struct InitializeAuthorBuilder {
     stake_authority: Option<solana_program::pubkey::Pubkey>,
-    stake: Option<solana_program::pubkey::Pubkey>,
-    stake_config: Option<solana_program::pubkey::Pubkey>,
-    vote: Option<solana_program::pubkey::Pubkey>,
-    proposal: Option<solana_program::pubkey::Pubkey>,
+    author: Option<solana_program::pubkey::Pubkey>,
     system_program: Option<solana_program::pubkey::Pubkey>,
-    election: Option<ProposalVoteElection>,
     __remaining_accounts: Vec<solana_program::instruction::AccountMeta>,
 }
 
-impl VoteBuilder {
+impl InitializeAuthorBuilder {
     pub fn new() -> Self {
         Self::default()
     }
-    /// Paladin stake authority account
     #[inline(always)]
     pub fn stake_authority(
         &mut self,
@@ -133,40 +93,15 @@ impl VoteBuilder {
         self.stake_authority = Some(stake_authority);
         self
     }
-    /// Paladin stake account
     #[inline(always)]
-    pub fn stake(&mut self, stake: solana_program::pubkey::Pubkey) -> &mut Self {
-        self.stake = Some(stake);
-        self
-    }
-    /// Paladin stake config account
-    #[inline(always)]
-    pub fn stake_config(&mut self, stake_config: solana_program::pubkey::Pubkey) -> &mut Self {
-        self.stake_config = Some(stake_config);
-        self
-    }
-    /// Proposal vote account
-    #[inline(always)]
-    pub fn vote(&mut self, vote: solana_program::pubkey::Pubkey) -> &mut Self {
-        self.vote = Some(vote);
-        self
-    }
-    /// Proposal account
-    #[inline(always)]
-    pub fn proposal(&mut self, proposal: solana_program::pubkey::Pubkey) -> &mut Self {
-        self.proposal = Some(proposal);
+    pub fn author(&mut self, author: solana_program::pubkey::Pubkey) -> &mut Self {
+        self.author = Some(author);
         self
     }
     /// `[optional account, default to '11111111111111111111111111111111']`
-    /// System program
     #[inline(always)]
     pub fn system_program(&mut self, system_program: solana_program::pubkey::Pubkey) -> &mut Self {
         self.system_program = Some(system_program);
-        self
-    }
-    #[inline(always)]
-    pub fn election(&mut self, election: ProposalVoteElection) -> &mut Self {
-        self.election = Some(election);
         self
     }
     /// Add an aditional account to the instruction.
@@ -189,75 +124,49 @@ impl VoteBuilder {
     }
     #[allow(clippy::clone_on_copy)]
     pub fn instruction(&self) -> solana_program::instruction::Instruction {
-        let accounts = Vote {
+        let accounts = InitializeAuthor {
             stake_authority: self.stake_authority.expect("stake_authority is not set"),
-            stake: self.stake.expect("stake is not set"),
-            stake_config: self.stake_config.expect("stake_config is not set"),
-            vote: self.vote.expect("vote is not set"),
-            proposal: self.proposal.expect("proposal is not set"),
+            author: self.author.expect("author is not set"),
             system_program: self
                 .system_program
                 .unwrap_or(solana_program::pubkey!("11111111111111111111111111111111")),
         };
-        let args = VoteInstructionArgs {
-            election: self.election.clone().expect("election is not set"),
-        };
 
-        accounts.instruction_with_remaining_accounts(args, &self.__remaining_accounts)
+        accounts.instruction_with_remaining_accounts(&self.__remaining_accounts)
     }
 }
 
-/// `vote` CPI accounts.
-pub struct VoteCpiAccounts<'a, 'b> {
-    /// Paladin stake authority account
+/// `initialize_author` CPI accounts.
+pub struct InitializeAuthorCpiAccounts<'a, 'b> {
     pub stake_authority: &'b solana_program::account_info::AccountInfo<'a>,
-    /// Paladin stake account
-    pub stake: &'b solana_program::account_info::AccountInfo<'a>,
-    /// Paladin stake config account
-    pub stake_config: &'b solana_program::account_info::AccountInfo<'a>,
-    /// Proposal vote account
-    pub vote: &'b solana_program::account_info::AccountInfo<'a>,
-    /// Proposal account
-    pub proposal: &'b solana_program::account_info::AccountInfo<'a>,
-    /// System program
+
+    pub author: &'b solana_program::account_info::AccountInfo<'a>,
+
     pub system_program: &'b solana_program::account_info::AccountInfo<'a>,
 }
 
-/// `vote` CPI instruction.
-pub struct VoteCpi<'a, 'b> {
+/// `initialize_author` CPI instruction.
+pub struct InitializeAuthorCpi<'a, 'b> {
     /// The program to invoke.
     pub __program: &'b solana_program::account_info::AccountInfo<'a>,
-    /// Paladin stake authority account
+
     pub stake_authority: &'b solana_program::account_info::AccountInfo<'a>,
-    /// Paladin stake account
-    pub stake: &'b solana_program::account_info::AccountInfo<'a>,
-    /// Paladin stake config account
-    pub stake_config: &'b solana_program::account_info::AccountInfo<'a>,
-    /// Proposal vote account
-    pub vote: &'b solana_program::account_info::AccountInfo<'a>,
-    /// Proposal account
-    pub proposal: &'b solana_program::account_info::AccountInfo<'a>,
-    /// System program
+
+    pub author: &'b solana_program::account_info::AccountInfo<'a>,
+
     pub system_program: &'b solana_program::account_info::AccountInfo<'a>,
-    /// The arguments for the instruction.
-    pub __args: VoteInstructionArgs,
 }
 
-impl<'a, 'b> VoteCpi<'a, 'b> {
+impl<'a, 'b> InitializeAuthorCpi<'a, 'b> {
     pub fn new(
         program: &'b solana_program::account_info::AccountInfo<'a>,
-        accounts: VoteCpiAccounts<'a, 'b>,
-        args: VoteInstructionArgs,
+        accounts: InitializeAuthorCpiAccounts<'a, 'b>,
     ) -> Self {
         Self {
             __program: program,
             stake_authority: accounts.stake_authority,
-            stake: accounts.stake,
-            stake_config: accounts.stake_config,
-            vote: accounts.vote,
-            proposal: accounts.proposal,
+            author: accounts.author,
             system_program: accounts.system_program,
-            __args: args,
         }
     }
     #[inline(always)]
@@ -293,25 +202,13 @@ impl<'a, 'b> VoteCpi<'a, 'b> {
             bool,
         )],
     ) -> solana_program::entrypoint::ProgramResult {
-        let mut accounts = Vec::with_capacity(6 + remaining_accounts.len());
+        let mut accounts = Vec::with_capacity(3 + remaining_accounts.len());
         accounts.push(solana_program::instruction::AccountMeta::new_readonly(
             *self.stake_authority.key,
-            true,
-        ));
-        accounts.push(solana_program::instruction::AccountMeta::new_readonly(
-            *self.stake.key,
-            false,
-        ));
-        accounts.push(solana_program::instruction::AccountMeta::new_readonly(
-            *self.stake_config.key,
             false,
         ));
         accounts.push(solana_program::instruction::AccountMeta::new(
-            *self.vote.key,
-            false,
-        ));
-        accounts.push(solana_program::instruction::AccountMeta::new(
-            *self.proposal.key,
+            *self.author.key,
             false,
         ));
         accounts.push(solana_program::instruction::AccountMeta::new_readonly(
@@ -325,22 +222,17 @@ impl<'a, 'b> VoteCpi<'a, 'b> {
                 is_writable: remaining_account.2,
             })
         });
-        let mut data = VoteInstructionData::new().try_to_vec().unwrap();
-        let mut args = self.__args.try_to_vec().unwrap();
-        data.append(&mut args);
+        let data = InitializeAuthorInstructionData::new().try_to_vec().unwrap();
 
         let instruction = solana_program::instruction::Instruction {
             program_id: crate::PALADIN_GOVERNANCE_ID,
             accounts,
             data,
         };
-        let mut account_infos = Vec::with_capacity(6 + 1 + remaining_accounts.len());
+        let mut account_infos = Vec::with_capacity(3 + 1 + remaining_accounts.len());
         account_infos.push(self.__program.clone());
         account_infos.push(self.stake_authority.clone());
-        account_infos.push(self.stake.clone());
-        account_infos.push(self.stake_config.clone());
-        account_infos.push(self.vote.clone());
-        account_infos.push(self.proposal.clone());
+        account_infos.push(self.author.clone());
         account_infos.push(self.system_program.clone());
         remaining_accounts
             .iter()
@@ -354,37 +246,29 @@ impl<'a, 'b> VoteCpi<'a, 'b> {
     }
 }
 
-/// Instruction builder for `Vote` via CPI.
+/// Instruction builder for `InitializeAuthor` via CPI.
 ///
 /// ### Accounts:
 ///
-///   0. `[signer]` stake_authority
-///   1. `[]` stake
-///   2. `[]` stake_config
-///   3. `[writable]` vote
-///   4. `[writable]` proposal
-///   5. `[]` system_program
+///   0. `[]` stake_authority
+///   1. `[writable]` author
+///   2. `[]` system_program
 #[derive(Clone, Debug)]
-pub struct VoteCpiBuilder<'a, 'b> {
-    instruction: Box<VoteCpiBuilderInstruction<'a, 'b>>,
+pub struct InitializeAuthorCpiBuilder<'a, 'b> {
+    instruction: Box<InitializeAuthorCpiBuilderInstruction<'a, 'b>>,
 }
 
-impl<'a, 'b> VoteCpiBuilder<'a, 'b> {
+impl<'a, 'b> InitializeAuthorCpiBuilder<'a, 'b> {
     pub fn new(program: &'b solana_program::account_info::AccountInfo<'a>) -> Self {
-        let instruction = Box::new(VoteCpiBuilderInstruction {
+        let instruction = Box::new(InitializeAuthorCpiBuilderInstruction {
             __program: program,
             stake_authority: None,
-            stake: None,
-            stake_config: None,
-            vote: None,
-            proposal: None,
+            author: None,
             system_program: None,
-            election: None,
             __remaining_accounts: Vec::new(),
         });
         Self { instruction }
     }
-    /// Paladin stake authority account
     #[inline(always)]
     pub fn stake_authority(
         &mut self,
@@ -393,48 +277,20 @@ impl<'a, 'b> VoteCpiBuilder<'a, 'b> {
         self.instruction.stake_authority = Some(stake_authority);
         self
     }
-    /// Paladin stake account
     #[inline(always)]
-    pub fn stake(&mut self, stake: &'b solana_program::account_info::AccountInfo<'a>) -> &mut Self {
-        self.instruction.stake = Some(stake);
-        self
-    }
-    /// Paladin stake config account
-    #[inline(always)]
-    pub fn stake_config(
+    pub fn author(
         &mut self,
-        stake_config: &'b solana_program::account_info::AccountInfo<'a>,
+        author: &'b solana_program::account_info::AccountInfo<'a>,
     ) -> &mut Self {
-        self.instruction.stake_config = Some(stake_config);
+        self.instruction.author = Some(author);
         self
     }
-    /// Proposal vote account
-    #[inline(always)]
-    pub fn vote(&mut self, vote: &'b solana_program::account_info::AccountInfo<'a>) -> &mut Self {
-        self.instruction.vote = Some(vote);
-        self
-    }
-    /// Proposal account
-    #[inline(always)]
-    pub fn proposal(
-        &mut self,
-        proposal: &'b solana_program::account_info::AccountInfo<'a>,
-    ) -> &mut Self {
-        self.instruction.proposal = Some(proposal);
-        self
-    }
-    /// System program
     #[inline(always)]
     pub fn system_program(
         &mut self,
         system_program: &'b solana_program::account_info::AccountInfo<'a>,
     ) -> &mut Self {
         self.instruction.system_program = Some(system_program);
-        self
-    }
-    #[inline(always)]
-    pub fn election(&mut self, election: ProposalVoteElection) -> &mut Self {
-        self.instruction.election = Some(election);
         self
     }
     /// Add an additional account to the instruction.
@@ -479,14 +335,7 @@ impl<'a, 'b> VoteCpiBuilder<'a, 'b> {
         &self,
         signers_seeds: &[&[&[u8]]],
     ) -> solana_program::entrypoint::ProgramResult {
-        let args = VoteInstructionArgs {
-            election: self
-                .instruction
-                .election
-                .clone()
-                .expect("election is not set"),
-        };
-        let instruction = VoteCpi {
+        let instruction = InitializeAuthorCpi {
             __program: self.instruction.__program,
 
             stake_authority: self
@@ -494,22 +343,12 @@ impl<'a, 'b> VoteCpiBuilder<'a, 'b> {
                 .stake_authority
                 .expect("stake_authority is not set"),
 
-            stake: self.instruction.stake.expect("stake is not set"),
-
-            stake_config: self
-                .instruction
-                .stake_config
-                .expect("stake_config is not set"),
-
-            vote: self.instruction.vote.expect("vote is not set"),
-
-            proposal: self.instruction.proposal.expect("proposal is not set"),
+            author: self.instruction.author.expect("author is not set"),
 
             system_program: self
                 .instruction
                 .system_program
                 .expect("system_program is not set"),
-            __args: args,
         };
         instruction.invoke_signed_with_remaining_accounts(
             signers_seeds,
@@ -519,15 +358,11 @@ impl<'a, 'b> VoteCpiBuilder<'a, 'b> {
 }
 
 #[derive(Clone, Debug)]
-struct VoteCpiBuilderInstruction<'a, 'b> {
+struct InitializeAuthorCpiBuilderInstruction<'a, 'b> {
     __program: &'b solana_program::account_info::AccountInfo<'a>,
     stake_authority: Option<&'b solana_program::account_info::AccountInfo<'a>>,
-    stake: Option<&'b solana_program::account_info::AccountInfo<'a>>,
-    stake_config: Option<&'b solana_program::account_info::AccountInfo<'a>>,
-    vote: Option<&'b solana_program::account_info::AccountInfo<'a>>,
-    proposal: Option<&'b solana_program::account_info::AccountInfo<'a>>,
+    author: Option<&'b solana_program::account_info::AccountInfo<'a>>,
     system_program: Option<&'b solana_program::account_info::AccountInfo<'a>>,
-    election: Option<ProposalVoteElection>,
     /// Additional instruction accounts `(AccountInfo, is_writable, is_signer)`.
     __remaining_accounts: Vec<(
         &'b solana_program::account_info::AccountInfo<'a>,

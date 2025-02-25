@@ -182,11 +182,24 @@ pub(crate) fn collect_proposal_vote_signer_seeds<'a>(
 }
 
 pub fn get_proposal_author_address(stake_authority: &Pubkey, program_id: &Pubkey) -> Pubkey {
+    get_proposal_author_address_and_bump(stake_authority, program_id).0
+}
+
+pub fn get_proposal_author_address_and_bump(
+    stake_authority: &Pubkey,
+    program_id: &Pubkey,
+) -> (Pubkey, u8) {
     Pubkey::find_program_address(
         &[b"proposal_author", &stake_authority.to_bytes()],
         program_id,
     )
-    .0
+}
+
+pub(crate) fn collect_proposal_author_seeds<'a>(
+    stake_authority: &'a Pubkey,
+    bump: &'a [u8],
+) -> [&'a [u8]; 3] {
+    [b"proposal_author", stake_authority.as_ref(), bump]
 }
 
 /// Governance configuration account.
@@ -366,6 +379,8 @@ pub struct Proposal {
 }
 
 impl Proposal {
+    pub const LEN: usize = std::mem::size_of::<Proposal>();
+
     /// Create a new [Proposal](struct.Proposal.html).
     pub fn new(
         author: &Pubkey,
@@ -456,4 +471,8 @@ pub struct ProposalVote {
 #[repr(C)]
 pub struct Author {
     pub active_proposals: u64,
+}
+
+impl Author {
+    pub const LEN: usize = std::mem::size_of::<Author>();
 }

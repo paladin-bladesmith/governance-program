@@ -86,7 +86,7 @@ export function getInitializeGovernanceInstructionDataEncoder(): Encoder<Initial
       ['votingPeriodSeconds', getU64Encoder()],
       ['stakePerProposal', getU64Encoder()],
     ]),
-    (value) => ({ ...value, discriminator: 10 })
+    (value) => ({ ...value, discriminator: 11 })
   );
 }
 

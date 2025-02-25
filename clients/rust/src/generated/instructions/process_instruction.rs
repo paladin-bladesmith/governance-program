@@ -58,7 +58,7 @@ pub struct ProcessInstructionInstructionData {
 
 impl ProcessInstructionInstructionData {
     pub fn new() -> Self {
-        Self { discriminator: 9 }
+        Self { discriminator: 10 }
     }
 }
 

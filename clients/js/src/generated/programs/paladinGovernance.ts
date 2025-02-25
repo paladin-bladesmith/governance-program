@@ -18,6 +18,7 @@ import {
   type ParsedDeleteProposalInstruction,
   type ParsedDeleteVoteInstruction,
   type ParsedFinishVotingInstruction,
+  type ParsedInitializeAuthorInstruction,
   type ParsedInitializeGovernanceInstruction,
   type ParsedProcessInstructionInstruction,
   type ParsedPushInstructionInstruction,
@@ -38,6 +39,7 @@ export enum PaladinGovernanceAccount {
 }
 
 export enum PaladinGovernanceInstruction {
+  InitializeAuthor,
   CreateProposal,
   PushInstruction,
   RemoveInstruction,
@@ -57,39 +59,42 @@ export function identifyPaladinGovernanceInstruction(
 ): PaladinGovernanceInstruction {
   const data = 'data' in instruction ? instruction.data : instruction;
   if (containsBytes(data, getU8Encoder().encode(0), 0)) {
-    return PaladinGovernanceInstruction.CreateProposal;
+    return PaladinGovernanceInstruction.InitializeAuthor;
   }
   if (containsBytes(data, getU8Encoder().encode(1), 0)) {
-    return PaladinGovernanceInstruction.PushInstruction;
+    return PaladinGovernanceInstruction.CreateProposal;
   }
   if (containsBytes(data, getU8Encoder().encode(2), 0)) {
-    return PaladinGovernanceInstruction.RemoveInstruction;
+    return PaladinGovernanceInstruction.PushInstruction;
   }
   if (containsBytes(data, getU8Encoder().encode(3), 0)) {
-    return PaladinGovernanceInstruction.DeleteProposal;
+    return PaladinGovernanceInstruction.RemoveInstruction;
   }
   if (containsBytes(data, getU8Encoder().encode(4), 0)) {
-    return PaladinGovernanceInstruction.BeginVoting;
+    return PaladinGovernanceInstruction.DeleteProposal;
   }
   if (containsBytes(data, getU8Encoder().encode(5), 0)) {
-    return PaladinGovernanceInstruction.Vote;
+    return PaladinGovernanceInstruction.BeginVoting;
   }
   if (containsBytes(data, getU8Encoder().encode(6), 0)) {
-    return PaladinGovernanceInstruction.SwitchVote;
+    return PaladinGovernanceInstruction.Vote;
   }
   if (containsBytes(data, getU8Encoder().encode(7), 0)) {
-    return PaladinGovernanceInstruction.FinishVoting;
+    return PaladinGovernanceInstruction.SwitchVote;
   }
   if (containsBytes(data, getU8Encoder().encode(8), 0)) {
-    return PaladinGovernanceInstruction.DeleteVote;
+    return PaladinGovernanceInstruction.FinishVoting;
   }
   if (containsBytes(data, getU8Encoder().encode(9), 0)) {
-    return PaladinGovernanceInstruction.ProcessInstruction;
+    return PaladinGovernanceInstruction.DeleteVote;
   }
   if (containsBytes(data, getU8Encoder().encode(10), 0)) {
-    return PaladinGovernanceInstruction.InitializeGovernance;
+    return PaladinGovernanceInstruction.ProcessInstruction;
   }
   if (containsBytes(data, getU8Encoder().encode(11), 0)) {
+    return PaladinGovernanceInstruction.InitializeGovernance;
+  }
+  if (containsBytes(data, getU8Encoder().encode(12), 0)) {
     return PaladinGovernanceInstruction.UpdateGovernance;
   }
   throw new Error(
@@ -100,6 +105,9 @@ export function identifyPaladinGovernanceInstruction(
 export type ParsedPaladinGovernanceInstruction<
   TProgram extends string = '8WAFLJeTHWK9a4tZYonvVRJPVFWRnDpejSrabNYR1QGf',
 > =
+  | ({
+      instructionType: PaladinGovernanceInstruction.InitializeAuthor;
+    } & ParsedInitializeAuthorInstruction<TProgram>)
   | ({
       instructionType: PaladinGovernanceInstruction.CreateProposal;
     } & ParsedCreateProposalInstruction<TProgram>)

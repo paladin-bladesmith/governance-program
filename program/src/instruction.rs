@@ -17,6 +17,10 @@ use {
 #[rustfmt::skip]
 #[derive(Clone, Debug, PartialEq, ShankInstruction)]
 pub enum PaladinGovernanceInstruction {
+    #[account(0, name = "stake_authority")]
+    #[account(1, name = "author", writable)]
+    #[account(2, name = "system_program")]
+    InitializeAuthor,
     /// Create a new governance proposal.
     ///
     /// Expects an uninitialized proposal account with enough rent-exempt
@@ -435,52 +439,36 @@ impl PaladinGovernanceInstruction {
     /// into a byte buffer.
     pub fn pack(&self) -> Vec<u8> {
         match self {
-            Self::CreateProposal => vec![0],
+            Self::InitializeAuthor => vec![0],
+            Self::CreateProposal => vec![1],
             Self::PushInstruction {
                 instruction_program_id,
                 instruction_account_metas,
                 instruction_data,
             } => {
-                let mut buf = vec![1];
+                let mut buf = vec![2];
                 instruction_program_id.serialize(&mut buf).unwrap();
                 instruction_account_metas.serialize(&mut buf).unwrap();
                 instruction_data.serialize(&mut buf).unwrap();
                 buf
             }
             Self::RemoveInstruction { instruction_index } => {
-                let mut buf = vec![2];
+                let mut buf = vec![3];
                 buf.extend_from_slice(&instruction_index.to_le_bytes());
                 buf
             }
-            Self::DeleteProposal => vec![3],
-            Self::BeginVoting => vec![4],
-            Self::Vote { election } => vec![5, (*election).into()],
-            Self::SwitchVote { new_election } => vec![6, (*new_election).into()],
-            Self::FinishVoting => vec![7],
-            Self::DeleteVote => vec![8],
+            Self::DeleteProposal => vec![4],
+            Self::BeginVoting => vec![5],
+            Self::Vote { election } => vec![6, (*election).into()],
+            Self::SwitchVote { new_election } => vec![7, (*new_election).into()],
+            Self::FinishVoting => vec![8],
+            Self::DeleteVote => vec![9],
             Self::ProcessInstruction { instruction_index } => {
-                let mut buf = vec![9];
+                let mut buf = vec![10];
                 buf.extend_from_slice(&instruction_index.to_le_bytes());
                 buf
             }
             Self::InitializeGovernance {
-                governance_id,
-                cooldown_period_seconds,
-                proposal_minimum_quorum,
-                proposal_pass_threshold,
-                voting_period_seconds,
-                stake_per_proposal,
-            } => {
-                let mut buf = vec![10];
-                buf.extend_from_slice(&governance_id.to_le_bytes());
-                buf.extend_from_slice(&cooldown_period_seconds.to_le_bytes());
-                buf.extend_from_slice(&proposal_minimum_quorum.to_le_bytes());
-                buf.extend_from_slice(&proposal_pass_threshold.to_le_bytes());
-                buf.extend_from_slice(&voting_period_seconds.to_le_bytes());
-                buf.extend_from_slice(&stake_per_proposal.to_le_bytes());
-                buf
-            }
-            Self::UpdateGovernance {
                 governance_id,
                 cooldown_period_seconds,
                 proposal_minimum_quorum,
@@ -497,6 +485,23 @@ impl PaladinGovernanceInstruction {
                 buf.extend_from_slice(&stake_per_proposal.to_le_bytes());
                 buf
             }
+            Self::UpdateGovernance {
+                governance_id,
+                cooldown_period_seconds,
+                proposal_minimum_quorum,
+                proposal_pass_threshold,
+                voting_period_seconds,
+                stake_per_proposal,
+            } => {
+                let mut buf = vec![12];
+                buf.extend_from_slice(&governance_id.to_le_bytes());
+                buf.extend_from_slice(&cooldown_period_seconds.to_le_bytes());
+                buf.extend_from_slice(&proposal_minimum_quorum.to_le_bytes());
+                buf.extend_from_slice(&proposal_pass_threshold.to_le_bytes());
+                buf.extend_from_slice(&voting_period_seconds.to_le_bytes());
+                buf.extend_from_slice(&stake_per_proposal.to_le_bytes());
+                buf
+            }
         }
     }
 
@@ -504,8 +509,9 @@ impl PaladinGovernanceInstruction {
     /// [PaladinGovernanceInstruction](enum.PaladinGovernanceInstruction.html).
     pub fn unpack(input: &[u8]) -> Result<Self, ProgramError> {
         match input.split_first() {
-            Some((&0, _)) => Ok(Self::CreateProposal),
-            Some((&1, rest)) => {
+            Some((&0, _)) => Ok(Self::InitializeAuthor),
+            Some((&1, _)) => Ok(Self::CreateProposal),
+            Some((&2, rest)) => {
                 #[derive(BorshDeserialize)]
                 struct Instruction {
                     instruction_program_id: Pubkey,
@@ -524,31 +530,31 @@ impl PaladinGovernanceInstruction {
                     instruction_data,
                 })
             }
-            Some((&2, rest)) if rest.len() == 4 => {
+            Some((&3, rest)) if rest.len() == 4 => {
                 let instruction_index = u32::from_le_bytes(rest.try_into().unwrap());
                 Ok(Self::RemoveInstruction { instruction_index })
             }
-            Some((&3, _)) => Ok(Self::DeleteProposal),
-            Some((&4, _)) => Ok(Self::BeginVoting),
-            Some((&5, rest)) if rest.len() == 1 => {
+            Some((&4, _)) => Ok(Self::DeleteProposal),
+            Some((&5, _)) => Ok(Self::BeginVoting),
+            Some((&6, rest)) if rest.len() == 1 => {
                 let election = rest[0]
                     .try_into()
                     .map_err(|_| ProgramError::InvalidInstructionData)?;
                 Ok(Self::Vote { election })
             }
-            Some((&6, rest)) if rest.len() == 1 => {
+            Some((&7, rest)) if rest.len() == 1 => {
                 let new_election = rest[0]
                     .try_into()
                     .map_err(|_| ProgramError::InvalidInstructionData)?;
                 Ok(Self::SwitchVote { new_election })
             }
-            Some((&7, _)) => Ok(Self::FinishVoting),
-            Some((&8, _)) => Ok(Self::DeleteVote),
-            Some((&9, rest)) if rest.len() == 4 => {
+            Some((&8, _)) => Ok(Self::FinishVoting),
+            Some((&9, _)) => Ok(Self::DeleteVote),
+            Some((&10, rest)) if rest.len() == 4 => {
                 let instruction_index = u32::from_le_bytes(rest.try_into().unwrap());
                 Ok(Self::ProcessInstruction { instruction_index })
             }
-            Some((&10, rest)) if rest.len() == 40 => {
+            Some((&11, rest)) if rest.len() == 40 => {
                 let rest = array_ref![rest, 0, 40];
                 let (
                     governance_id,
@@ -575,7 +581,7 @@ impl PaladinGovernanceInstruction {
                     stake_per_proposal,
                 })
             }
-            Some((&11, rest)) if rest.len() == 40 => {
+            Some((&12, rest)) if rest.len() == 40 => {
                 let rest = array_ref![rest, 0, 40];
                 let (
                     governance_id,
@@ -796,6 +802,20 @@ pub fn process_instruction(
     accounts.extend_from_slice(account_metas);
     let data = PaladinGovernanceInstruction::ProcessInstruction { instruction_index }.pack();
     Instruction::new_with_bytes(crate::id(), &data, accounts)
+}
+
+pub fn initialize_author(stake_authority_address: Pubkey) -> Instruction {
+    let accounts = vec![
+        AccountMeta::new_readonly(system_program::ID, false),
+        AccountMeta::new_readonly(stake_authority_address, false),
+        AccountMeta::new(
+            crate::state::get_proposal_author_address(&stake_authority_address, &crate::ID),
+            false,
+        ),
+    ];
+    let data = PaladinGovernanceInstruction::InitializeAuthor.pack();
+
+    Instruction::new_with_bytes(crate::ID, &data, accounts)
 }
 
 /// Creates a

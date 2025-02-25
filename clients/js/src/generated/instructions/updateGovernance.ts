@@ -83,7 +83,7 @@ export function getUpdateGovernanceInstructionDataEncoder(): Encoder<UpdateGover
       ['votingPeriodSeconds', getU64Encoder()],
       ['stakePerProposal', getU64Encoder()],
     ]),
-    (value) => ({ ...value, discriminator: 11 })
+    (value) => ({ ...value, discriminator: 12 })
   );
 }
 

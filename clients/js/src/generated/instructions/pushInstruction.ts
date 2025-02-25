@@ -98,7 +98,7 @@ export function getPushInstructionInstructionDataEncoder(): Encoder<PushInstruct
         addEncoderSizePrefix(getBytesEncoder(), getU32Encoder()),
       ],
     ]),
-    (value) => ({ ...value, discriminator: 1 })
+    (value) => ({ ...value, discriminator: 2 })
   );
 }
 

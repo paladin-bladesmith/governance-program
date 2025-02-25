@@ -79,7 +79,7 @@ export type CreateProposalInstructionDataArgs = {};
 export function getCreateProposalInstructionDataEncoder(): Encoder<CreateProposalInstructionDataArgs> {
   return transformEncoder(
     getStructEncoder([['discriminator', getU8Encoder()]]),
-    (value) => ({ ...value, discriminator: 0 })
+    (value) => ({ ...value, discriminator: 1 })
   );
 }
 

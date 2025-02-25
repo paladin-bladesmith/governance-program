@@ -11,6 +11,7 @@ export * from './createProposal';
 export * from './deleteProposal';
 export * from './deleteVote';
 export * from './finishVoting';
+export * from './initializeAuthor';
 export * from './initializeGovernance';
 export * from './processInstruction';
 export * from './pushInstruction';

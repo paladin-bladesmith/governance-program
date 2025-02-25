@@ -69,7 +69,7 @@ export function getRemoveInstructionInstructionDataEncoder(): Encoder<RemoveInst
       ['discriminator', getU8Encoder()],
       ['instructionIndex', getU32Encoder()],
     ]),
-    (value) => ({ ...value, discriminator: 2 })
+    (value) => ({ ...value, discriminator: 3 })
   );
 }
 

@@ -198,6 +198,48 @@ fn check_proposal_transaction_exists(
     Ok(())
 }
 
+fn process_initialize_author(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
+    let accounts_iter = &mut accounts.iter();
+
+    let _system_program = next_account_info(accounts_iter)?;
+    let stake_authority_info = next_account_info(accounts_iter)?;
+    let author_info = next_account_info(accounts_iter)?;
+
+    // Check the author account.
+    let (author_pda, author_bump) =
+        crate::state::get_proposal_author_address_and_bump(stake_authority_info.key, program_id);
+    solana_program::msg!("{} == {}", author_info.key, author_pda);
+    require!(author_info.key == &author_pda, ProgramError::InvalidSeeds);
+    require!(
+        author_info.data_is_empty(),
+        ProgramError::AccountAlreadyInitialized
+    );
+    require!(
+        author_info.lamports() >= Rent::get()?.minimum_balance(Author::LEN),
+        ProgramError::AccountNotRentExempt
+    );
+
+    // Assign & allocate the desired size.
+    invoke_signed(
+        &system_instruction::allocate(author_info.key, Author::LEN as u64),
+        &[author_info.clone()],
+        &[&crate::state::collect_proposal_author_seeds(
+            stake_authority_info.key,
+            &[author_bump],
+        )],
+    )?;
+    invoke_signed(
+        &system_instruction::assign(author_info.key, program_id),
+        &[author_info.clone()],
+        &[&crate::state::collect_proposal_author_seeds(
+            stake_authority_info.key,
+            &[author_bump],
+        )],
+    )?;
+
+    Ok(())
+}
+
 /// Processes a
 /// [CreateProposal](enum.PaladinGovernanceInstruction.html)
 /// instruction.
@@ -273,7 +315,7 @@ fn process_create_proposal(program_id: &Pubkey, accounts: &[AccountInfo]) -> Pro
         }
 
         // Ensure the proposal account has enough space.
-        if proposal_info.data_len() != std::mem::size_of::<Proposal>() {
+        if proposal_info.data_len() != Proposal::LEN {
             return Err(ProgramError::InvalidAccountData);
         }
 
@@ -284,6 +326,12 @@ fn process_create_proposal(program_id: &Pubkey, accounts: &[AccountInfo]) -> Pro
 
         let clock = <Clock as Sysvar>::get()?;
         let creation_timestamp = clock.unix_timestamp;
+
+        // Ensure the account is rent exempt.
+        require!(
+            proposal_info.lamports() >= Rent::get()?.minimum_balance(Proposal::LEN),
+            ProgramError::AccountNotRentExempt
+        );
 
         // Write the data.
         let mut proposal_data = proposal_info.try_borrow_mut_data()?;
@@ -322,9 +370,10 @@ fn process_create_proposal(program_id: &Pubkey, accounts: &[AccountInfo]) -> Pro
         let space = get_instance_packed_len(&state)?;
 
         // Ensure the account is rent exempt.
-        if governance_info.lamports() < Rent::get()?.minimum_balance(space) {
-            return Err(ProgramError::AccountNotRentExempt);
-        }
+        require!(
+            proposal_transaction_info.lamports() >= Rent::get()?.minimum_balance(space),
+            ProgramError::AccountNotRentExempt
+        );
 
         // Allocate & assign.
         invoke_signed(
@@ -1247,6 +1296,10 @@ fn process_update_governance(
 pub fn process(program_id: &Pubkey, accounts: &[AccountInfo], input: &[u8]) -> ProgramResult {
     let instruction = PaladinGovernanceInstruction::unpack(input)?;
     match instruction {
+        PaladinGovernanceInstruction::InitializeAuthor => {
+            msg!("Instruction: CreateProposal");
+            process_initialize_author(program_id, accounts)
+        }
         PaladinGovernanceInstruction::CreateProposal => {
             msg!("Instruction: CreateProposal");
             process_create_proposal(program_id, accounts)
