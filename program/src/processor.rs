@@ -252,6 +252,8 @@ fn process_create_proposal(program_id: &Pubkey, accounts: &[AccountInfo]) -> Pro
     let proposal_info = next_account_info(accounts_iter)?;
     let proposal_transaction_info = next_account_info(accounts_iter)?;
     let governance_info = next_account_info(accounts_iter)?;
+    // NB: Must be loaded for CPIs but never directly accessed.
+    let _system_program_info = next_account_info(accounts_iter)?;
 
     // Ensure the stake authority is a signer.
     if !stake_authority_info.is_signer {
