@@ -22,7 +22,6 @@ import {
   type ParsedInitializeGovernanceInstruction,
   type ParsedProcessInstructionInstruction,
   type ParsedPushInstructionInstruction,
-  type ParsedRemoveInstructionInstruction,
   type ParsedSwitchVoteInstruction,
   type ParsedUpdateGovernanceInstruction,
   type ParsedVoteInstruction,
@@ -42,7 +41,6 @@ export enum PaladinGovernanceInstruction {
   InitializeAuthor,
   CreateProposal,
   PushInstruction,
-  RemoveInstruction,
   DeleteProposal,
   BeginVoting,
   Vote,
@@ -68,33 +66,30 @@ export function identifyPaladinGovernanceInstruction(
     return PaladinGovernanceInstruction.PushInstruction;
   }
   if (containsBytes(data, getU8Encoder().encode(3), 0)) {
-    return PaladinGovernanceInstruction.RemoveInstruction;
-  }
-  if (containsBytes(data, getU8Encoder().encode(4), 0)) {
     return PaladinGovernanceInstruction.DeleteProposal;
   }
-  if (containsBytes(data, getU8Encoder().encode(5), 0)) {
+  if (containsBytes(data, getU8Encoder().encode(4), 0)) {
     return PaladinGovernanceInstruction.BeginVoting;
   }
-  if (containsBytes(data, getU8Encoder().encode(6), 0)) {
+  if (containsBytes(data, getU8Encoder().encode(5), 0)) {
     return PaladinGovernanceInstruction.Vote;
   }
-  if (containsBytes(data, getU8Encoder().encode(7), 0)) {
+  if (containsBytes(data, getU8Encoder().encode(6), 0)) {
     return PaladinGovernanceInstruction.SwitchVote;
   }
-  if (containsBytes(data, getU8Encoder().encode(8), 0)) {
+  if (containsBytes(data, getU8Encoder().encode(7), 0)) {
     return PaladinGovernanceInstruction.FinishVoting;
   }
-  if (containsBytes(data, getU8Encoder().encode(9), 0)) {
+  if (containsBytes(data, getU8Encoder().encode(8), 0)) {
     return PaladinGovernanceInstruction.DeleteVote;
   }
-  if (containsBytes(data, getU8Encoder().encode(10), 0)) {
+  if (containsBytes(data, getU8Encoder().encode(9), 0)) {
     return PaladinGovernanceInstruction.ProcessInstruction;
   }
-  if (containsBytes(data, getU8Encoder().encode(11), 0)) {
+  if (containsBytes(data, getU8Encoder().encode(10), 0)) {
     return PaladinGovernanceInstruction.InitializeGovernance;
   }
-  if (containsBytes(data, getU8Encoder().encode(12), 0)) {
+  if (containsBytes(data, getU8Encoder().encode(11), 0)) {
     return PaladinGovernanceInstruction.UpdateGovernance;
   }
   throw new Error(
@@ -114,9 +109,6 @@ export type ParsedPaladinGovernanceInstruction<
   | ({
       instructionType: PaladinGovernanceInstruction.PushInstruction;
     } & ParsedPushInstructionInstruction<TProgram>)
-  | ({
-      instructionType: PaladinGovernanceInstruction.RemoveInstruction;
-    } & ParsedRemoveInstructionInstruction<TProgram>)
   | ({
       instructionType: PaladinGovernanceInstruction.DeleteProposal;
     } & ParsedDeleteProposalInstruction<TProgram>)

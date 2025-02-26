@@ -112,36 +112,6 @@ pub enum PaladinGovernanceInstruction {
         /// The data to pass to the program.
         instruction_data: Vec<u8>,
     },
-    /// Removes an instruction from a governance proposal.
-    ///
-    /// Authority account provided must be the proposal creator.
-    ///
-    /// Accounts expected by this instruction:
-    ///
-    /// 0. `[s]` Paladin stake authority account.
-    /// 1. `[ ]` Proposal account.
-    /// 2. `[w]` Proposal transaction account.
-    #[account(
-        0,
-        signer,
-        name = "stake_authority",
-        description = "Paladin stake authority account"
-    )]
-    #[account(
-        1,
-        name = "proposal",
-        description = "Proposal account"
-    )]
-    #[account(
-        2,
-        writable,
-        name = "proposal_transaction",
-        description = "Proposal transaction account"
-    )]
-    RemoveInstruction {
-        /// The index of the instruction to remove.
-        instruction_index: u32,
-    },
     /// Delete a governance proposal.
     ///
     /// Authority account provided must be the proposal creator.
@@ -452,19 +422,14 @@ impl PaladinGovernanceInstruction {
                 instruction_data.serialize(&mut buf).unwrap();
                 buf
             }
-            Self::RemoveInstruction { instruction_index } => {
-                let mut buf = vec![3];
-                buf.extend_from_slice(&instruction_index.to_le_bytes());
-                buf
-            }
-            Self::DeleteProposal => vec![4],
-            Self::BeginVoting => vec![5],
-            Self::Vote { election } => vec![6, (*election).into()],
-            Self::SwitchVote { new_election } => vec![7, (*new_election).into()],
-            Self::FinishVoting => vec![8],
-            Self::DeleteVote => vec![9],
+            Self::DeleteProposal => vec![3],
+            Self::BeginVoting => vec![4],
+            Self::Vote { election } => vec![5, (*election).into()],
+            Self::SwitchVote { new_election } => vec![6, (*new_election).into()],
+            Self::FinishVoting => vec![7],
+            Self::DeleteVote => vec![8],
             Self::ProcessInstruction { instruction_index } => {
-                let mut buf = vec![10];
+                let mut buf = vec![9];
                 buf.extend_from_slice(&instruction_index.to_le_bytes());
                 buf
             }
@@ -476,7 +441,7 @@ impl PaladinGovernanceInstruction {
                 voting_period_seconds,
                 stake_per_proposal,
             } => {
-                let mut buf = vec![11];
+                let mut buf = vec![10];
                 buf.extend_from_slice(&governance_id.to_le_bytes());
                 buf.extend_from_slice(&cooldown_period_seconds.to_le_bytes());
                 buf.extend_from_slice(&proposal_minimum_quorum.to_le_bytes());
@@ -493,7 +458,7 @@ impl PaladinGovernanceInstruction {
                 voting_period_seconds,
                 stake_per_proposal,
             } => {
-                let mut buf = vec![12];
+                let mut buf = vec![11];
                 buf.extend_from_slice(&governance_id.to_le_bytes());
                 buf.extend_from_slice(&cooldown_period_seconds.to_le_bytes());
                 buf.extend_from_slice(&proposal_minimum_quorum.to_le_bytes());
@@ -530,31 +495,27 @@ impl PaladinGovernanceInstruction {
                     instruction_data,
                 })
             }
-            Some((&3, rest)) if rest.len() == 4 => {
-                let instruction_index = u32::from_le_bytes(rest.try_into().unwrap());
-                Ok(Self::RemoveInstruction { instruction_index })
-            }
-            Some((&4, _)) => Ok(Self::DeleteProposal),
-            Some((&5, _)) => Ok(Self::BeginVoting),
-            Some((&6, rest)) if rest.len() == 1 => {
+            Some((&3, _)) => Ok(Self::DeleteProposal),
+            Some((&4, _)) => Ok(Self::BeginVoting),
+            Some((&5, rest)) if rest.len() == 1 => {
                 let election = rest[0]
                     .try_into()
                     .map_err(|_| ProgramError::InvalidInstructionData)?;
                 Ok(Self::Vote { election })
             }
-            Some((&7, rest)) if rest.len() == 1 => {
+            Some((&6, rest)) if rest.len() == 1 => {
                 let new_election = rest[0]
                     .try_into()
                     .map_err(|_| ProgramError::InvalidInstructionData)?;
                 Ok(Self::SwitchVote { new_election })
             }
-            Some((&8, _)) => Ok(Self::FinishVoting),
-            Some((&9, _)) => Ok(Self::DeleteVote),
-            Some((&10, rest)) if rest.len() == 4 => {
+            Some((&7, _)) => Ok(Self::FinishVoting),
+            Some((&8, _)) => Ok(Self::DeleteVote),
+            Some((&9, rest)) if rest.len() == 4 => {
                 let instruction_index = u32::from_le_bytes(rest.try_into().unwrap());
                 Ok(Self::ProcessInstruction { instruction_index })
             }
-            Some((&11, rest)) if rest.len() == 40 => {
+            Some((&10, rest)) if rest.len() == 40 => {
                 let rest = array_ref![rest, 0, 40];
                 let (
                     governance_id,
@@ -581,7 +542,7 @@ impl PaladinGovernanceInstruction {
                     stake_per_proposal,
                 })
             }
-            Some((&12, rest)) if rest.len() == 40 => {
+            Some((&11, rest)) if rest.len() == 40 => {
                 let rest = array_ref![rest, 0, 40];
                 let (
                     governance_id,
@@ -661,24 +622,6 @@ pub fn push_instruction(
         instruction_data,
     }
     .pack();
-    Instruction::new_with_bytes(crate::id(), &data, accounts)
-}
-
-/// Creates a
-/// [RemoveInstruction](enum.PaladinGovernanceInstruction.html)
-/// instruction.
-pub fn remove_instruction(
-    stake_authority_address: &Pubkey,
-    proposal_address: &Pubkey,
-    proposal_transaction_address: &Pubkey,
-    instruction_index: u32,
-) -> Instruction {
-    let accounts = vec![
-        AccountMeta::new_readonly(*stake_authority_address, true),
-        AccountMeta::new_readonly(*proposal_address, false),
-        AccountMeta::new(*proposal_transaction_address, false),
-    ];
-    let data = PaladinGovernanceInstruction::RemoveInstruction { instruction_index }.pack();
     Instruction::new_with_bytes(crate::id(), &data, accounts)
 }
 
@@ -914,13 +857,6 @@ mod tests {
             instruction_program_id: program_id,
             instruction_account_metas: account_metas,
             instruction_data: data,
-        });
-    }
-
-    #[test]
-    fn test_pack_unpack_remove_instruction() {
-        test_pack_unpack(PaladinGovernanceInstruction::RemoveInstruction {
-            instruction_index: 45,
         });
     }
 

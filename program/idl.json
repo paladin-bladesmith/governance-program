@@ -145,45 +145,6 @@
       }
     },
     {
-      "name": "RemoveInstruction",
-      "accounts": [
-        {
-          "name": "stakeAuthority",
-          "isMut": false,
-          "isSigner": true,
-          "docs": [
-            "Paladin stake authority account"
-          ]
-        },
-        {
-          "name": "proposal",
-          "isMut": false,
-          "isSigner": false,
-          "docs": [
-            "Proposal account"
-          ]
-        },
-        {
-          "name": "proposalTransaction",
-          "isMut": true,
-          "isSigner": false,
-          "docs": [
-            "Proposal transaction account"
-          ]
-        }
-      ],
-      "args": [
-        {
-          "name": "instructionIndex",
-          "type": "u32"
-        }
-      ],
-      "discriminant": {
-        "type": "u8",
-        "value": 3
-      }
-    },
-    {
       "name": "DeleteProposal",
       "accounts": [
         {
@@ -222,7 +183,7 @@
       "args": [],
       "discriminant": {
         "type": "u8",
-        "value": 4
+        "value": 3
       }
     },
     {
@@ -248,7 +209,7 @@
       "args": [],
       "discriminant": {
         "type": "u8",
-        "value": 5
+        "value": 4
       }
     },
     {
@@ -313,7 +274,7 @@
       ],
       "discriminant": {
         "type": "u8",
-        "value": 6
+        "value": 5
       }
     },
     {
@@ -370,7 +331,7 @@
       ],
       "discriminant": {
         "type": "u8",
-        "value": 7
+        "value": 6
       }
     },
     {
@@ -388,7 +349,7 @@
       "args": [],
       "discriminant": {
         "type": "u8",
-        "value": 8
+        "value": 7
       }
     },
     {
@@ -413,7 +374,7 @@
       "args": [],
       "discriminant": {
         "type": "u8",
-        "value": 9
+        "value": 8
       }
     },
     {
@@ -444,7 +405,7 @@
       ],
       "discriminant": {
         "type": "u8",
-        "value": 10
+        "value": 9
       }
     },
     {
@@ -503,7 +464,7 @@
       ],
       "discriminant": {
         "type": "u8",
-        "value": 11
+        "value": 10
       }
     },
     {
@@ -554,7 +515,7 @@
       ],
       "discriminant": {
         "type": "u8",
-        "value": 12
+        "value": 11
       }
     }
   ],

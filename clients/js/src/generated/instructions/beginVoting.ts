@@ -56,7 +56,7 @@ export type BeginVotingInstructionDataArgs = {};
 export function getBeginVotingInstructionDataEncoder(): Encoder<BeginVotingInstructionDataArgs> {
   return transformEncoder(
     getStructEncoder([['discriminator', getU8Encoder()]]),
-    (value) => ({ ...value, discriminator: 5 })
+    (value) => ({ ...value, discriminator: 4 })
   );
 }
 

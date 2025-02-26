@@ -62,7 +62,7 @@ pub struct DeleteProposalInstructionData {
 
 impl DeleteProposalInstructionData {
     pub fn new() -> Self {
-        Self { discriminator: 4 }
+        Self { discriminator: 3 }
     }
 }
 

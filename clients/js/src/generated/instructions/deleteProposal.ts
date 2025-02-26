@@ -64,7 +64,7 @@ export type DeleteProposalInstructionDataArgs = {};
 export function getDeleteProposalInstructionDataEncoder(): Encoder<DeleteProposalInstructionDataArgs> {
   return transformEncoder(
     getStructEncoder([['discriminator', getU8Encoder()]]),
-    (value) => ({ ...value, discriminator: 4 })
+    (value) => ({ ...value, discriminator: 3 })
   );
 }
 

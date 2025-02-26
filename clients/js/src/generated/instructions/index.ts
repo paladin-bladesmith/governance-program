@@ -15,7 +15,6 @@ export * from './initializeAuthor';
 export * from './initializeGovernance';
 export * from './processInstruction';
 export * from './pushInstruction';
-export * from './removeInstruction';
 export * from './switchVote';
 export * from './updateGovernance';
 export * from './vote';

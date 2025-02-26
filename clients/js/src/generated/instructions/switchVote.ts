@@ -83,7 +83,7 @@ export function getSwitchVoteInstructionDataEncoder(): Encoder<SwitchVoteInstruc
       ['discriminator', getU8Encoder()],
       ['newElection', getProposalVoteElectionEncoder()],
     ]),
-    (value) => ({ ...value, discriminator: 7 })
+    (value) => ({ ...value, discriminator: 6 })
   );
 }
 

@@ -48,7 +48,7 @@ export type FinishVotingInstructionDataArgs = {};
 export function getFinishVotingInstructionDataEncoder(): Encoder<FinishVotingInstructionDataArgs> {
   return transformEncoder(
     getStructEncoder([['discriminator', getU8Encoder()]]),
-    (value) => ({ ...value, discriminator: 8 })
+    (value) => ({ ...value, discriminator: 7 })
   );
 }
 
