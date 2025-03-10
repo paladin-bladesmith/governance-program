@@ -338,6 +338,14 @@
       "name": "FinishVoting",
       "accounts": [
         {
+          "name": "stakeConfig",
+          "isMut": false,
+          "isSigner": false,
+          "docs": [
+            "Stake config account"
+          ]
+        },
+        {
           "name": "proposal",
           "isMut": true,
           "isSigner": false,

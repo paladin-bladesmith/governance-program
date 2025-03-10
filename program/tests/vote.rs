@@ -1207,7 +1207,8 @@ async fn success_cooldown_has_ended(threshold_met: bool, expected_status: Propos
         );
     }
 
-    let instruction = paladin_governance_program::instruction::finish_voting(&proposal);
+    let instruction =
+        paladin_governance_program::instruction::finish_voting(stake_config, &proposal);
 
     let transaction = Transaction::new_signed_with_payer(
         &[instruction],

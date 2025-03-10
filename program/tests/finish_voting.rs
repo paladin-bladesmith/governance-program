@@ -41,7 +41,7 @@ async fn fail_proposal_not_initialized() {
         );
     }
 
-    let instruction = finish_voting(&proposal);
+    let instruction = finish_voting(stake_config, &proposal);
 
     let transaction = Transaction::new_signed_with_payer(
         &[instruction],
@@ -83,7 +83,7 @@ async fn fail_proposal_not_in_voting_stage() {
     )
     .await;
 
-    let instruction = finish_voting(&proposal);
+    let instruction = finish_voting(stake_config, &proposal);
 
     let transaction = Transaction::new_signed_with_payer(
         &[instruction],
@@ -138,7 +138,7 @@ async fn fail_proposal_has_cooldown_but_has_not_ended() {
     )
     .await;
 
-    let instruction = finish_voting(&proposal);
+    let instruction = finish_voting(stake_config, &proposal);
 
     let transaction = Transaction::new_signed_with_payer(
         &[instruction],
@@ -198,7 +198,7 @@ async fn success_cooldown_result_is_accepted() {
     )
     .await;
 
-    let instruction = finish_voting(&proposal);
+    let instruction = finish_voting(stake_config, &proposal);
 
     let transaction = Transaction::new_signed_with_payer(
         &[instruction],
@@ -257,7 +257,7 @@ async fn success_cooldown_result_is_rejected() {
     )
     .await;
 
-    let instruction = finish_voting(&proposal);
+    let instruction = finish_voting(stake_config, &proposal);
 
     let transaction = Transaction::new_signed_with_payer(
         &[instruction],
@@ -312,7 +312,7 @@ async fn fail_proposal_vote_period_not_ended() {
     )
     .await;
 
-    let instruction = finish_voting(&proposal);
+    let instruction = finish_voting(stake_config, &proposal);
 
     let transaction = Transaction::new_signed_with_payer(
         &[instruction],
@@ -368,7 +368,7 @@ async fn success_vote_period_ended_result_rejected() {
     )
     .await;
 
-    let instruction = finish_voting(&proposal);
+    let instruction = finish_voting(stake_config, &proposal);
 
     let transaction = Transaction::new_signed_with_payer(
         &[instruction],

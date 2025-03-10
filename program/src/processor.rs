@@ -874,10 +874,18 @@ fn process_switch_vote(
 fn process_finish_voting(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
     let accounts_iter = &mut accounts.iter();
 
+    let stake_config_info = next_account_info(accounts_iter)?;
     let proposal_info = next_account_info(accounts_iter)?;
 
-    check_proposal_exists(program_id, proposal_info)?;
+    // Validate & deserialize stake config.
+    check_stake_config_exists(stake_config_info)?;
+    let total_stake =
+        bytemuck::try_from_bytes::<StakeConfig>(&stake_config_info.try_borrow_data()?)
+            .map_err(|_| ProgramError::InvalidAccountData)?
+            .token_amount_effective;
 
+    // Validate & deserialize proposal state.
+    check_proposal_exists(program_id, proposal_info)?;
     let mut proposal_data = proposal_info.try_borrow_mut_data()?;
     let proposal_state = bytemuck::try_from_bytes_mut::<Proposal>(&mut proposal_data)
         .map_err(|_| ProgramError::InvalidAccountData)?;
@@ -888,16 +896,19 @@ fn process_finish_voting(program_id: &Pubkey, accounts: &[AccountInfo]) -> Progr
     }
 
     let clock = <Clock as Sysvar>::get()?;
-
     match proposal_state.cooldown_timestamp {
         Some(_) => {
             // If the proposal is in a cooldown period, check if it has ended.
             if proposal_state.cooldown_has_ended(&clock) {
-                match calculate_for_percentage(
+                // The proposal must still be above quourum and have reached pass threshold.
+                let reached_quorum = calculate_voter_turnout(proposal_state, total_stake)?
+                    >= proposal_state.governance_config.proposal_minimum_quorum;
+                let passed = calculate_for_percentage(
                     proposal_state.stake_for,
                     proposal_state.stake_against,
-                )? >= proposal_state.governance_config.proposal_pass_threshold
-                {
+                )? >= proposal_state.governance_config.proposal_pass_threshold;
+
+                match reached_quorum && passed {
                     true => proposal_state.status = ProposalStatus::Accepted,
                     false => proposal_state.status = ProposalStatus::Rejected,
                 }

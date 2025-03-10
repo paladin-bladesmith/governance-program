@@ -282,10 +282,15 @@ pub enum PaladinGovernanceInstruction {
     ///
     /// Accounts expected by this instruction:
     ///
-    /// 0. `[w]` Proposal account.
-    /// 1. `[ ]` Paladin stake config account.
+    /// 0. `[ ]` Paladin stake config account.
+    /// 1. `[w]` Proposal account.
     #[account(
         0,
+        name = "stake_config",
+        description = "Stake config account"
+    )]
+    #[account(
+        1,
         writable,
         name = "proposal",
         description = "Proposal account"
@@ -723,8 +728,11 @@ pub fn delete_vote(proposal: Pubkey, vote: Pubkey, authority: Pubkey) -> Instruc
 /// Creates a
 /// [FinishVoting](enum.PaladinGovernanceInstruction.html)
 /// instruction.
-pub fn finish_voting(proposal_address: &Pubkey) -> Instruction {
-    let accounts = vec![AccountMeta::new(*proposal_address, false)];
+pub fn finish_voting(stake_config: Pubkey, proposal_address: &Pubkey) -> Instruction {
+    let accounts = vec![
+        AccountMeta::new_readonly(stake_config, false),
+        AccountMeta::new(*proposal_address, false),
+    ];
     let data = PaladinGovernanceInstruction::FinishVoting.pack();
     Instruction::new_with_bytes(crate::id(), &data, accounts)
 }
