@@ -565,6 +565,109 @@ async fn fail_instruction_two_back_not_executed() {
     );
 }
 
+#[tokio::test]
+async fn fail_incorrect_accounts() {
+    let proposal_address = Pubkey::new_unique();
+    let proposal_transaction_address =
+        get_proposal_transaction_address(&proposal_address, &paladin_governance_program::id());
+
+    let stake_config_address = Pubkey::new_unique();
+    let governance_address = paladin_governance_program::state::get_governance_address(
+        &stake_config_address,
+        &0,
+        &paladin_governance_program::ID,
+    );
+    let governance_config = GovernanceConfig {
+        cooldown_period_seconds: 0,
+        proposal_minimum_quorum: 0,
+        proposal_pass_threshold: 0,
+        stake_config_address: stake_config_address,
+        voting_period_seconds: 0,
+        stake_per_proposal: 0,
+        governance_config: governance_address,
+    };
+
+    let treasury = get_treasury_address(&governance_address, &paladin_governance_program::id());
+    let alice = Keypair::new();
+
+    let treasury_starting_lamports = 500_000_000;
+    let alice_starting_lamports = 350_000_000;
+
+    // Transfer amounts.
+    let treasury_to_alice_lamports = 100_000_000;
+    let alice_to_treasury_lamports = 50_000_000;
+
+    let proposal_transaction = ProposalTransaction {
+        instructions: vec![
+            (&system_instruction::transfer(&treasury, &alice.pubkey(), treasury_to_alice_lamports))
+                .into(),
+            (&system_instruction::transfer(&alice.pubkey(), &treasury, alice_to_treasury_lamports))
+                .into(),
+        ],
+    };
+
+    let mut context = setup().start_with_context().await;
+    setup_proposal(
+        &mut context,
+        &proposal_address,
+        &Pubkey::new_unique(),
+        0,
+        governance_config,
+        ProposalStatus::Accepted,
+    )
+    .await;
+    setup_proposal_transaction(
+        &mut context,
+        &proposal_transaction_address,
+        proposal_transaction,
+    )
+    .await;
+
+    // Set up treasury and alice with some lamports for transferring.
+    {
+        context.set_account(
+            &treasury,
+            &AccountSharedData::new(treasury_starting_lamports, 0, &system_program::id()), // System-owned.
+        );
+        context.set_account(
+            &alice.pubkey(),
+            &AccountSharedData::new(alice_starting_lamports, 0, &system_program::id()),
+        );
+    }
+
+    // Execute the first instruction.
+    {
+        let instruction = process_instruction(
+            &proposal_address,
+            &proposal_transaction_address,
+            &[
+                AccountMeta::new(Pubkey::new_unique(), false),
+                AccountMeta::new(alice.pubkey(), false),
+                AccountMeta::new_readonly(system_program::id(), false),
+            ],
+            0, // First instruction.
+        );
+        let transaction = Transaction::new_signed_with_payer(
+            &[instruction],
+            Some(&context.payer.pubkey()),
+            &[&context.payer], // Note treasury not signer (PDA).
+            context.last_blockhash,
+        );
+        let err = context
+            .banks_client
+            .process_transaction(transaction)
+            .await
+            .unwrap_err()
+            .unwrap();
+
+        // Assert lamports were transferred from Alice to Bob.
+        assert_eq!(
+            err,
+            TransactionError::InstructionError(0, InstructionError::MissingAccount)
+        );
+    }
+}
+
 #[allow(clippy::arithmetic_side_effects)]
 #[tokio::test]
 async fn success() {
