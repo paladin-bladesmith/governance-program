@@ -3,6 +3,7 @@
 mod setup;
 
 use {
+    crate::setup::get_clock,
     paladin_governance_program::{
         error::PaladinGovernanceError,
         instruction::{process_instruction, update_governance},
@@ -577,5 +578,12 @@ async fn success() {
     assert_eq!(
         governance_state.voting_period_seconds,
         new_voting_period_seconds
+    );
+
+    let clock = get_clock(&mut context).await;
+
+    assert_eq!(
+        governance_state.cooldown_expires,
+        new_cooldown_seconds + clock.unix_timestamp as u64
     );
 }
