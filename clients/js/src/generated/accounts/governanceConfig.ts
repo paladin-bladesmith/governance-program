@@ -47,6 +47,7 @@ export type GovernanceConfig = {
   votingPeriodSeconds: bigint;
   stakePerProposal: bigint;
   governanceConfig: Config;
+  cooldownExpires: bigint;
 };
 
 export type GovernanceConfigArgs = {
@@ -57,6 +58,7 @@ export type GovernanceConfigArgs = {
   votingPeriodSeconds: number | bigint;
   stakePerProposal: number | bigint;
   governanceConfig: ConfigArgs;
+  cooldownExpires: number | bigint;
 };
 
 export function getGovernanceConfigEncoder(): Encoder<GovernanceConfigArgs> {
@@ -68,6 +70,7 @@ export function getGovernanceConfigEncoder(): Encoder<GovernanceConfigArgs> {
     ['votingPeriodSeconds', getU64Encoder()],
     ['stakePerProposal', getU64Encoder()],
     ['governanceConfig', getConfigEncoder()],
+    ['cooldownExpires', getU64Encoder()],
   ]);
 }
 
@@ -80,6 +83,7 @@ export function getGovernanceConfigDecoder(): Decoder<GovernanceConfig> {
     ['votingPeriodSeconds', getU64Decoder()],
     ['stakePerProposal', getU64Decoder()],
     ['governanceConfig', getConfigDecoder()],
+    ['cooldownExpires', getU64Decoder()],
   ]);
 }
 
@@ -157,5 +161,5 @@ export async function fetchAllMaybeGovernanceConfig(
 }
 
 export function getGovernanceConfigSize(): number {
-  return 96;
+  return 104;
 }

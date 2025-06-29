@@ -64,6 +64,7 @@ export type InitializeGovernanceInstructionData = {
   proposalPassThreshold: number;
   votingPeriodSeconds: bigint;
   stakePerProposal: bigint;
+  cooldownSeconds: bigint;
 };
 
 export type InitializeGovernanceInstructionDataArgs = {
@@ -73,6 +74,7 @@ export type InitializeGovernanceInstructionDataArgs = {
   proposalPassThreshold: number;
   votingPeriodSeconds: number | bigint;
   stakePerProposal: number | bigint;
+  cooldownSeconds: number | bigint;
 };
 
 export function getInitializeGovernanceInstructionDataEncoder(): Encoder<InitializeGovernanceInstructionDataArgs> {
@@ -85,6 +87,7 @@ export function getInitializeGovernanceInstructionDataEncoder(): Encoder<Initial
       ['proposalPassThreshold', getU32Encoder()],
       ['votingPeriodSeconds', getU64Encoder()],
       ['stakePerProposal', getU64Encoder()],
+      ['cooldownSeconds', getU64Encoder()],
     ]),
     (value) => ({ ...value, discriminator: 10 })
   );
@@ -99,6 +102,7 @@ export function getInitializeGovernanceInstructionDataDecoder(): Decoder<Initial
     ['proposalPassThreshold', getU32Decoder()],
     ['votingPeriodSeconds', getU64Decoder()],
     ['stakePerProposal', getU64Decoder()],
+    ['cooldownSeconds', getU64Decoder()],
   ]);
 }
 
@@ -129,6 +133,7 @@ export type InitializeGovernanceInput<
   proposalPassThreshold: InitializeGovernanceInstructionDataArgs['proposalPassThreshold'];
   votingPeriodSeconds: InitializeGovernanceInstructionDataArgs['votingPeriodSeconds'];
   stakePerProposal: InitializeGovernanceInstructionDataArgs['stakePerProposal'];
+  cooldownSeconds: InitializeGovernanceInstructionDataArgs['cooldownSeconds'];
 };
 
 export function getInitializeGovernanceInstruction<

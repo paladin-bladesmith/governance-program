@@ -83,6 +83,7 @@ pub struct InitializeGovernanceInstructionArgs {
     pub proposal_pass_threshold: u32,
     pub voting_period_seconds: u64,
     pub stake_per_proposal: u64,
+    pub cooldown_seconds: u64,
 }
 
 /// Instruction builder for `InitializeGovernance`.
@@ -104,6 +105,7 @@ pub struct InitializeGovernanceBuilder {
     proposal_pass_threshold: Option<u32>,
     voting_period_seconds: Option<u64>,
     stake_per_proposal: Option<u64>,
+    cooldown_seconds: Option<u64>,
     __remaining_accounts: Vec<solana_program::instruction::AccountMeta>,
 }
 
@@ -163,6 +165,11 @@ impl InitializeGovernanceBuilder {
         self.stake_per_proposal = Some(stake_per_proposal);
         self
     }
+    #[inline(always)]
+    pub fn cooldown_seconds(&mut self, cooldown_seconds: u64) -> &mut Self {
+        self.cooldown_seconds = Some(cooldown_seconds);
+        self
+    }
     /// Add an aditional account to the instruction.
     #[inline(always)]
     pub fn add_remaining_account(
@@ -217,6 +224,10 @@ impl InitializeGovernanceBuilder {
                 .stake_per_proposal
                 .clone()
                 .expect("stake_per_proposal is not set"),
+            cooldown_seconds: self
+                .cooldown_seconds
+                .clone()
+                .expect("cooldown_seconds is not set"),
         };
 
         accounts.instruction_with_remaining_accounts(args, &self.__remaining_accounts)
@@ -367,6 +378,7 @@ impl<'a, 'b> InitializeGovernanceCpiBuilder<'a, 'b> {
             proposal_pass_threshold: None,
             voting_period_seconds: None,
             stake_per_proposal: None,
+            cooldown_seconds: None,
             __remaining_accounts: Vec::new(),
         });
         Self { instruction }
@@ -426,6 +438,11 @@ impl<'a, 'b> InitializeGovernanceCpiBuilder<'a, 'b> {
     #[inline(always)]
     pub fn stake_per_proposal(&mut self, stake_per_proposal: u64) -> &mut Self {
         self.instruction.stake_per_proposal = Some(stake_per_proposal);
+        self
+    }
+    #[inline(always)]
+    pub fn cooldown_seconds(&mut self, cooldown_seconds: u64) -> &mut Self {
+        self.instruction.cooldown_seconds = Some(cooldown_seconds);
         self
     }
     /// Add an additional account to the instruction.
@@ -501,6 +518,11 @@ impl<'a, 'b> InitializeGovernanceCpiBuilder<'a, 'b> {
                 .stake_per_proposal
                 .clone()
                 .expect("stake_per_proposal is not set"),
+            cooldown_seconds: self
+                .instruction
+                .cooldown_seconds
+                .clone()
+                .expect("cooldown_seconds is not set"),
         };
         let instruction = InitializeGovernanceCpi {
             __program: self.instruction.__program,
@@ -540,6 +562,7 @@ struct InitializeGovernanceCpiBuilderInstruction<'a, 'b> {
     proposal_pass_threshold: Option<u32>,
     voting_period_seconds: Option<u64>,
     stake_per_proposal: Option<u64>,
+    cooldown_seconds: Option<u64>,
     /// Additional instruction accounts `(AccountInfo, is_writable, is_signer)`.
     __remaining_accounts: Vec<(
         &'b solana_program::account_info::AccountInfo<'a>,

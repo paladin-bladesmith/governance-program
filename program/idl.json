@@ -468,6 +468,10 @@
         {
           "name": "stakePerProposal",
           "type": "u64"
+        },
+        {
+          "name": "cooldownSeconds",
+          "type": "u64"
         }
       ],
       "discriminant": {
@@ -560,6 +564,10 @@
           {
             "name": "governanceConfig",
             "type": "publicKey"
+          },
+          {
+            "name": "cooldownExpires",
+            "type": "u64"
           }
         ]
       }
@@ -867,6 +875,11 @@
       "code": 15,
       "name": "TooManyActiveProposals",
       "msg": "Author has too many active proposals."
+    },
+    {
+      "code": 16,
+      "name": "CooldownPeriodNotOver",
+      "msg": "Cooldown period is not over yet, cannot create new proposal."
     }
   ],
   "metadata": {
