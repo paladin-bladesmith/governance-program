@@ -31,6 +31,7 @@ fn proposal_transaction_with_update_governance_instruction(
     proposal_rejection_threshold: u32,
     voting_period_seconds: u64,
     stake_per_proposal: u64,
+    cooldown_seconds: u64,
 ) -> ProposalTransaction {
     ProposalTransaction {
         instructions: vec![(&update_governance(
@@ -42,6 +43,7 @@ fn proposal_transaction_with_update_governance_instruction(
             proposal_rejection_threshold,
             voting_period_seconds,
             stake_per_proposal,
+            cooldown_seconds,
         ))
             .into()],
     }
@@ -67,6 +69,7 @@ async fn fail_treasury_not_signer() {
         /* proposal_rejection_threshold */ 0,
         /* voting_period_seconds */ 0,
         /* stake_per_proposal */ 0,
+        /* cooldown_seconds */ 0,
     );
     instruction.accounts[0].is_signer = false; // Treasury not signer.
 
@@ -110,6 +113,7 @@ async fn fail_governance_incorrect_owner() {
         voting_period_seconds: 0,
         stake_per_proposal: 0,
         governance_config: governance,
+        cooldown_expires: 0,
     };
 
     let new_cooldown_period_seconds = 1;
@@ -117,6 +121,7 @@ async fn fail_governance_incorrect_owner() {
     let new_proposal_pass_threshold = 3;
     let new_voting_period_seconds = 4;
     let new_stake_per_proposal = 5;
+    let new_cooldown_seconds = 6;
 
     let mut context = setup().start_with_context().await;
     setup_proposal(
@@ -140,6 +145,7 @@ async fn fail_governance_incorrect_owner() {
             new_proposal_pass_threshold,
             new_voting_period_seconds,
             new_stake_per_proposal,
+            new_cooldown_seconds,
         ),
     )
     .await;
@@ -206,6 +212,7 @@ async fn fail_governance_not_initialized() {
         voting_period_seconds: 0,
         stake_per_proposal: 0,
         governance_config: governance,
+        cooldown_expires: 0,
     };
 
     let new_cooldown_period_seconds = 1;
@@ -213,6 +220,7 @@ async fn fail_governance_not_initialized() {
     let new_proposal_pass_threshold = 3;
     let new_voting_period_seconds = 4;
     let new_stake_per_proposal = 5;
+    let new_cooldown_seconds = 6;
 
     let mut context = setup().start_with_context().await;
     setup_proposal(
@@ -236,6 +244,7 @@ async fn fail_governance_not_initialized() {
             new_proposal_pass_threshold,
             new_voting_period_seconds,
             new_stake_per_proposal,
+            new_cooldown_seconds,
         ),
     )
     .await;
@@ -301,6 +310,7 @@ async fn fail_treasury_incorrect_address() {
         voting_period_seconds: 0,
         stake_per_proposal: 0,
         governance_config: governance,
+        cooldown_expires: 0,
     };
 
     let new_cooldown_period_seconds = 1;
@@ -308,6 +318,7 @@ async fn fail_treasury_incorrect_address() {
     let new_proposal_pass_threshold = 3;
     let new_voting_period_seconds = 4;
     let new_stake_per_proposal = 5;
+    let new_cooldown_seconds = 6;
 
     let mut context = setup().start_with_context().await;
     setup_governance(&mut context, &governance, &original_governance_config).await;
@@ -332,6 +343,7 @@ async fn fail_treasury_incorrect_address() {
             new_proposal_pass_threshold,
             new_voting_period_seconds,
             new_stake_per_proposal,
+            new_cooldown_seconds,
         ),
     )
     .await;
@@ -386,6 +398,7 @@ async fn fail_governance_incorrect_address() {
         voting_period_seconds: 0,
         stake_per_proposal: 0,
         governance_config: governance,
+        cooldown_expires: 0,
     };
 
     let new_cooldown_period_seconds = 1;
@@ -393,6 +406,7 @@ async fn fail_governance_incorrect_address() {
     let new_proposal_pass_threshold = 3;
     let new_voting_period_seconds = 4;
     let new_stake_per_proposal = 5;
+    let new_cooldown_seconds = 6;
 
     let mut context = setup().start_with_context().await;
     setup_governance(&mut context, &governance, &original_governance_config).await;
@@ -417,6 +431,7 @@ async fn fail_governance_incorrect_address() {
             new_proposal_pass_threshold,
             new_voting_period_seconds,
             new_stake_per_proposal,
+            new_cooldown_seconds,
         ),
     )
     .await;
@@ -477,6 +492,7 @@ async fn success() {
         voting_period_seconds: 0,
         stake_per_proposal: 0,
         governance_config: governance,
+        cooldown_expires: 0,
     };
 
     let new_cooldown_period_seconds = 1;
@@ -484,6 +500,7 @@ async fn success() {
     let new_proposal_pass_threshold = 3;
     let new_voting_period_seconds = 4;
     let new_stake_per_proposal = 5;
+    let new_cooldown_seconds = 6;
 
     let mut context = setup().start_with_context().await;
     setup_governance(&mut context, &governance, &original_governance_config).await;
@@ -508,6 +525,7 @@ async fn success() {
             new_proposal_pass_threshold,
             new_voting_period_seconds,
             new_stake_per_proposal,
+            new_cooldown_seconds,
         ),
     )
     .await;

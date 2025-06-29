@@ -585,6 +585,7 @@ async fn fail_incorrect_accounts() {
         voting_period_seconds: 0,
         stake_per_proposal: 0,
         governance_config: governance_address,
+        cooldown_expires: 0,
     };
 
     let treasury = get_treasury_address(&governance_address, &paladin_governance_program::id());
@@ -689,6 +690,7 @@ async fn success() {
         voting_period_seconds: 0,
         stake_per_proposal: 0,
         governance_config: governance_address,
+        cooldown_expires: 0,
     };
 
     let treasury = get_treasury_address(&governance_address, &paladin_governance_program::id());
