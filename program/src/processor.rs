@@ -1198,7 +1198,6 @@ fn process_update_governance(
     proposal_pass_threshold: u32,
     voting_period_seconds: u64,
     stake_per_proposal: u64,
-    cooldown_seconds: u64,
 ) -> ProgramResult {
     let accounts_iter = &mut accounts.iter();
 
@@ -1237,10 +1236,6 @@ fn process_update_governance(
     state.proposal_pass_threshold = proposal_pass_threshold;
     state.voting_period_seconds = voting_period_seconds;
     state.stake_per_proposal = stake_per_proposal;
-
-    if cooldown_seconds > 0 && (Clock::get()?.unix_timestamp as u64) < state.cooldown_expires {
-        state.cooldown_expires = Clock::get()?.unix_timestamp as u64 + cooldown_seconds;
-    }
 
     Ok(())
 }
@@ -1329,7 +1324,6 @@ pub fn process(program_id: &Pubkey, accounts: &[AccountInfo], input: &[u8]) -> P
             proposal_pass_threshold,
             voting_period_seconds,
             stake_per_proposal,
-            cooldown_seconds,
         } => {
             msg!("Instruction: UpdateGovernance");
             process_update_governance(
@@ -1341,7 +1335,6 @@ pub fn process(program_id: &Pubkey, accounts: &[AccountInfo], input: &[u8]) -> P
                 proposal_pass_threshold,
                 voting_period_seconds,
                 stake_per_proposal,
-                cooldown_seconds,
             )
         }
     }

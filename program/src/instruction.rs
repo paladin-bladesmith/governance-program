@@ -406,7 +406,6 @@ pub enum PaladinGovernanceInstruction {
         proposal_pass_threshold: u32,
         voting_period_seconds: u64,
         stake_per_proposal: u64,
-        cooldown_seconds: u64,
     },
 }
 
@@ -466,7 +465,6 @@ impl PaladinGovernanceInstruction {
                 proposal_pass_threshold,
                 voting_period_seconds,
                 stake_per_proposal,
-                cooldown_seconds,
             } => {
                 let mut buf = vec![11];
                 buf.extend_from_slice(&governance_id.to_le_bytes());
@@ -475,7 +473,6 @@ impl PaladinGovernanceInstruction {
                 buf.extend_from_slice(&proposal_pass_threshold.to_le_bytes());
                 buf.extend_from_slice(&voting_period_seconds.to_le_bytes());
                 buf.extend_from_slice(&stake_per_proposal.to_le_bytes());
-                buf.extend_from_slice(&cooldown_seconds.to_le_bytes());
                 buf
             }
         }
@@ -556,8 +553,8 @@ impl PaladinGovernanceInstruction {
                     cooldown_seconds,
                 })
             }
-            Some((&11, rest)) if rest.len() == 48 => {
-                let rest = array_ref![rest, 0, 48];
+            Some((&11, rest)) if rest.len() == 40 => {
+                let rest = array_ref![rest, 0, 40];
                 let (
                     governance_id,
                     cooldown_period_seconds,
@@ -565,8 +562,7 @@ impl PaladinGovernanceInstruction {
                     proposal_pass_threshold,
                     voting_period_seconds,
                     stake_per_proposal,
-                    cooldown_seconds,
-                ) = array_refs![rest, 8, 8, 4, 4, 8, 8, 8];
+                ) = array_refs![rest, 8, 8, 4, 4, 8, 8];
 
                 let governance_id = u64::from_le_bytes(*governance_id);
                 let cooldown_period_seconds = u64::from_le_bytes(*cooldown_period_seconds);
@@ -574,7 +570,6 @@ impl PaladinGovernanceInstruction {
                 let proposal_pass_threshold = u32::from_le_bytes(*proposal_pass_threshold);
                 let voting_period_seconds = u64::from_le_bytes(*voting_period_seconds);
                 let stake_per_proposal = u64::from_le_bytes(*stake_per_proposal);
-                let cooldown_seconds = u64::from_le_bytes(*cooldown_seconds);
 
                 Ok(Self::UpdateGovernance {
                     governance_id,
@@ -583,7 +578,6 @@ impl PaladinGovernanceInstruction {
                     proposal_pass_threshold,
                     voting_period_seconds,
                     stake_per_proposal,
-                    cooldown_seconds,
                 })
             }
             _ => Err(ProgramError::InvalidInstructionData),
@@ -827,7 +821,6 @@ pub fn update_governance(
     proposal_pass_threshold: u32,
     voting_period_seconds: u64,
     stake_per_proposal: u64,
-    cooldown_seconds: u64,
 ) -> Instruction {
     let accounts = vec![
         AccountMeta::new_readonly(*treasury_address, true),
@@ -840,7 +833,6 @@ pub fn update_governance(
         proposal_pass_threshold,
         voting_period_seconds,
         stake_per_proposal,
-        cooldown_seconds,
     }
     .pack();
     Instruction::new_with_bytes(crate::id(), &data, accounts)
@@ -948,7 +940,6 @@ mod tests {
             proposal_pass_threshold: 4,
             voting_period_seconds: 5,
             stake_per_proposal: 6,
-            cooldown_seconds: 7,
         });
     }
 }
