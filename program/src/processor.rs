@@ -1238,7 +1238,7 @@ fn process_update_governance(
     state.voting_period_seconds = voting_period_seconds;
     state.stake_per_proposal = stake_per_proposal;
 
-    if cooldown_seconds > 0 {
+    if cooldown_seconds > 0 && (Clock::get()?.unix_timestamp as u64) < state.cooldown_expires {
         state.cooldown_expires = Clock::get()?.unix_timestamp as u64 + cooldown_seconds;
     }
 
