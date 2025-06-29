@@ -900,7 +900,7 @@ async fn success() {
         voting_period_seconds: 100_000_000,
         stake_per_proposal: 0,
         governance_config: governance,
-         cooldown_expires: clock.unix_timestamp as u64 + 1,
+        cooldown_expires: clock.unix_timestamp as u64 + 1,
     };
 
     // Move clock forward to ensure cooldown expires.

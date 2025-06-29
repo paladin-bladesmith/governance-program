@@ -206,7 +206,6 @@ pub(crate) fn collect_proposal_author_seeds<'a>(
 #[derive(Clone, Copy, Debug, Default, PartialEq, Pod, ShankAccount, ShankType, Zeroable)]
 #[repr(C)]
 pub struct GovernanceConfig {
-    pub cooldown_expires: u64,
     /// The cooldown period that begins when a proposal reaches the
     /// `proposal_acceptance_threshold` and upon its conclusion will execute
     /// the proposal's instruction.
@@ -229,6 +228,8 @@ pub struct GovernanceConfig {
     pub stake_per_proposal: u64,
     /// The address this config resides at.
     pub governance_config: Pubkey,
+    /// Timestamp for when the cooldown period expires and proposals can be created
+    pub cooldown_expires: u64,
 }
 
 impl GovernanceConfig {
