@@ -63,6 +63,9 @@ pub enum PaladinGovernanceError {
     /// Author has too many active proposals.
     #[error("Author has too many active proposals.")]
     TooManyActiveProposals,
+    /// Cooldown period is not over yet, cannot create new proposal.
+    #[error("Cooldown period is not over yet, cannot create new proposal.")]
+    CooldownPeriodNotOver,
 }
 
 impl PrintProgramError for PaladinGovernanceError {

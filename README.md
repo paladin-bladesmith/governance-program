@@ -45,6 +45,8 @@ pub struct GovernanceConfig {
     /// Note that if a user has less than this amount of stake, they will not be
     /// able to create a proposal.
     pub stake_per_proposal: u64,
+    /// Timestamp for when the cooldown period expires and proposals can be created
+    pub cooldown_expires: u64,
 }
 ```
 

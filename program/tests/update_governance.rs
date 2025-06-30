@@ -110,6 +110,7 @@ async fn fail_governance_incorrect_owner() {
         voting_period_seconds: 0,
         stake_per_proposal: 0,
         governance_config: governance,
+        cooldown_expires: 0,
     };
 
     let new_cooldown_period_seconds = 1;
@@ -206,6 +207,7 @@ async fn fail_governance_not_initialized() {
         voting_period_seconds: 0,
         stake_per_proposal: 0,
         governance_config: governance,
+        cooldown_expires: 0,
     };
 
     let new_cooldown_period_seconds = 1;
@@ -301,6 +303,7 @@ async fn fail_treasury_incorrect_address() {
         voting_period_seconds: 0,
         stake_per_proposal: 0,
         governance_config: governance,
+        cooldown_expires: 0,
     };
 
     let new_cooldown_period_seconds = 1;
@@ -386,6 +389,7 @@ async fn fail_governance_incorrect_address() {
         voting_period_seconds: 0,
         stake_per_proposal: 0,
         governance_config: governance,
+        cooldown_expires: 0,
     };
 
     let new_cooldown_period_seconds = 1;
@@ -477,6 +481,7 @@ async fn success() {
         voting_period_seconds: 0,
         stake_per_proposal: 0,
         governance_config: governance,
+        cooldown_expires: 0,
     };
 
     let new_cooldown_period_seconds = 1;

@@ -292,6 +292,11 @@ fn process_create_proposal(program_id: &Pubkey, accounts: &[AccountInfo]) -> Pro
             .map_err(|_| ProgramError::InvalidAccountData)?
     };
 
+    // Ensure cooldown period has passed
+    if Clock::get()?.unix_timestamp < governance_config.cooldown_expires as i64 {
+        return Err(PaladinGovernanceError::CooldownPeriodNotOver.into());
+    }
+
     // Increment the active proposal count.
     author_state.active_proposals = author_state
         .active_proposals
@@ -1098,6 +1103,7 @@ fn process_initialize_governance(
     proposal_pass_threshold: u32,
     voting_period_seconds: u64,
     stake_per_proposal: u64,
+    cooldown_seconds: u64,
 ) -> ProgramResult {
     // Sanity check arguments.
     // 0.1% <= proposal_minimum_quorum < 100%.
@@ -1123,6 +1129,10 @@ fn process_initialize_governance(
 
     // Create the governance config account.
     {
+        // Get expiration timestamp for the cooldown period.
+        let cooldown_expires =
+            (Clock::get()?.unix_timestamp as u64).saturating_add(cooldown_seconds);
+
         let (governance_address, signer_bump_seed) =
             get_governance_address_and_bump_seed(stake_config_info.key, &governance_id, program_id);
         let bump_seed = [signer_bump_seed];
@@ -1169,6 +1179,7 @@ fn process_initialize_governance(
                 voting_period_seconds,
                 stake_per_proposal,
                 governance_config: governance_address,
+                cooldown_expires,
             };
     }
 
@@ -1236,7 +1247,7 @@ pub fn process(program_id: &Pubkey, accounts: &[AccountInfo], input: &[u8]) -> P
     let instruction = PaladinGovernanceInstruction::unpack(input)?;
     match instruction {
         PaladinGovernanceInstruction::InitializeAuthor => {
-            msg!("Instruction: CreateProposal");
+            msg!("Instruction: InitializeAuthor");
             process_initialize_author(program_id, accounts)
         }
         PaladinGovernanceInstruction::CreateProposal => {
@@ -1292,6 +1303,7 @@ pub fn process(program_id: &Pubkey, accounts: &[AccountInfo], input: &[u8]) -> P
             proposal_pass_threshold,
             voting_period_seconds,
             stake_per_proposal,
+            cooldown_seconds,
         } => {
             msg!("Instruction: InitializeGovernance");
             process_initialize_governance(
@@ -1303,6 +1315,7 @@ pub fn process(program_id: &Pubkey, accounts: &[AccountInfo], input: &[u8]) -> P
                 proposal_pass_threshold,
                 voting_period_seconds,
                 stake_per_proposal,
+                cooldown_seconds,
             )
         }
         PaladinGovernanceInstruction::UpdateGovernance {

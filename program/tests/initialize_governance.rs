@@ -49,6 +49,7 @@ async fn fail_stake_config_incorrect_owner() {
         /* proposal_pass_threshold */ THRESHOLD_SCALING_FACTOR / 2,
         /* voting_period_seconds */ 0,
         /* stake_per_proposal */ 0,
+        /* cooldown_seconds */ 0,
     );
 
     let transaction = Transaction::new_signed_with_payer(
@@ -98,6 +99,7 @@ async fn fail_stake_config_not_initialized() {
         /* proposal_pass_threshold */ THRESHOLD_SCALING_FACTOR / 2,
         /* voting_period_seconds */ 0,
         /* stake_per_proposal */ 0,
+        /* cooldown_seconds */ 0,
     );
 
     let transaction = Transaction::new_signed_with_payer(
@@ -137,6 +139,7 @@ async fn fail_governance_incorrect_address() {
         /* proposal_pass_threshold */ THRESHOLD_SCALING_FACTOR / 2,
         /* voting_period_seconds */ 0,
         /* stake_per_proposal */ 0,
+        /* cooldown_seconds */ 0,
     );
 
     let transaction = Transaction::new_signed_with_payer(
@@ -181,6 +184,7 @@ async fn fail_governance_already_initialized() {
         voting_period_seconds: 0,
         stake_per_proposal: 0,
         governance_config: governance,
+        cooldown_expires: 0,
     };
     setup_governance(&mut context, &governance, &governance_config).await;
 
@@ -193,6 +197,7 @@ async fn fail_governance_already_initialized() {
         /* proposal_pass_threshold */ THRESHOLD_SCALING_FACTOR / 2,
         /* voting_period_seconds */ 0,
         /* stake_per_proposal */ 0,
+        /* cooldown_seconds */ 0,
     );
 
     let transaction = Transaction::new_signed_with_payer(
@@ -242,6 +247,7 @@ async fn success() {
         /* proposal_pass_threshold */ THRESHOLD_SCALING_FACTOR / 2,
         /* voting_period_seconds */ 0,
         /* stake_per_proposal */ 0,
+        /* cooldown_seconds */ 0,
     );
 
     let transaction = Transaction::new_signed_with_payer(
@@ -311,6 +317,7 @@ async fn setup_second_governance_same_stake_config() {
         /* proposal_pass_threshold */ THRESHOLD_SCALING_FACTOR / 2,
         /* voting_period_seconds */ 400,
         /* stake_per_proposal */ 500,
+        /* cooldown_seconds */ 100,
     );
     let transaction = Transaction::new_signed_with_payer(
         &[instruction],
@@ -332,6 +339,7 @@ async fn setup_second_governance_same_stake_config() {
         /* proposal_pass_threshold */ THRESHOLD_SCALING_FACTOR / 2,
         /* voting_period_seconds */ 4000,
         /* stake_per_proposal */ 5000,
+        /* cooldown_seconds */ 200,
     );
     let transaction = Transaction::new_signed_with_payer(
         &[instruction],
@@ -384,6 +392,7 @@ async fn setup_second_governance_same_stake_config() {
     assert_eq!(governance_state_1.voting_period_seconds, 4000);
     assert_eq!(governance_state_1.stake_per_proposal, 5000);
     assert_eq!(governance_state_1.stake_config_address, stake_config);
+    assert!(governance_state_0.cooldown_expires < governance_state_1.cooldown_expires);
 
     // Assert - The treasury accounts are also different.
     assert_ne!(

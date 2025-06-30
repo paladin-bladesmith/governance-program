@@ -31,7 +31,7 @@
     "@metaplex-foundation/shank-js": "^0.1.7",
     "kinobi": "^0.21.0",
     "typescript": "^5.5.2",
-    "zx": "^7.2.3"
+    "zx": "^7.2.4"
   },
   "packageManager": "pnpm@9.1.0"
 }

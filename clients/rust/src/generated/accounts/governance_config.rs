@@ -24,10 +24,11 @@ pub struct GovernanceConfig {
     pub voting_period_seconds: u64,
     pub stake_per_proposal: u64,
     pub governance_config: Config,
+    pub cooldown_expires: u64,
 }
 
 impl GovernanceConfig {
-    pub const LEN: usize = 96;
+    pub const LEN: usize = 104;
 
     #[inline(always)]
     pub fn from_bytes(data: &[u8]) -> Result<Self, std::io::Error> {

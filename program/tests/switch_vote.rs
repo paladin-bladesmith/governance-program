@@ -959,6 +959,7 @@ async fn success(proposal_starting: ProposalStarting, switch: VoteSwitch, expect
         voting_period_seconds: VOTING_PERIOD_SECONDS,
         stake_per_proposal: 0,
         governance_config: governance_address,
+        cooldown_expires: 0,
     };
 
     let mut context = setup().start_with_context().await;
@@ -1113,6 +1114,7 @@ async fn success_voting_closed() {
         voting_period_seconds: 10,
         stake_per_proposal: 0,
         governance_config: governance_address,
+        cooldown_expires: 0,
     };
 
     let mut context = setup().start_with_context().await;
@@ -1214,6 +1216,7 @@ async fn success_voting_closed_but_cooldown_active() {
         voting_period_seconds: 10,
         stake_per_proposal: 0,
         governance_config: governance_address,
+        cooldown_expires: 0,
     };
 
     let mut context = setup().start_with_context().await;
@@ -1333,6 +1336,7 @@ async fn success_cooldown_has_ended(threshold_met: bool, expected_status: Propos
         voting_period_seconds: 1000,
         stake_per_proposal: 0,
         governance_config: governance_address,
+        cooldown_expires: 0,
     };
 
     // We'll set up a proposal whose cooldown period has ended.

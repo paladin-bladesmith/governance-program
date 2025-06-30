@@ -46,8 +46,11 @@ export const PALADIN_GOVERNANCE_ERROR__INSTRUCTION_ALREADY_EXECUTED = 0xd; // 13
 export const PALADIN_GOVERNANCE_ERROR__PREVIOUS_INSTRUCTION_HAS_NOT_BEEN_EXECUTED = 0xe; // 14
 /** TooManyActiveProposals: Author has too many active proposals. */
 export const PALADIN_GOVERNANCE_ERROR__TOO_MANY_ACTIVE_PROPOSALS = 0xf; // 15
+/** CooldownPeriodNotOver: Cooldown period is not over yet, cannot create new proposal. */
+export const PALADIN_GOVERNANCE_ERROR__COOLDOWN_PERIOD_NOT_OVER = 0x10; // 16
 
 export type PaladinGovernanceError =
+  | typeof PALADIN_GOVERNANCE_ERROR__COOLDOWN_PERIOD_NOT_OVER
   | typeof PALADIN_GOVERNANCE_ERROR__INCORRECT_GOVERNANCE_CONFIG_ADDRESS
   | typeof PALADIN_GOVERNANCE_ERROR__INCORRECT_PROPOSAL_ADDRESS
   | typeof PALADIN_GOVERNANCE_ERROR__INCORRECT_PROPOSAL_TRANSACTION_ADDRESS
@@ -70,6 +73,7 @@ let paladinGovernanceErrorMessages:
   | undefined;
 if (process.env.NODE_ENV !== 'production') {
   paladinGovernanceErrorMessages = {
+    [PALADIN_GOVERNANCE_ERROR__COOLDOWN_PERIOD_NOT_OVER]: `Cooldown period is not over yet, cannot create new proposal.`,
     [PALADIN_GOVERNANCE_ERROR__INCORRECT_GOVERNANCE_CONFIG_ADDRESS]: `Incorrect governance config address.`,
     [PALADIN_GOVERNANCE_ERROR__INCORRECT_PROPOSAL_ADDRESS]: `Incorrect proposal address.`,
     [PALADIN_GOVERNANCE_ERROR__INCORRECT_PROPOSAL_TRANSACTION_ADDRESS]: `Incorrect proposal transaction address.`,

@@ -228,6 +228,9 @@ pub struct GovernanceConfig {
     pub stake_per_proposal: u64,
     /// The address this config resides at.
     pub governance_config: Pubkey,
+    /// Timestamp for when the cooldown period expires and proposals can be
+    /// created
+    pub cooldown_expires: u64,
 }
 
 impl GovernanceConfig {

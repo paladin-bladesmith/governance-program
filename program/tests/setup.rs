@@ -12,7 +12,7 @@ use {
     solana_program_test::*,
     solana_sdk::{
         account::{Account, AccountSharedData},
-        clock::UnixTimestamp,
+        clock::{Clock, UnixTimestamp},
         pubkey::Pubkey,
     },
     spl_discriminator::SplDiscriminate,
@@ -329,4 +329,12 @@ pub fn create_mock_proposal_transaction(program_ids: &[&Pubkey]) -> ProposalTran
         ));
     }
     ProposalTransaction { instructions }
+}
+
+pub async fn get_clock(context: &mut ProgramTestContext) -> Clock {
+    context
+        .banks_client
+        .get_sysvar::<Clock>()
+        .await
+        .expect("Failed to get Clock sysvar")
 }
