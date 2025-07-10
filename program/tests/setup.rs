@@ -37,15 +37,16 @@ pub async fn setup_stake(
     let mut state = ValidatorStake {
         _discriminator: ValidatorStake::SPL_DISCRIMINATOR.into(),
         delegation: Delegation {
-            active_amount: amount,
+            staked_amount: amount,
             effective_amount: amount,
             authority: authority_address,
             validator_vote,
             ..Default::default()
         },
         total_staked_lamports_amount: 0,
+        total_staked_lamports_amount_min: 0,
     };
-    state.delegation.active_amount = amount;
+    state.delegation.staked_amount = amount;
     state.delegation.effective_amount = amount;
     let data = bytemuck::bytes_of(&state).to_vec();
 
@@ -100,6 +101,7 @@ pub async fn setup_stake_config(
         lamports_last: 0,
         token_amount_effective: total_stake,
         accumulated_stake_rewards_per_token: 0.into(),
+        duna_document_hash: [0; 32],
         _padding: [0; 5],
     };
 
