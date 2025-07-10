@@ -101,7 +101,7 @@ pub async fn setup_stake_config(
         lamports_last: 0,
         token_amount_effective: total_stake,
         accumulated_stake_rewards_per_token: 0.into(),
-        duna_document_hash: [0;32],
+        duna_document_hash: [0; 32],
         _padding: [0; 5],
     };
 
